@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 
 if (is_logged_in()) {
-    redirect('/months.php');
+    redirect('/dashboard.php');
 }
 
 $error = '';
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else if (!auth_attempt_login($db, $username, $password)) {
         $error = 'Invalid credentials.';
     } else {
-        redirect('/months.php');
+        redirect('/dashboard.php');
     }
 }
 

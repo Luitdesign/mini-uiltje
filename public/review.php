@@ -18,10 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         update_manual_category($tid, $catId, true);
         flash_set('Saved.', 'info');
         redirect('/review.php?m=' . urlencode((string)($_POST['m'] ?? $m)));
-    } elseif ($action === 'confirm') {
+    } elseif ($action === 'accept_auto') {
         $tid = (int)($_POST['tx_id'] ?? 0);
         confirm_transaction($tid);
-        flash_set('Confirmed.', 'info');
+        flash_set('Auto category accepted.', 'info');
         redirect('/review.php?m=' . urlencode((string)($_POST['m'] ?? $m)));
     } elseif ($action === 'bulk_confirm') {
         $month = (string)($_POST['m'] ?? $m);
@@ -74,7 +74,7 @@ render_header('Review');
             <th>Auto</th>
             <th>Manual</th>
             <th>Final</th>
-            <th></th>
+            <th>Confirm</th>
           </tr>
         </thead>
         <tbody>
@@ -87,7 +87,12 @@ render_header('Review');
               <div class="small muted"><?=h($t['counterparty_iban'] ?? '')?></div>
             </td>
             <td><?=h(number_format((float)$t['amount_signed'], 2, ',', '.'))?></td>
-            <td class="small"><?=h($t['auto_category_name'] ?? '')?></td>
+            <td class="small">
+              <div><?=h($t['auto_category_name'] ?? '')?></div>
+              <?php if (!empty($t['auto_rule_id'])): ?>
+                <div class="small muted">Rule #<?=h((string)$t['auto_rule_id'])?></div>
+              <?php endif; ?>
+            </td>
             <td>
               <form method="post">
                 <?=csrf_field()?>
@@ -97,19 +102,22 @@ render_header('Review');
                 <?=render_category_select('manual_category_id', $cats, $t['manual_category_id'] ? (int)$t['manual_category_id'] : null)?>
                 <div style="margin-top:6px;display:flex;gap:8px">
                   <button class="btn primary" type="submit">Save</button>
-                  <button class="btn" type="submit" formaction="/review.php" formmethod="post" onclick="this.form.action.value='confirm'" disabled hidden>Confirm</button>
                 </div>
               </form>
             </td>
             <td class="small"><?=h($t['final_category_name'] ?? '')?></td>
             <td>
-              <form method="post">
-                <?=csrf_field()?>
-                <input type="hidden" name="action" value="confirm">
-                <input type="hidden" name="tx_id" value="<?=h((string)$t['id'])?>">
-                <input type="hidden" name="m" value="<?=h((string)$m)?>">
-                <button class="btn" type="submit">Confirm</button>
-              </form>
+              <?php if (!empty($t['auto_category_id']) && empty($t['manual_category_id'])): ?>
+                <form method="post">
+                  <?=csrf_field()?>
+                  <input type="hidden" name="action" value="accept_auto">
+                  <input type="hidden" name="tx_id" value="<?=h((string)$t['id'])?>">
+                  <input type="hidden" name="m" value="<?=h((string)$m)?>">
+                  <button class="btn" type="submit">Accept auto</button>
+                </form>
+              <?php else: ?>
+                <span class="small muted">—</span>
+              <?php endif; ?>
             </td>
           </tr>
         <?php endforeach; ?>
