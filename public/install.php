@@ -40,11 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = file_get_contents($schemaFile);
             if ($sql === false) throw new RuntimeException('Could not read schema file.');
 
+            // Strip SQL comments so we don't accidentally skip CREATE statements
+            // that are preceded by header comments.
+            // Supports:
+            //  - "-- comment" lines
+            //  - "# comment" lines
+            //  - "/* block comments */"
+            $sql = preg_replace('/^\s*(--|#).*$/m', '', $sql);
+            $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
+
             // Execute each statement separately.
-            $statements = preg_split('/;\s*\n/', $sql);
+            $statements = preg_split('/;\s*(\r?\n|$)/', $sql);
             foreach ($statements as $stmtSql) {
                 $stmtSql = trim($stmtSql);
-                if ($stmtSql === '' || str_starts_with($stmtSql, '--')) continue;
+                if ($stmtSql === '') continue;
                 $db->exec($stmtSql);
             }
 
