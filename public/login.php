@@ -1,5 +1,6 @@
 <?php
-require_once __DIR__ . '/../app/bootstrap.php';
+require_once __DIR__ . '/../src/bootstrap.php';
+require_once __DIR__ . '/../src/layout.php';
 
 if (is_logged_in()) {
     redirect('/dashboard.php');
@@ -8,13 +9,13 @@ if (is_logged_in()) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_validate($config);
+    csrf_verify();
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
 
     if ($username === '' || $password === '') {
-        $error = 'Please enter username and password.';
-    } else if (!auth_attempt_login($db, $username, $password)) {
+        $error = 'Please enter your email or username and password.';
+    } else if (!login($username, $password)) {
         $error = 'Invalid credentials.';
     } else {
         redirect('/dashboard.php');
@@ -35,10 +36,10 @@ render_header('Login');
   <?php endif; ?>
 
   <form method="post" action="/login.php">
-    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <?= csrf_field() ?>
 
     <div style="margin-bottom: 12px;">
-      <label>Username</label>
+      <label>Email or username</label>
       <input class="input" name="username" autocomplete="username" required>
     </div>
 
