@@ -113,6 +113,14 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   background: rgba(251,113,133,0.18);
 }
 
+.floating-save {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
 .small { font-size: 13px; color: var(--muted); }
 
 .table {
