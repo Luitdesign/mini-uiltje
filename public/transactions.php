@@ -116,7 +116,6 @@ render_header('Transactions', 'transactions');
                   <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['name']) ?></option>
                 <?php endforeach; ?>
               </select>
-              <div class="small" style="margin-top: 6px;"><a href="/categories.php">Manage categories</a></div>
             </td>
             <td>
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
