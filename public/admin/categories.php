@@ -21,20 +21,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = db()->prepare('INSERT INTO categories (type, parent_id, name, sort_order, is_active) VALUES (?, ?, ?, ?, 1)');
             $stmt->execute([$type, $parentId, $name, $sort]);
             flash_set('Category added.', 'info');
-        } elseif ($action === 'update') {
-            $id = (int)($_POST['id'] ?? 0);
-            $type = (string)($_POST['type'] ?? 'expense');
-            $name = trim((string)($_POST['name'] ?? ''));
-            $parent = $_POST['parent_id'] ?? '';
-            $sort = (int)($_POST['sort_order'] ?? 0);
-            $active = isset($_POST['is_active']) ? 1 : 0;
-            if ($id <= 0 || $name === '') throw new RuntimeException('Invalid category');
-            if (!in_array($type, ['expense','income','transfer'], true)) $type='expense';
-            $parentId = ($parent === '' ? null : (int)$parent);
-            if ($parentId === $id) $parentId = null;
+        } elseif ($action === 'bulk_update') {
+            $categories = $_POST['categories'] ?? [];
+            if (!is_array($categories) || $categories === []) {
+                throw new RuntimeException('No categories to update');
+            }
             $stmt = db()->prepare('UPDATE categories SET type=?, parent_id=?, name=?, sort_order=?, is_active=? WHERE id=?');
-            $stmt->execute([$type, $parentId, $name, $sort, $active, $id]);
-            flash_set('Category updated.', 'info');
+            db()->beginTransaction();
+            try {
+                foreach ($categories as $id => $values) {
+                    $categoryId = (int)$id;
+                    if ($categoryId <= 0 || !is_array($values)) {
+                        continue;
+                    }
+                    $type = (string)($values['type'] ?? 'expense');
+                    $name = trim((string)($values['name'] ?? ''));
+                    $parent = $values['parent_id'] ?? '';
+                    $sort = (int)($values['sort_order'] ?? 0);
+                    $active = (int)($values['is_active'] ?? 0);
+                    if ($name === '') {
+                        throw new RuntimeException('Invalid category name');
+                    }
+                    if (!in_array($type, ['expense','income','transfer'], true)) $type='expense';
+                    $parentId = ($parent === '' ? null : (int)$parent);
+                    if ($parentId === $categoryId) $parentId = null;
+                    $stmt->execute([$type, $parentId, $name, $sort, $active ? 1 : 0, $categoryId]);
+                }
+                db()->commit();
+            } catch (Throwable $e) {
+                db()->rollBack();
+                throw $e;
+            }
+            flash_set('Categories saved.', 'info');
         }
         redirect('/admin/categories.php');
     } catch (Throwable $e) {
@@ -52,40 +70,42 @@ render_header('Categories');
   <h2>Categories</h2>
   <?php if ($err): ?><div class="error"><?=h($err)?></div><?php endif; ?>
 
-  <table class="table">
-    <thead><tr><th>ID</th><th>Type</th><th>Parent</th><th>Name</th><th>Sort</th><th>Active</th><th>Save</th></tr></thead>
-    <tbody>
-    <?php foreach ($all as $c): ?>
-      <tr>
-        <form method="post">
-          <?=csrf_field()?>
-          <input type="hidden" name="action" value="update">
-          <input type="hidden" name="id" value="<?=h((string)$c['id'])?>">
+  <form method="post">
+    <?=csrf_field()?>
+    <input type="hidden" name="action" value="bulk_update">
+    <table class="table">
+      <thead><tr><th>ID</th><th>Type</th><th>Parent</th><th>Name</th><th>Sort</th><th>Active</th></tr></thead>
+      <tbody>
+      <?php foreach ($all as $c): ?>
+        <tr>
           <td><?=h((string)$c['id'])?></td>
           <td>
-            <select name="type">
+            <select name="categories[<?=h((string)$c['id'])?>][type]">
               <option value="expense" <?= $c['type']==='expense'?'selected':'' ?>>expense</option>
               <option value="income" <?= $c['type']==='income'?'selected':'' ?>>income</option>
               <option value="transfer" <?= $c['type']==='transfer'?'selected':'' ?>>transfer</option>
             </select>
           </td>
           <td>
-            <select name="parent_id">
+            <select name="categories[<?=h((string)$c['id'])?>][parent_id]">
               <option value="">-- none --</option>
               <?php foreach ($all as $p): if ((int)$p['id'] === (int)$c['id']) continue; ?>
                 <option value="<?=h((string)$p['id'])?>" <?= ((int)$c['parent_id'] === (int)$p['id']) ? 'selected' : '' ?>><?=h($p['name'])?></option>
               <?php endforeach; ?>
             </select>
           </td>
-          <td><input name="name" value="<?=h($c['name'])?>"></td>
-          <td style="max-width:90px"><input name="sort_order" value="<?=h((string)$c['sort_order'])?>"></td>
-          <td style="text-align:center"><input type="checkbox" name="is_active" <?= ((int)$c['is_active']===1)?'checked':'' ?>></td>
-          <td><button class="btn" type="submit">Save</button></td>
-        </form>
-      </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table>
+          <td><input name="categories[<?=h((string)$c['id'])?>][name]" value="<?=h($c['name'])?>"></td>
+          <td style="max-width:90px"><input name="categories[<?=h((string)$c['id'])?>][sort_order]" value="<?=h((string)$c['sort_order'])?>"></td>
+          <td style="text-align:center">
+            <input type="hidden" name="categories[<?=h((string)$c['id'])?>][is_active]" value="0">
+            <input type="checkbox" name="categories[<?=h((string)$c['id'])?>][is_active]" value="1" <?= ((int)$c['is_active']===1)?'checked':'' ?>>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+    <button class="btn primary floating-save" type="submit">Save all categories</button>
+  </form>
 
   <h3 style="margin-top:18px">Add category</h3>
   <form method="post">
