@@ -9,6 +9,10 @@ if (isset($_GET['saved'])) {
     $saved = (string)$_GET['saved'];
     if ($saved === 'added') {
         $info = 'Category added.';
+    } elseif ($saved === 'bulk') {
+        $addedCount = (int)($_GET['added'] ?? 0);
+        $skippedCount = (int)($_GET['skipped'] ?? 0);
+        $info = sprintf('Added %d categories. Skipped %d.', $addedCount, $skippedCount);
     } elseif ($saved === 'updated') {
         $info = 'Category updated.';
     } else {
@@ -27,6 +31,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/categories.php?saved=updated');
         } catch (Throwable $e) {
             $error = $e->getMessage();
+        }
+    } elseif ($action === 'bulk_add') {
+        $bulk = (string)($_POST['bulk_names'] ?? '');
+        $names = preg_split('/[\r\n,]+/', $bulk) ?: [];
+        $names = array_values(array_filter($names, static fn(string $value): bool => trim($value) !== ''));
+        if ($names === []) {
+            $error = 'Please enter at least one category name.';
+        } else {
+            try {
+                $result = repo_bulk_create_categories($db, $names);
+                $addedCount = count($result['created_ids']);
+                $skippedCount = (int)$result['skipped'];
+                redirect('/categories.php?saved=bulk&added=' . $addedCount . '&skipped=' . $skippedCount);
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
         }
     } else {
         $name = trim((string)($_POST['name'] ?? ''));
@@ -72,6 +92,19 @@ render_header('Categories', 'categories');
     </div>
     <div>
       <button class="btn" type="submit">Add</button>
+    </div>
+  </form>
+
+  <form method="post" action="/categories.php" class="row" style="align-items:flex-end; margin-top: 16px;">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="action" value="bulk_add">
+    <div style="flex: 1; min-width: 260px;">
+      <label>Bulk add categories</label>
+      <textarea class="input" name="bulk_names" rows="4" placeholder="Groceries&#10;Utilities&#10;Travel"></textarea>
+      <div class="small">Enter one per line or separate with commas.</div>
+    </div>
+    <div>
+      <button class="btn" type="submit">Add all</button>
     </div>
   </form>
 </div>
