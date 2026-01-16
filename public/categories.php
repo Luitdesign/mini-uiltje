@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $cats = repo_list_categories($db);
+$editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
 
 render_header('Categories', 'categories');
 ?>
@@ -115,22 +116,29 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
+        <th style="width: 120px;">Edit</th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($cats)): ?>
-        <tr><td class="small">No categories yet.</td></tr>
+        <tr><td class="small" colspan="2">No categories yet.</td></tr>
       <?php endif; ?>
       <?php foreach ($cats as $c): ?>
         <tr>
+          <td><?= h($c['name']) ?></td>
           <td>
-            <form method="post" action="/categories.php" class="row" style="gap: 8px; align-items: center;">
-              <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-              <input type="hidden" name="action" value="update">
-              <input type="hidden" name="id" value="<?= h((string)$c['id']) ?>">
-              <input class="input" name="name" value="<?= h($c['name']) ?>">
-              <button class="btn" type="submit">Save</button>
-            </form>
+            <?php if ($editId === (int)$c['id']): ?>
+              <form method="post" action="/categories.php" class="row" style="gap: 8px; align-items: center;">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="<?= h((string)$c['id']) ?>">
+                <input class="input" name="name" value="<?= h($c['name']) ?>" style="min-width: 160px;">
+                <button class="btn" type="submit">Save</button>
+                <a class="btn" href="/categories.php">Cancel</a>
+              </form>
+            <?php else: ?>
+              <a class="btn" href="/categories.php?edit=<?= h((string)$c['id']) ?>" aria-label="Edit category <?= h($c['name']) ?>">✏️ Edit</a>
+            <?php endif; ?>
           </td>
         </tr>
       <?php endforeach; ?>
