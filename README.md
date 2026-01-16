@@ -38,3 +38,10 @@ If you later upload other bank formats, we can add importers.
 ## 4) Notes
 - Import uses a transaction hash to avoid duplicates.
 - Amounts are stored as a signed number: `Af` => negative, `Bij` => positive.
+
+## 5) Rules maker + auto categories
+- Rules are evaluated in ascending `position`. Lower numbers run first.
+- Only `active_from` is used for rule activation (no end date).
+- Matching is case-insensitive and ignores all whitespace (we lowercase + remove spaces before comparing).
+- Regex rules run against the normalized (lowercase, no whitespace) field value.
+- Auto categories never auto-confirm; manual categories always win.

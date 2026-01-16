@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ing_csv.php';
+require_once __DIR__ . '/rules_engine.php';
 
 function db_has_tables(): bool {
     try {
@@ -78,6 +79,8 @@ function import_ing_file(string $tmpPath, string $originalFilename, int $uploade
         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
     );
 
+    $updAuto = db()->prepare('UPDATE transactions SET auto_category_id = ?, auto_rule_id = ? WHERE id = ?');
+
     foreach ($rows as $tx) {
         $hash = tx_hash($tx);
         try {
@@ -97,6 +100,15 @@ function import_ing_file(string $tmpPath, string $originalFilename, int $uploade
                 $tx['tag'] ?: null,
                 $hash,
             ]);
+            $txId = (int)db()->lastInsertId();
+            $txRow = $tx + [
+                'id' => $txId,
+                'manual_category_id' => null,
+                'auto_category_id' => null,
+                'auto_rule_id' => null,
+            ];
+            $auto = apply_rules_to_transaction(db(), $txRow);
+            $updAuto->execute([$auto['auto_category_id'], $auto['auto_rule_id'], $txId]);
             $inserted++;
         } catch (PDOException $e) {
             // duplicate tx_hash

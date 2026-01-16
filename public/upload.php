@@ -1,14 +1,17 @@
 <?php
-require_once __DIR__ . '/../app/bootstrap.php';
+require_once __DIR__ . '/../src/bootstrap.php';
+require_once __DIR__ . '/../src/layout.php';
+require_once __DIR__ . '/../src/repo.php';
 require_login();
 
-$userId = current_user_id();
+$user = current_user();
+$userId = (int)($user['id'] ?? 0);
 
 $okMsg = '';
 $errMsg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_validate($config);
+    csrf_verify();
 
     if (empty($_FILES['csv']['tmp_name'])) {
         $errMsg = 'Please choose a CSV file.';
@@ -17,15 +20,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = (string)($_FILES['csv']['name'] ?? 'upload.csv');
 
         try {
-            $result = ing_import_csv($db, $userId, $tmp, $name);
-            $okMsg = "Imported. Inserted {$result['inserted']}, skipped {$result['skipped']} (duplicates/invalid).";
+            $result = import_ing_file($tmp, $name, $userId);
+            $okMsg = "Imported. Inserted {$result['inserted']}, skipped {$result['duplicates']} duplicates.";
         } catch (Throwable $e) {
             $errMsg = $e->getMessage();
         }
     }
 }
 
-render_header('Upload', 'upload');
+render_header('Upload');
 ?>
 
 <div class="card">
@@ -36,7 +39,7 @@ render_header('Upload', 'upload');
     <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
       ✅ <?= h($okMsg) ?>
       <div class="small" style="margin-top: 8px;">
-        Go to <a href="/months.php">Months</a>
+        Go to <a href="/dashboard.php">Dashboard</a>
       </div>
     </div>
   <?php endif; ?>
@@ -48,7 +51,7 @@ render_header('Upload', 'upload');
   <?php endif; ?>
 
   <form method="post" action="/upload.php" enctype="multipart/form-data">
-    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <?=csrf_field()?>
 
     <div style="margin-bottom: 12px;">
       <label>Select CSV file</label>
