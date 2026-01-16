@@ -1,62 +1,40 @@
-# Mini Uiltje (website edition)
+# Financial Web App (MVP)
 
-This is a plain PHP + MySQL website (no Docker). It lets you:
+A small PHP + MySQL web app to:
+- Login
+- Upload ING-style CSV exports
+- View transactions per month/year
+- Categorize transactions
+- View monthly summary split into Income vs Spending
 
-- Login (admin + users)
-- Upload ING transactions CSV exports
-- Browse transactions by month
-- Categorize (manual override)
-- Review queue (unconfirmed / uncategorized)
-- Monthly results: income vs spending (+ optional transfer categories)
+## 1) Requirements
+- PHP 8.1+ (PDO MySQL enabled)
+- MySQL / MariaDB
+- A web server (Apache/Nginx) with document root set to `public/`
 
-## Requirements
+## 2) Setup
+1. Create a database (empty).
+2. Copy config:
+   - `config/config.sample.php` -> `config/config.php`
+   - Fill in DB credentials.
+3. Point your webserver document root to: `financial_webapp_mvp/public`
+4. Open in browser:
+   - `/install.php`
+   - Create tables + create the first admin user.
+5. Delete `/public/install.php` after install.
 
-- PHP 8.1+ with PDO MySQL enabled
-- MySQL 8.x or MariaDB 10.4+
-- A web server (Apache/Nginx) or Synology Web Station
+## 3) CSV format supported
+This MVP is designed around ING NL CSV exports (semicolon separated, quoted), with headers like:
+- Datum (YYYYMMDD)
+- Naam / Omschrijving
+- Af Bij
+- Bedrag (EUR)
+- Mutatiesoort
+- Mededelingen
+- Saldo na mutatie
 
-## 1) Setup database
+If you later upload other bank formats, we can add importers.
 
-Create a database and a user, for example:
-
-- DB name: `mini_uiltje`
-- DB user: `mini_uiltje`
-- DB password: choose a strong password
-
-## 2) Configure the app
-
-Copy the sample config:
-
-- `config/config.sample.php` ➜ `config/config.php`
-
-Edit `config/config.php` and set DB host, db name, user, password.
-
-## 3) Set the webroot
-
-Point your web server / virtual host to the `public/` folder.
-
-Example paths:
-- document root: `/path/to/mini-uiltje-website/public`
-
-## 4) Install (first run)
-
-Open:
-
-- `/install.php`
-
-This creates the tables and creates the first admin user.
-
-Then login at:
-- `/login.php`
-
-## Useful endpoints
-
-- `/health` (no login)
-- `/health?db=1` (checks DB)
-- `/version` (no login)
-
-## Notes
-
-- Transactions are deduped using a stable hash, so overlapping exports won't duplicate entries.
-- Re-importing the exact same file is blocked.
-- Version shown in UI comes from the `VERSION` file (and optionally `APP_COMMIT` if set as an env var).
+## 4) Notes
+- Import uses a transaction hash to avoid duplicates.
+- Amounts are stored as a signed number: `Af` => negative, `Bij` => positive.

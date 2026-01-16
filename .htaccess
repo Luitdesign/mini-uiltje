@@ -1,0 +1,11 @@
+RewriteEngine On
+
+# Don't rewrite if it's already /public/...
+RewriteCond %{REQUEST_URI} !^/public/
+
+# If a real file/folder exists in the webroot, serve it
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Otherwise rewrite to /public/...
+RewriteRule ^(.*)$ public/$1 [L]

@@ -1,20 +1,14 @@
 <?php
-// Copy this file to config.php and fill in your settings.
+// Copy this file to config.php and fill in your database credentials.
+
 return [
-    // Database
     'db' => [
-        'host' => '127.0.0.1',
-        'port' => 3306,
-        'name' => 'mini_uiltje',
-        'user' => 'mini_uiltje',
-        'pass' => 'change-me',
+        'host' => 'localhost',
+        'name' => 'your_database',
+        'user' => 'your_user',
+        'pass' => 'your_password',
         'charset' => 'utf8mb4',
     ],
-
-    // App
-    'app' => [
-        'base_url' => '', // optional. Example: https://example.com
-        'session_name' => 'mini_uiltje_sess',
-        'timezone' => 'Europe/Amsterdam',
-    ],
+    // Change this to a long random string.
+    'app_key' => 'CHANGE_ME_TO_A_RANDOM_SECRET_STRING',
 ];

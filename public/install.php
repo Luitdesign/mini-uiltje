@@ -1,78 +1,113 @@
 <?php
-require_once __DIR__ . '/../src/bootstrap.php';
-require_once __DIR__ . '/../src/layout.php';
-require_once __DIR__ . '/../src/repo.php';
+require_once __DIR__ . '/../app/bootstrap.php';
 
-// If already installed (any user exists), block install.
-try {
-    if (db_has_tables()) {
-        $c = db()->query('SELECT COUNT(*) AS c FROM users')->fetch();
-        if ($c && (int)$c['c'] > 0) {
-            redirect('/login.php');
-        }
-    }
-} catch (Throwable $e) {
-    // likely DB not created or no permissions
+// Simple installer: creates tables and first user.
+
+$schemaFile = __DIR__ . '/../sql/schema.sql';
+
+$ok = false;
+$error = '';
+
+function table_exists(PDO $db, string $name): bool {
+    $stmt = $db->prepare('SHOW TABLES LIKE :t');
+    $stmt->execute([':t' => $name]);
+    return (bool)$stmt->fetch();
 }
 
-$err = '';
+function has_any_users(PDO $db): bool {
+    if (!table_exists($db, 'users')) return false;
+    try {
+        $stmt = $db->query('SELECT COUNT(*) AS c FROM users');
+        $row = $stmt->fetch();
+        return ((int)($row['c'] ?? 0) > 0);
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_verify();
-    $email = trim((string)($_POST['email'] ?? ''));
-    $pass = (string)($_POST['password'] ?? '');
-    if ($email === '' || $pass === '') {
-        $err = 'Email and password are required.';
+    csrf_validate($config);
+
+    $username = trim((string)($_POST['username'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+
+    if (!file_exists($schemaFile)) {
+        $error = 'Missing sql/schema.sql.';
+    } elseif ($username === '' || $password === '') {
+        $error = 'Please enter a username and password.';
     } else {
         try {
-            $schema = file_get_contents(__DIR__ . '/../sql/schema.sql');
-            if ($schema === false) {
-                throw new RuntimeException('Missing schema.sql');
-            }
-            // Split statements on ; newline (good enough for this schema)
-            $stmts = preg_split('/;\s*\n/', $schema);
-            db()->beginTransaction();
-            foreach ($stmts as $s) {
-                $s = trim($s);
-                if ($s === '' || str_starts_with($s, '--')) continue;
-                db()->exec($s);
-            }
-            $hash = password_hash($pass, PASSWORD_DEFAULT);
-            $ins = db()->prepare('INSERT INTO users (email, password_hash, role) VALUES (?, ?, \"admin\")');
-            $ins->execute([$email, $hash]);
-            db()->commit();
+            $sql = file_get_contents($schemaFile);
+            if ($sql === false) throw new RuntimeException('Could not read schema file.');
 
-            flash_set('Installed. You can now log in.', 'info');
-            redirect('/login.php');
+            // Execute each statement separately.
+            $statements = preg_split('/;\s*\n/', $sql);
+            foreach ($statements as $stmtSql) {
+                $stmtSql = trim($stmtSql);
+                if ($stmtSql === '' || str_starts_with($stmtSql, '--')) continue;
+                $db->exec($stmtSql);
+            }
+
+            if (!has_any_users($db)) {
+                $hash = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $db->prepare('INSERT INTO users(username, password_hash) VALUES(:u, :p)');
+                $stmt->execute([':u' => $username, ':p' => $hash]);
+            }
+
+            $ok = true;
         } catch (Throwable $e) {
-            if (db()->inTransaction()) db()->rollBack();
-            $err = 'Install failed: ' . $e->getMessage();
+            $error = $e->getMessage();
         }
     }
 }
 
 render_header('Install');
 ?>
-<div class="card">
-  <h2>Install Mini Uiltje</h2>
-  <p class="muted">This will create database tables and create the first admin user.</p>
-  <?php if ($err): ?><div class="error"><?=h($err)?></div><?php endif; ?>
-  <form method="post">
-    <?=csrf_field()?>
-    <div class="row">
-      <div class="col">
-        <label>Admin email</label>
-        <input name="email" type="email" required>
+
+<div class="card" style="max-width: 720px; margin: 30px auto;">
+  <h1>Install</h1>
+  <p class="small">
+    This page creates the database tables and the first user.<br>
+    After success, <strong>delete <code>public/install.php</code></strong>.
+  </p>
+
+  <?php if ($ok): ?>
+    <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
+      ✅ Installed. You can now <a href="/login.php">log in</a>.
+    </div>
+  <?php endif; ?>
+
+  <?php if ($error !== ''): ?>
+    <div class="card" style="border-color: var(--danger); background: rgba(251,113,133,0.06);">
+      <?= h($error) ?>
+    </div>
+  <?php endif; ?>
+
+  <h2>1) Create tables</h2>
+  <p class="small">Schema file: <code>sql/schema.sql</code></p>
+
+  <h2>2) Create first user</h2>
+
+  <?php if (has_any_users($db)): ?>
+    <p class="small">A user already exists. If you want to reset, drop the tables and run install again.</p>
+  <?php endif; ?>
+
+  <form method="post" action="/install.php">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+
+    <div class="grid-2" style="margin-bottom: 12px;">
+      <div>
+        <label>Admin username</label>
+        <input class="input" name="username" value="admin" required>
       </div>
-      <div class="col">
-        <label>Admin password</label>
-        <input name="password" type="password" required>
+      <div>
+        <label>Password</label>
+        <input class="input" type="password" name="password" required>
       </div>
     </div>
-    <div style="margin-top:12px">
-      <button class="btn primary" type="submit">Install</button>
-      <a class="btn" href="/login.php">Go to login</a>
-    </div>
+
+    <button class="btn" type="submit">Run install</button>
   </form>
-  <p class="small muted" style="margin-top:12px">If you get a DB error, check config/config.php and make sure the database and user exist.</p>
 </div>
-<?php render_footer();
+
+<?php render_footer(); ?>

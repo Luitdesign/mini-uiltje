@@ -1,43 +1,62 @@
 <?php
-require_once __DIR__ . '/../src/bootstrap.php';
-require_once __DIR__ . '/../src/layout.php';
-require_once __DIR__ . '/../src/repo.php';
+require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$err = '';
-$res = null;
+$userId = current_user_id();
+
+$okMsg = '';
+$errMsg = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_verify();
-    if (!isset($_FILES['csv']) || $_FILES['csv']['error'] !== UPLOAD_ERR_OK) {
-        $err = 'Please select a CSV file.';
+    csrf_validate($config);
+
+    if (empty($_FILES['csv']['tmp_name'])) {
+        $errMsg = 'Please choose a CSV file.';
     } else {
-        $file = $_FILES['csv'];
-        $tmp = $file['tmp_name'];
-        $name = $file['name'];
+        $tmp = (string)$_FILES['csv']['tmp_name'];
+        $name = (string)($_FILES['csv']['name'] ?? 'upload.csv');
+
         try {
-            $u = current_user();
-            $res = import_ing_file($tmp, $name, (int)$u['id']);
-            flash_set("Import done. Inserted {$res['inserted']} tx, skipped {$res['duplicates']} duplicates.", 'info');
-            redirect('/dashboard.php');
+            $result = ing_import_csv($db, $userId, $tmp, $name);
+            $okMsg = "Imported. Inserted {$result['inserted']}, skipped {$result['skipped']} (duplicates/invalid).";
         } catch (Throwable $e) {
-            $err = $e->getMessage();
+            $errMsg = $e->getMessage();
         }
     }
 }
 
-render_header('Upload');
+render_header('Upload', 'upload');
 ?>
-<div class="card" style="max-width:720px">
-  <h2>Upload ING transactions CSV</h2>
-  <p class="muted">Export "Transactions" from ING (not the balance export).</p>
-  <?php if ($err): ?><div class="error"><?=h($err)?></div><?php endif; ?>
-  <form method="post" enctype="multipart/form-data">
-    <?=csrf_field()?>
-    <div style="margin-bottom:10px">
-      <label>CSV file</label>
-      <input type="file" name="csv" accept=".csv,text/csv" required>
+
+<div class="card">
+  <h1>Upload CSV</h1>
+  <p class="small">Upload an ING CSV export (semicolon separated). Import is idempotent: duplicates are skipped.</p>
+
+  <?php if ($okMsg !== ''): ?>
+    <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
+      ✅ <?= h($okMsg) ?>
+      <div class="small" style="margin-top: 8px;">
+        Go to <a href="/months.php">Months</a>
+      </div>
     </div>
-    <button class="btn primary" type="submit">Import</button>
+  <?php endif; ?>
+
+  <?php if ($errMsg !== ''): ?>
+    <div class="card" style="border-color: var(--danger); background: rgba(251,113,133,0.06);">
+      <?= h($errMsg) ?>
+    </div>
+  <?php endif; ?>
+
+  <form method="post" action="/upload.php" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+
+    <div style="margin-bottom: 12px;">
+      <label>Select CSV file</label>
+      <input class="input" type="file" name="csv" accept=".csv,text/csv" required>
+    </div>
+
+    <button class="btn" type="submit">Import</button>
   </form>
 </div>
-<?php render_footer();
+
+<?php render_footer(); ?>

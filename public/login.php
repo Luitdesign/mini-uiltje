@@ -1,54 +1,54 @@
 <?php
-require_once __DIR__ . '/../src/bootstrap.php';
-require_once __DIR__ . '/../src/layout.php';
-require_once __DIR__ . '/../src/repo.php';
-
-if (!db_has_tables()) {
-    // still allow access but suggest install
-}
+require_once __DIR__ . '/../app/bootstrap.php';
 
 if (is_logged_in()) {
-    redirect('/dashboard.php');
+    redirect('/months.php');
 }
 
 $error = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_verify();
-    $email = (string)($_POST['email'] ?? '');
+    csrf_validate($config);
+    $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
-    try {
-        if (login($email, $password)) {
-            redirect('/dashboard.php');
-        }
+
+    if ($username === '' || $password === '') {
+        $error = 'Please enter username and password.';
+    } else if (!auth_attempt_login($db, $username, $password)) {
         $error = 'Invalid credentials.';
-    } catch (Throwable $e) {
-        $error = 'Login failed: ' . $e->getMessage();
+    } else {
+        redirect('/months.php');
     }
 }
 
 render_header('Login');
 ?>
-<div class="card" style="max-width:520px;margin:0 auto">
-  <h2>Login</h2>
-  <?php if ($error): ?><div class="error"><?=h($error)?></div><?php endif; ?>
-  <form method="post">
-    <?=csrf_field()?>
-    <div style="margin-bottom:10px">
-      <label>Email</label>
-      <input type="email" name="email" required>
+
+<div class="card" style="max-width: 520px; margin: 40px auto;">
+  <h1>Login</h1>
+  <p class="small">Use the account you created in <code>/install.php</code>.</p>
+
+  <?php if ($error !== ''): ?>
+    <div class="card" style="border-color: var(--danger); background: rgba(251,113,133,0.06);">
+      <?= h($error) ?>
     </div>
-    <div style="margin-bottom:10px">
+  <?php endif; ?>
+
+  <form method="post" action="/login.php">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+
+    <div style="margin-bottom: 12px;">
+      <label>Username</label>
+      <input class="input" name="username" autocomplete="username" required>
+    </div>
+
+    <div style="margin-bottom: 14px;">
       <label>Password</label>
-      <input type="password" name="password" required>
+      <input class="input" type="password" name="password" autocomplete="current-password" required>
     </div>
-    <button class="btn primary" type="submit">Login</button>
+
+    <button class="btn" type="submit">Login</button>
   </form>
-  <div class="footer" style="margin-top:14px">
-    <?php if (!db_has_tables()): ?>
-      <div class="error">Database tables not found. If this is the first run, go to <a href="/install.php">/install.php</a>.</div>
-    <?php else: ?>
-      <span class="muted">Version <?=h(app_version())?></span>
-    <?php endif; ?>
-  </div>
 </div>
-<?php render_footer();
+
+<?php render_footer(); ?>
