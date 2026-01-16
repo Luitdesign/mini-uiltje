@@ -6,6 +6,10 @@ if (is_logged_in()) {
     redirect('/dashboard.php');
 }
 
+if (install_required()) {
+    redirect('/install.php');
+}
+
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
