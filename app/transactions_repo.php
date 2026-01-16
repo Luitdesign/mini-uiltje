@@ -154,7 +154,7 @@ function repo_month_summary(PDO $db, int $userId, int $year, int $month): array 
 function repo_month_breakdown_by_category(PDO $db, int $userId, int $year, int $month): array {
     $sql = "
         SELECT
-            COALESCE(c.name, 'Uncategorized') AS category,
+            COALESCE(c.name, 'Niet ingedeeld') AS category,
             SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
             SUM(t.amount_signed) AS net
