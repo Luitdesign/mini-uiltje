@@ -16,12 +16,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
 
     $action = (string)($_POST['action'] ?? '');
-    if ($action === 'update_category') {
-        $txnId = (int)($_POST['txn_id'] ?? 0);
-        $categoryIdRaw = (string)($_POST['category_id'] ?? '');
-        $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
-        if ($txnId > 0) {
-            repo_update_transaction_category($db, $userId, $txnId, $categoryId);
+    if ($action === 'update_categories') {
+        $categoryIds = $_POST['category_ids'] ?? [];
+        if (is_array($categoryIds)) {
+            foreach ($categoryIds as $txnIdRaw => $categoryIdRaw) {
+                $txnId = (int)$txnIdRaw;
+                $categoryIdRaw = (string)$categoryIdRaw;
+                $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
+                if ($txnId > 0) {
+                    repo_update_transaction_category($db, $userId, $txnId, $categoryId);
+                }
+            }
         }
     }
 
@@ -71,60 +76,61 @@ render_header('Transactions', 'transactions');
 </div>
 
 <div class="card">
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Description</th>
-        <th>Amount</th>
-        <th>Category</th>
-        <th>Type</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php if (empty($txns)): ?>
-        <tr><td colspan="6" class="small">No transactions found for this month.</td></tr>
-      <?php endif; ?>
+  <form method="post" action="/transactions.php?<?= h(http_build_query(['year'=>$year,'month'=>$month,'q'=>$q])) ?>">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="action" value="update_categories">
 
-      <?php foreach ($txns as $t):
-        $amt = (float)$t['amount_signed'];
-        $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
-      ?>
+    <table class="table">
+      <thead>
         <tr>
-          <td><?= h($t['txn_date']) ?></td>
-          <td>
-            <div><strong><?= h($t['description']) ?></strong></div>
-            <?php if (!empty($t['notes'])): ?>
-              <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
-            <?php endif; ?>
-          </td>
-          <td class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
-          <td>
-            <form method="post" action="/transactions.php?<?= h(http_build_query(['year'=>$year,'month'=>$month,'q'=>$q])) ?>" class="row" style="align-items:center; gap: 8px;">
-              <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-              <input type="hidden" name="action" value="update_category">
-              <input type="hidden" name="txn_id" value="<?= (int)$t['id'] ?>">
-              <select name="category_id" style="min-width: 200px;">
+          <th>Date</th>
+          <th>Description</th>
+          <th>Amount</th>
+          <th>Category</th>
+          <th>Type</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (empty($txns)): ?>
+          <tr><td colspan="6" class="small">No transactions found for this month.</td></tr>
+        <?php endif; ?>
+
+        <?php foreach ($txns as $t):
+          $amt = (float)$t['amount_signed'];
+          $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+        ?>
+          <tr>
+            <td><?= h($t['txn_date']) ?></td>
+            <td>
+              <div><strong><?= h($t['description']) ?></strong></div>
+              <?php if (!empty($t['notes'])): ?>
+                <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+              <?php endif; ?>
+            </td>
+            <td class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
+            <td>
+              <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Uncategorized</option>
                 <?php foreach ($categories as $c): ?>
                   <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['name']) ?></option>
                 <?php endforeach; ?>
               </select>
-              <button class="btn" type="submit">Save</button>
-            </form>
-            <div class="small" style="margin-top: 6px;"><a href="/categories.php">Manage categories</a></div>
-          </td>
-          <td>
-            <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
-          </td>
-          <td class="small">
-            <?= h((string)($t['direction'] ?? '')) ?>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
+              <div class="small" style="margin-top: 6px;"><a href="/categories.php">Manage categories</a></div>
+            </td>
+            <td>
+              <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
+            </td>
+            <td class="small">
+              <?= h((string)($t['direction'] ?? '')) ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+
+    <button class="btn floating-save" type="submit">Save all categories</button>
+  </form>
 </div>
 
 <?php render_footer(); ?>
