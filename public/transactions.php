@@ -91,16 +91,26 @@ render_header('Transactions', 'transactions');
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="action" value="update_categories">
 
+    <div class="row small" style="align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+      <span><strong>Visible columns:</strong></span>
+      <label><input class="js-column-toggle" type="checkbox" data-column="date" checked> Date</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="description" checked> Description</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="amount" checked> Amount</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
+    </div>
+
     <h2>Income</h2>
-    <table class="table">
+    <table class="table txn-table">
       <thead>
         <tr>
-          <th>Date</th>
-          <th>Description</th>
-          <th>Amount</th>
-          <th>Category</th>
-          <th>Type</th>
-          <th></th>
+          <th data-col="date">Date</th>
+          <th data-col="description">Description</th>
+          <th data-col="amount">Amount</th>
+          <th data-col="category">Category</th>
+          <th data-col="type">Type</th>
+          <th data-col="direction">Direction</th>
         </tr>
       </thead>
       <tbody>
@@ -113,15 +123,15 @@ render_header('Transactions', 'transactions');
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
         ?>
           <tr>
-            <td><?= h($t['txn_date']) ?></td>
-            <td>
+            <td data-col="date"><?= h($t['txn_date']) ?></td>
+            <td data-col="description">
               <div><strong><?= h($t['description']) ?></strong></div>
               <?php if (!empty($t['notes'])): ?>
                 <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
               <?php endif; ?>
             </td>
-            <td class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
-            <td>
+            <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
+            <td data-col="category">
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Uncategorized</option>
                 <?php foreach ($categories as $c): ?>
@@ -129,10 +139,10 @@ render_header('Transactions', 'transactions');
                 <?php endforeach; ?>
               </select>
             </td>
-            <td>
+            <td data-col="type">
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
             </td>
-            <td class="small">
+            <td data-col="direction" class="small">
               <?= h((string)($t['direction'] ?? '')) ?>
             </td>
           </tr>
@@ -141,15 +151,15 @@ render_header('Transactions', 'transactions');
     </table>
 
     <h2>Expenses</h2>
-    <table class="table">
+    <table class="table txn-table">
       <thead>
         <tr>
-          <th>Date</th>
-          <th>Description</th>
-          <th>Amount</th>
-          <th>Category</th>
-          <th>Type</th>
-          <th></th>
+          <th data-col="date">Date</th>
+          <th data-col="description">Description</th>
+          <th data-col="amount">Amount</th>
+          <th data-col="category">Category</th>
+          <th data-col="type">Type</th>
+          <th data-col="direction">Direction</th>
         </tr>
       </thead>
       <tbody>
@@ -162,15 +172,15 @@ render_header('Transactions', 'transactions');
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
         ?>
           <tr>
-            <td><?= h($t['txn_date']) ?></td>
-            <td>
+            <td data-col="date"><?= h($t['txn_date']) ?></td>
+            <td data-col="description">
               <div><strong><?= h($t['description']) ?></strong></div>
               <?php if (!empty($t['notes'])): ?>
                 <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
               <?php endif; ?>
             </td>
-            <td class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
-            <td>
+            <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
+            <td data-col="category">
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Niet ingedeeld</option>
                 <?php foreach ($categories as $c): ?>
@@ -178,10 +188,10 @@ render_header('Transactions', 'transactions');
                 <?php endforeach; ?>
               </select>
             </td>
-            <td>
+            <td data-col="type">
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
             </td>
-            <td class="small">
+            <td data-col="direction" class="small">
               <?= h((string)($t['direction'] ?? '')) ?>
             </td>
           </tr>
@@ -192,5 +202,56 @@ render_header('Transactions', 'transactions');
     <button class="btn floating-save" type="submit">Save all categories</button>
   </form>
 </div>
+
+<script>
+  (function () {
+    const storageKey = 'transactions.visibleColumns';
+    const toggles = Array.from(document.querySelectorAll('.js-column-toggle'));
+    const tables = Array.from(document.querySelectorAll('.txn-table'));
+
+    if (!toggles.length || !tables.length) {
+      return;
+    }
+
+    const applyVisibility = (column, isVisible) => {
+      tables.forEach((table) => {
+        table.querySelectorAll(`[data-col="${column}"]`).forEach((cell) => {
+          cell.style.display = isVisible ? '' : 'none';
+        });
+      });
+    };
+
+    const saved = window.localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const visibleColumns = JSON.parse(saved);
+        toggles.forEach((toggle) => {
+          const column = toggle.dataset.column;
+          if (typeof visibleColumns[column] === 'boolean') {
+            toggle.checked = visibleColumns[column];
+          }
+        });
+      } catch (error) {
+        window.localStorage.removeItem(storageKey);
+      }
+    }
+
+    const persist = () => {
+      const state = {};
+      toggles.forEach((toggle) => {
+        state[toggle.dataset.column] = toggle.checked;
+      });
+      window.localStorage.setItem(storageKey, JSON.stringify(state));
+    };
+
+    toggles.forEach((toggle) => {
+      applyVisibility(toggle.dataset.column, toggle.checked);
+      toggle.addEventListener('change', () => {
+        applyVisibility(toggle.dataset.column, toggle.checked);
+        persist();
+      });
+    });
+  })();
+</script>
 
 <?php render_footer(); ?>
