@@ -10,7 +10,7 @@ if (isset($_GET['saved'])) {
     if ($saved === 'added') {
         $info = 'Category added.';
     } elseif ($saved === 'updated') {
-        $info = 'Categories saved.';
+        $info = 'Category updated.';
     } else {
         $info = 'Changes saved.';
     }
@@ -19,17 +19,14 @@ if (isset($_GET['saved'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
     $action = (string)($_POST['action'] ?? 'add');
-    if ($action === 'bulk_update') {
-        $categories = $_POST['categories'] ?? [];
-        if (!is_array($categories) || $categories === []) {
-            $error = 'No categories to update.';
-        } else {
-            try {
-                repo_bulk_update_categories($db, $categories);
-                redirect('/categories.php?saved=updated');
-            } catch (Throwable $e) {
-                $error = $e->getMessage();
-            }
+    if ($action === 'update') {
+        $categoryId = (int)($_POST['id'] ?? 0);
+        $name = (string)($_POST['name'] ?? '');
+        try {
+            repo_update_category($db, $categoryId, $name);
+            redirect('/categories.php?saved=updated');
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
         }
     } else {
         $name = trim((string)($_POST['name'] ?? ''));
@@ -81,32 +78,31 @@ render_header('Categories', 'categories');
 
 <div class="card">
   <h2>Existing</h2>
-  <form method="post" action="/categories.php">
-    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-    <input type="hidden" name="action" value="bulk_update">
-    <table class="table">
-      <thead>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (empty($cats)): ?>
+        <tr><td class="small">No categories yet.</td></tr>
+      <?php endif; ?>
+      <?php foreach ($cats as $c): ?>
         <tr>
-          <th>Name</th>
+          <td>
+            <form method="post" action="/categories.php" class="row" style="gap: 8px; align-items: center;">
+              <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+              <input type="hidden" name="action" value="update">
+              <input type="hidden" name="id" value="<?= h((string)$c['id']) ?>">
+              <input class="input" name="name" value="<?= h($c['name']) ?>">
+              <button class="btn" type="submit">Save</button>
+            </form>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        <?php if (empty($cats)): ?>
-          <tr><td class="small">No categories yet.</td></tr>
-        <?php endif; ?>
-        <?php foreach ($cats as $c): ?>
-          <tr>
-            <td>
-              <input class="input" name="categories[<?= h((string)$c['id']) ?>][name]" value="<?= h($c['name']) ?>">
-            </td>
-          </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-    <?php if (!empty($cats)): ?>
-      <button class="btn primary floating-save" type="submit">Save all categories</button>
-    <?php endif; ?>
-  </form>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
 </div>
 
 <?php render_footer(); ?>

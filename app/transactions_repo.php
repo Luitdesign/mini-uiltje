@@ -51,6 +51,26 @@ function repo_create_category(PDO $db, string $name): ?int {
     }
 }
 
+function repo_update_category(PDO $db, int $categoryId, string $name): void {
+    $name = trim($name);
+    if ($categoryId <= 0) {
+        throw new RuntimeException('Invalid category.');
+    }
+    if ($name === '') {
+        throw new RuntimeException('Category name cannot be empty.');
+    }
+
+    try {
+        $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
+        $stmt->execute([
+            ':name' => $name,
+            ':id' => $categoryId,
+        ]);
+    } catch (PDOException $e) {
+        throw new RuntimeException('Category name already exists.');
+    }
+}
+
 function repo_bulk_update_categories(PDO $db, array $categories): void {
     if ($categories === []) return;
     $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
