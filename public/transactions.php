@@ -37,6 +37,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $categories = repo_list_categories($db);
 $txns = repo_list_transactions($db, $userId, $year, $month, $q);
+$incomeTxns = [];
+$expenseTxns = [];
+
+foreach ($txns as $txn) {
+    $amt = (float)$txn['amount_signed'];
+    if ($amt >= 0) {
+        $incomeTxns[] = $txn;
+    } else {
+        $expenseTxns[] = $txn;
+    }
+}
 
 render_header('Transactions', 'transactions');
 ?>
@@ -80,6 +91,7 @@ render_header('Transactions', 'transactions');
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="action" value="update_categories">
 
+    <h2>Income</h2>
     <table class="table">
       <thead>
         <tr>
@@ -92,11 +104,60 @@ render_header('Transactions', 'transactions');
         </tr>
       </thead>
       <tbody>
-        <?php if (empty($txns)): ?>
-          <tr><td colspan="6" class="small">No transactions found for this month.</td></tr>
+        <?php if (empty($incomeTxns)): ?>
+          <tr><td colspan="6" class="small">No income transactions found for this month.</td></tr>
         <?php endif; ?>
 
-        <?php foreach ($txns as $t):
+        <?php foreach ($incomeTxns as $t):
+          $amt = (float)$t['amount_signed'];
+          $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+        ?>
+          <tr>
+            <td><?= h($t['txn_date']) ?></td>
+            <td>
+              <div><strong><?= h($t['description']) ?></strong></div>
+              <?php if (!empty($t['notes'])): ?>
+                <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+              <?php endif; ?>
+            </td>
+            <td class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
+            <td>
+              <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
+                <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Uncategorized</option>
+                <?php foreach ($categories as $c): ?>
+                  <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </td>
+            <td>
+              <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
+            </td>
+            <td class="small">
+              <?= h((string)($t['direction'] ?? '')) ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+
+    <h2>Expenses</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Amount</th>
+          <th>Category</th>
+          <th>Type</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (empty($expenseTxns)): ?>
+          <tr><td colspan="6" class="small">No expense transactions found for this month.</td></tr>
+        <?php endif; ?>
+
+        <?php foreach ($expenseTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
         ?>
