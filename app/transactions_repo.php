@@ -51,6 +51,32 @@ function repo_create_category(PDO $db, string $name): ?int {
     }
 }
 
+function repo_bulk_update_categories(PDO $db, array $categories): void {
+    if ($categories === []) return;
+    $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
+    $db->beginTransaction();
+    try {
+        foreach ($categories as $id => $values) {
+            $categoryId = (int)$id;
+            if ($categoryId <= 0 || !is_array($values)) {
+                continue;
+            }
+            $name = trim((string)($values['name'] ?? ''));
+            if ($name === '') {
+                throw new RuntimeException('Category name cannot be empty.');
+            }
+            $stmt->execute([
+                ':name' => $name,
+                ':id' => $categoryId,
+            ]);
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+}
+
 function repo_list_transactions(PDO $db, int $userId, int $year, int $month, string $q = ''): array {
     $params = [':uid' => $userId, ':y' => $year, ':m' => $month];
     $whereQ = '';

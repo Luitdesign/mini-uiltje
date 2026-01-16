@@ -26,3 +26,4 @@ label{font-size:13px;color:var(--muted)}
 .footer{margin-top:18px;color:var(--muted);font-size:12px}
 .indent{padding-left:24px}
 .greyed{opacity:.55}
+.floating-save{position:fixed;right:24px;bottom:24px;z-index:30;box-shadow:0 12px 26px rgba(0,0,0,.12)}
