@@ -29,9 +29,10 @@ function require_admin(): void {
     }
 }
 
-function login(string $email, string $password): bool {
-    $stmt = db()->prepare('SELECT id, password_hash FROM users WHERE email = ?');
-    $stmt->execute([trim($email)]);
+function login(string $identifier, string $password): bool {
+    $stmt = db()->prepare('SELECT id, password_hash FROM users WHERE email = ? OR username = ?');
+    $normalized = trim($identifier);
+    $stmt->execute([$normalized, $normalized]);
     $user = $stmt->fetch();
     if (!$user) return false;
     if (!password_verify($password, $user['password_hash'])) return false;
