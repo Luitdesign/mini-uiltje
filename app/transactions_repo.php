@@ -51,6 +51,35 @@ function repo_create_category(PDO $db, string $name): ?int {
     }
 }
 
+function repo_bulk_create_categories(PDO $db, array $names): array {
+    $createdIds = [];
+    $skipped = 0;
+    if ($names === []) return ['created_ids' => $createdIds, 'skipped' => $skipped];
+
+    $db->beginTransaction();
+    try {
+        foreach ($names as $name) {
+            $cleanName = trim((string)$name);
+            if ($cleanName === '') {
+                $skipped++;
+                continue;
+            }
+            $id = repo_create_category($db, $cleanName);
+            if ($id) {
+                $createdIds[] = $id;
+            } else {
+                $skipped++;
+            }
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+
+    return ['created_ids' => $createdIds, 'skipped' => $skipped];
+}
+
 function repo_update_category(PDO $db, int $categoryId, string $name): void {
     $name = trim($name);
     if ($categoryId <= 0) {
