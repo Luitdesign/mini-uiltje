@@ -14,8 +14,31 @@ function is_logged_in(): bool {
     return !empty($_SESSION['user_id']);
 }
 
+function install_required(): bool {
+    $installFile = __DIR__ . '/../public/install.php';
+    if (!file_exists($installFile)) {
+        return false;
+    }
+
+    try {
+        $stmt = db()->query("SHOW TABLES LIKE 'users'");
+        if (!$stmt->fetch()) {
+            return true;
+        }
+
+        $countStmt = db()->query('SELECT COUNT(*) AS cnt FROM users');
+        $row = $countStmt->fetch();
+        return ((int)($row['cnt'] ?? 0)) === 0;
+    } catch (Throwable $e) {
+        return true;
+    }
+}
+
 function require_login(): void {
     if (!is_logged_in()) {
+        if (install_required()) {
+            redirect('/install.php');
+        }
         redirect('/login.php');
     }
 }
