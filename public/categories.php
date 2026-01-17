@@ -211,7 +211,8 @@ render_header('Categories', 'categories');
           <td><?= h($c['name']) ?></td>
           <td>
             <?php if ($editId === (int)$c['id']): ?>
-              <form method="post" action="/categories.php" class="row" style="gap: 8px; align-items: center;">
+              <?php $formId = 'category-edit-' . (int)$c['id']; ?>
+              <form id="<?= h($formId) ?>" method="post" action="/categories.php" class="row" style="gap: 8px; align-items: center;">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="id" value="<?= h((string)$c['id']) ?>">
@@ -244,10 +245,8 @@ render_header('Categories', 'categories');
             <?php if ($editId === (int)$c['id']): ?>
               <div class="inline-actions">
                 <button class="btn" type="submit" form="<?= h($formId) ?>">Save</button>
-                <input class="input" name="name" value="<?= h($c['name']) ?>" style="min-width: 160px;">
-                <button class="btn" type="submit">Save</button>
                 <a class="btn" href="/categories.php">Cancel</a>
-              </form>
+              </div>
             <?php else: ?>
               <a class="btn" href="/categories.php?edit=<?= h((string)$c['id']) ?>" aria-label="Edit category <?= h($c['name']) ?>">✏️ Edit</a>
             <?php endif; ?>
