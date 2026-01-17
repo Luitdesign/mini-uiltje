@@ -135,7 +135,7 @@ render_header('Transactions', 'transactions');
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Uncategorized</option>
                 <?php foreach ($categories as $c): ?>
-                  <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['name']) ?></option>
+                  <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['label']) ?></option>
                 <?php endforeach; ?>
               </select>
             </td>
@@ -184,7 +184,7 @@ render_header('Transactions', 'transactions');
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Niet ingedeeld</option>
                 <?php foreach ($categories as $c): ?>
-                  <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['name']) ?></option>
+                  <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['label']) ?></option>
                 <?php endforeach; ?>
               </select>
             </td>
