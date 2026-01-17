@@ -27,3 +27,5 @@ label{font-size:13px;color:var(--muted)}
 .indent{padding-left:24px}
 .greyed{opacity:.55}
 .floating-save{position:fixed;right:24px;bottom:24px;z-index:30;box-shadow:0 12px 26px rgba(0,0,0,.12)}
+.inline-actions{display:flex;gap:8px;align-items:center;flex-wrap:nowrap}
+.action-cell{white-space:nowrap}
