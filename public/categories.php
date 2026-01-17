@@ -44,6 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = (string)($_POST['name'] ?? '');
         $parentIdRaw = (string)($_POST['parent_id'] ?? '');
         $parentId = $parentIdRaw === '' ? null : (int)$parentIdRaw;
+        if ($parentId === null) {
+            $parsed = parse_category_entry($name);
+            if (($parsed['parent'] ?? null) !== null) {
+                $parentName = $parsed['parent'];
+                $parentId = repo_find_category_id($db, $parentName, null);
+                if (!$parentId) {
+                    $parentId = repo_create_category($db, $parentName, null);
+                }
+                $name = (string)$parsed['name'];
+            }
+        }
         try {
             repo_update_category($db, $categoryId, $name, $parentId);
             redirect('/categories.php?saved=updated');
@@ -89,6 +100,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string)($_POST['name'] ?? ''));
         $parentIdRaw = (string)($_POST['parent_id'] ?? '');
         $parentId = $parentIdRaw === '' ? null : (int)$parentIdRaw;
+        if ($parentId === null) {
+            $parsed = parse_category_entry($name);
+            if (($parsed['parent'] ?? null) !== null) {
+                $parentName = $parsed['parent'];
+                $parentId = repo_find_category_id($db, $parentName, null);
+                if (!$parentId) {
+                    $parentId = repo_create_category($db, $parentName, null);
+                }
+                $name = (string)$parsed['name'];
+            }
+        }
         if ($name === '') {
             $error = 'Category name cannot be empty.';
         } else {
@@ -150,7 +172,7 @@ render_header('Categories', 'categories');
     </div>
     <div style="flex: 1; min-width: 260px;">
       <label>New category</label>
-      <input class="input" name="name" placeholder="e.g. Groceries" required>
+      <input class="input" name="name" placeholder="e.g. Household - Boodschappen" required>
     </div>
     <div>
       <button class="btn" type="submit">Add</button>
