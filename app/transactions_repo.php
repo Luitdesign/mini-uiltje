@@ -30,66 +30,24 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
 }
 
 function repo_list_categories(PDO $db): array {
-    $sql = "
-        SELECT c.id, c.name, c.parent_id, p.name AS parent_name
-        FROM categories c
-        LEFT JOIN categories p ON p.id = c.parent_id
-        ORDER BY COALESCE(p.name, c.name) ASC, c.parent_id IS NOT NULL, c.name ASC
-    ";
-    $stmt = $db->query($sql);
-    $rows = $stmt->fetchAll();
-    foreach ($rows as &$row) {
-        $parentName = $row['parent_name'] ?? '';
-        $row['label'] = $parentName ? ($parentName . ' - ' . $row['name']) : $row['name'];
-    }
-    unset($row);
-    return $rows;
+    $stmt = $db->query("SELECT id, name FROM categories ORDER BY name ASC");
+    return $stmt->fetchAll();
 }
 
-function repo_find_category_id(PDO $db, string $name, ?int $parentId): ?int {
-    $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n AND parent_id <=> :pid LIMIT 1");
-    $stmt->execute([
-        ':n' => $name,
-        ':pid' => $parentId,
-    ]);
-    $row = $stmt->fetch();
-    return $row ? (int)$row['id'] : null;
-}
-
-function repo_validate_parent_category(PDO $db, ?int $parentId): ?int {
-    if ($parentId === null) {
-        return null;
-    }
-    if ($parentId <= 0) {
-        throw new RuntimeException('Invalid parent category.');
-    }
-    $stmt = $db->prepare("SELECT id FROM categories WHERE id = :id AND parent_id IS NULL LIMIT 1");
-    $stmt->execute([':id' => $parentId]);
-    $row = $stmt->fetch();
-    if (!$row) {
-        throw new RuntimeException('Parent category must be a top-level category.');
-    }
-    return (int)$row['id'];
-}
-
-function repo_category_has_children(PDO $db, int $categoryId): bool {
-    $stmt = $db->prepare("SELECT 1 FROM categories WHERE parent_id = :id LIMIT 1");
-    $stmt->execute([':id' => $categoryId]);
-    return (bool)$stmt->fetchColumn();
-}
-
-function repo_create_category(PDO $db, string $name, ?int $parentId = null): ?int {
+function repo_create_category(PDO $db, string $name): ?int {
     $name = trim($name);
     if ($name === '') return null;
-    $parentId = repo_validate_parent_category($db, $parentId);
     // Insert ignore via try/catch for unique constraint
     try {
-        $stmt = $db->prepare("INSERT INTO categories(name, parent_id) VALUES(:n, :pid)");
-        $stmt->execute([':n' => $name, ':pid' => $parentId]);
+        $stmt = $db->prepare("INSERT INTO categories(name) VALUES(:n)");
+        $stmt->execute([':n' => $name]);
         return (int)$db->lastInsertId();
     } catch (PDOException $e) {
         // If already exists, return existing id
-        return repo_find_category_id($db, $name, $parentId);
+        $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n LIMIT 1");
+        $stmt->execute([':n' => $name]);
+        $row = $stmt->fetch();
+        return $row ? (int)$row['id'] : null;
     }
 }
 
@@ -101,20 +59,12 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     $db->beginTransaction();
     try {
         foreach ($names as $name) {
-            $cleanName = '';
-            $parentId = null;
-            if (is_array($name)) {
-                $cleanName = trim((string)($name['name'] ?? ''));
-                $parentId = $name['parent_id'] ?? null;
-                $parentId = $parentId === null ? null : (int)$parentId;
-            } else {
-                $cleanName = trim((string)$name);
-            }
+            $cleanName = trim((string)$name);
             if ($cleanName === '') {
                 $skipped++;
                 continue;
             }
-            $id = repo_create_category($db, $cleanName, $parentId);
+            $id = repo_create_category($db, $cleanName);
             if ($id) {
                 $createdIds[] = $id;
             } else {
@@ -130,7 +80,7 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     return ['created_ids' => $createdIds, 'skipped' => $skipped];
 }
 
-function repo_update_category(PDO $db, int $categoryId, string $name, ?int $parentId = null): void {
+function repo_update_category(PDO $db, int $categoryId, string $name): void {
     $name = trim($name);
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
@@ -138,19 +88,11 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?int $pare
     if ($name === '') {
         throw new RuntimeException('Category name cannot be empty.');
     }
-    $parentId = repo_validate_parent_category($db, $parentId);
-    if ($parentId !== null && $parentId === $categoryId) {
-        throw new RuntimeException('A category cannot be its own parent.');
-    }
-    if ($parentId !== null && repo_category_has_children($db, $categoryId)) {
-        throw new RuntimeException('Move or remove child categories before assigning a parent.');
-    }
 
     try {
-        $stmt = $db->prepare("UPDATE categories SET name = :name, parent_id = :pid WHERE id = :id");
+        $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
         $stmt->execute([
             ':name' => $name,
-            ':pid' => $parentId,
             ':id' => $categoryId,
         ]);
     } catch (PDOException $e) {
@@ -241,13 +183,12 @@ function repo_month_summary(PDO $db, int $userId, int $year, int $month): array 
 function repo_month_breakdown_by_category(PDO $db, int $userId, int $year, int $month): array {
     $sql = "
         SELECT
-            COALESCE(CONCAT_WS(' - ', p.name, c.name), 'Niet ingedeeld') AS category,
+            COALESCE(c.name, 'Niet ingedeeld') AS category,
             SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
             SUM(t.amount_signed) AS net
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
-        LEFT JOIN categories p ON p.id = c.parent_id
         WHERE t.user_id = :uid
           AND YEAR(t.txn_date) = :y
           AND MONTH(t.txn_date) = :m
