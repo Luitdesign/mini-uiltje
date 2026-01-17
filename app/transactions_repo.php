@@ -223,6 +223,31 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?int $pare
     }
 }
 
+function repo_delete_category(PDO $db, int $categoryId): void {
+    if ($categoryId <= 0) {
+        throw new RuntimeException('Invalid category.');
+    }
+    $hasParentId = repo_categories_has_parent_id($db);
+    if ($hasParentId) {
+        $stmt = $db->prepare("SELECT 1 FROM categories WHERE parent_id = :id LIMIT 1");
+        $stmt->execute([':id' => $categoryId]);
+        if ($stmt->fetch()) {
+            throw new RuntimeException('Category has child categories.');
+        }
+    }
+    $db->beginTransaction();
+    try {
+        $stmt = $db->prepare("UPDATE transactions SET category_id = NULL WHERE category_id = :id");
+        $stmt->execute([':id' => $categoryId]);
+        $stmt = $db->prepare("DELETE FROM categories WHERE id = :id");
+        $stmt->execute([':id' => $categoryId]);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+}
+
 function repo_bulk_update_categories(PDO $db, array $categories): void {
     if ($categories === []) return;
     $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
