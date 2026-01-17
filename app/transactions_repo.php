@@ -29,11 +29,32 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
     return ['y' => $y, 'm' => $m];
 }
 
+function repo_categories_has_parent_id(PDO $db): bool {
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+    try {
+        $stmt = $db->query("SHOW COLUMNS FROM categories LIKE 'parent_id'");
+        $cached = (bool)$stmt->fetch();
+    } catch (PDOException $e) {
+        $cached = false;
+    }
+    return $cached;
+}
+
 function repo_list_categories(PDO $db): array {
-    $stmt = $db->query("SELECT id, name, parent_id FROM categories ORDER BY name ASC");
+    if (repo_categories_has_parent_id($db)) {
+        $stmt = $db->query("SELECT id, name, parent_id FROM categories ORDER BY name ASC");
+    } else {
+        $stmt = $db->query("SELECT id, name FROM categories ORDER BY name ASC");
+    }
     $rows = $stmt->fetchAll();
     $byId = [];
     foreach ($rows as $row) {
+        if (!array_key_exists('parent_id', $row)) {
+            $row['parent_id'] = null;
+        }
         $byId[(int)$row['id']] = $row;
     }
     foreach ($rows as &$row) {
@@ -51,7 +72,10 @@ function repo_list_categories(PDO $db): array {
 function repo_find_category_id(PDO $db, string $name, ?int $parentId): ?int {
     $name = trim($name);
     if ($name === '') return null;
-    if ($parentId === null) {
+    if (!repo_categories_has_parent_id($db)) {
+        $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n LIMIT 1");
+        $stmt->execute([':n' => $name]);
+    } elseif ($parentId === null) {
         $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n AND parent_id IS NULL LIMIT 1");
         $stmt->execute([':n' => $name]);
     } else {
@@ -68,8 +92,13 @@ function repo_create_category(PDO $db, string $name, ?int $parentId): ?int {
     $parentId = ($parentId !== null && $parentId > 0) ? $parentId : null;
     // Insert ignore via try/catch for unique constraint
     try {
-        $stmt = $db->prepare("INSERT INTO categories(name, parent_id) VALUES(:n, :pid)");
-        $stmt->execute([':n' => $name, ':pid' => $parentId]);
+        if (repo_categories_has_parent_id($db)) {
+            $stmt = $db->prepare("INSERT INTO categories(name, parent_id) VALUES(:n, :pid)");
+            $stmt->execute([':n' => $name, ':pid' => $parentId]);
+        } else {
+            $stmt = $db->prepare("INSERT INTO categories(name) VALUES(:n)");
+            $stmt->execute([':n' => $name]);
+        }
         return (int)$db->lastInsertId();
     } catch (PDOException $e) {
         $existingId = repo_find_category_id($db, $name, $parentId);
@@ -96,6 +125,9 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
             }
             $parentId = $name['parent_id'] ?? null;
             $parentId = $parentId !== null ? (int)$parentId : null;
+            if (!repo_categories_has_parent_id($db)) {
+                $parentId = null;
+            }
             $id = repo_create_category($db, $cleanName, $parentId);
             if ($id) {
                 $createdIds[] = $id;
@@ -121,17 +153,26 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?int $pare
         throw new RuntimeException('Category name cannot be empty.');
     }
     $parentId = ($parentId !== null && $parentId > 0) ? $parentId : null;
-    if ($parentId === $categoryId) {
+    $hasParentId = repo_categories_has_parent_id($db);
+    if ($hasParentId && $parentId === $categoryId) {
         throw new RuntimeException('Category cannot be its own parent.');
     }
 
     try {
-        $stmt = $db->prepare("UPDATE categories SET name = :name, parent_id = :pid WHERE id = :id");
-        $stmt->execute([
-            ':name' => $name,
-            ':pid' => $parentId,
-            ':id' => $categoryId,
-        ]);
+        if ($hasParentId) {
+            $stmt = $db->prepare("UPDATE categories SET name = :name, parent_id = :pid WHERE id = :id");
+            $stmt->execute([
+                ':name' => $name,
+                ':pid' => $parentId,
+                ':id' => $categoryId,
+            ]);
+        } else {
+            $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
+            $stmt->execute([
+                ':name' => $name,
+                ':id' => $categoryId,
+            ]);
+        }
     } catch (PDOException $e) {
         throw new RuntimeException('Category name already exists.');
     }
