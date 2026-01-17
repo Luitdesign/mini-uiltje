@@ -2,7 +2,6 @@
 require_once __DIR__ . '/../src/bootstrap.php';
 require_once __DIR__ . '/../src/layout.php';
 require_once __DIR__ . '/../src/repo.php';
-require_once __DIR__ . '/../src/rules_repo.php';
 require_once __DIR__ . '/../src/ui.php';
 require_login();
 
@@ -22,14 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         update_manual_category($tid, $catId, true);
         flash_set('Saved.', 'info');
         redirect('/month.php?m=' . urlencode($month) . '&mode=' . urlencode((string)($_POST['mode'] ?? $mode)));
-    } elseif ($action === 'accept_auto') {
+    } elseif ($action === 'confirm') {
         $tid = (int)($_POST['tx_id'] ?? 0);
         confirm_transaction($tid);
-        flash_set('Auto category accepted.', 'info');
-        redirect('/month.php?m=' . urlencode($month) . '&mode=' . urlencode((string)($_POST['mode'] ?? $mode)));
-    } elseif ($action === 'recategorize_month') {
-        $updated = recategorize_month_with_rules($month);
-        flash_set("Re-categorized $updated transactions for $month.", 'info');
+        flash_set('Confirmed.', 'info');
         redirect('/month.php?m=' . urlencode($month) . '&mode=' . urlencode((string)($_POST['mode'] ?? $mode)));
     }
 }
@@ -64,13 +59,6 @@ render_header('Transactions');
     <a class="btn <?= $mode==='review'?'primary':'' ?>" href="/month.php?m=<?=h((string)$m)?>&mode=review">Needs review</a>
     <a class="btn <?= $mode==='confirmed'?'primary':'' ?>" href="/month.php?m=<?=h((string)$m)?>&mode=confirmed">Confirmed</a>
     <a class="btn" href="/results.php?m=<?=h((string)$m)?>">Results</a>
-    <form method="post" style="margin:0">
-      <?=csrf_field()?>
-      <input type="hidden" name="action" value="recategorize_month">
-      <input type="hidden" name="m" value="<?=h((string)$m)?>">
-      <input type="hidden" name="mode" value="<?=h((string)$mode)?>">
-      <button class="btn" type="submit">Re-categorize month using rules</button>
-    </form>
   </div>
 
   <div style="margin-top:14px">
@@ -83,8 +71,8 @@ render_header('Transactions');
             <th>Date</th>
             <th>Description</th>
             <th>Amount</th>
-            <th>Auto category</th>
             <th>Manual category</th>
+            <th>Auto</th>
             <th>Final</th>
             <th>Confirmed</th>
           </tr>
@@ -99,22 +87,6 @@ render_header('Transactions');
               <div class="small muted"><?=h($t['counterparty_iban'] ?? '')?></div>
             </td>
             <td><?=h(number_format((float)$t['amount_signed'], 2, ',', '.'))?></td>
-            <td class="small">
-              <div><?=h($t['auto_category_name'] ?? '')?></div>
-              <?php if (!empty($t['auto_rule_id'])): ?>
-                <div class="small muted">Rule #<?=h((string)$t['auto_rule_id'])?></div>
-              <?php endif; ?>
-              <?php if ((int)$t['is_confirmed'] === 0 && empty($t['manual_category_id']) && !empty($t['auto_category_id'])): ?>
-                <form method="post" style="margin-top:6px">
-                  <?=csrf_field()?>
-                  <input type="hidden" name="action" value="accept_auto">
-                  <input type="hidden" name="tx_id" value="<?=h((string)$t['id'])?>">
-                  <input type="hidden" name="m" value="<?=h((string)$m)?>">
-                  <input type="hidden" name="mode" value="<?=h((string)$mode)?>">
-                  <button class="btn" type="submit">Accept auto</button>
-                </form>
-              <?php endif; ?>
-            </td>
             <td>
               <form method="post">
                 <?=csrf_field()?>
@@ -126,12 +98,20 @@ render_header('Transactions');
                 <div style="margin-top:6px"><button class="btn primary" type="submit">Save</button></div>
               </form>
             </td>
+            <td class="small"><?=h($t['auto_category_name'] ?? '')?></td>
             <td class="small"><?=h($t['final_category_name'] ?? '')?></td>
             <td>
               <?php if ((int)$t['is_confirmed'] === 1): ?>
                 <span class="badge">Yes</span>
               <?php else: ?>
-                <span class="badge">No</span>
+                <form method="post">
+                  <?=csrf_field()?>
+                  <input type="hidden" name="action" value="confirm">
+                  <input type="hidden" name="tx_id" value="<?=h((string)$t['id'])?>">
+                  <input type="hidden" name="m" value="<?=h((string)$m)?>">
+                  <input type="hidden" name="mode" value="<?=h((string)$mode)?>">
+                  <button class="btn" type="submit">Confirm</button>
+                </form>
               <?php endif; ?>
             </td>
           </tr>

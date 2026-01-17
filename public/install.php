@@ -59,13 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!has_any_users($db)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $db->prepare('INSERT INTO users(username, email, password_hash, role) VALUES(:u, :e, :p, :r)');
-                $stmt->execute([
-                    ':u' => $username,
-                    ':e' => $username,
-                    ':p' => $hash,
-                    ':r' => 'admin',
-                ]);
+                $stmt = $db->prepare('INSERT INTO users(username, password_hash) VALUES(:u, :p)');
+                $stmt->execute([':u' => $username, ':p' => $hash]);
             }
 
             $ok = true;

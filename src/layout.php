@@ -29,7 +29,6 @@ function render_header(string $title): void {
         if ($u['role'] === 'admin') {
             echo '<a href="/admin/users.php">Users</a>';
             echo '<a href="/admin/categories.php">Categories</a>';
-            echo '<a href="/admin/rules.php">Rules</a>';
         }
         echo '<a href="/logout.php">Logout</a>';
     } else {
