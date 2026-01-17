@@ -9,6 +9,7 @@ function render_header(string $title, ?string $active = null): void {
         ['Transactions', '/transactions.php', 'transactions'],
         ['Summary', '/summary.php', 'summary'],
         ['Categories', '/categories.php', 'categories'],
+        ['Schema', '/schema.php', 'schema'],
         ['Logout', '/logout.php', 'logout'],
     ] : [];
 
