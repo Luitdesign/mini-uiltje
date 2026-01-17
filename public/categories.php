@@ -116,7 +116,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
-        <th style="width: 180px;">Edit</th>
+        <th style="width: 220px;">Edit</th>
       </tr>
     </thead>
     <tbody>
@@ -125,31 +125,30 @@ render_header('Categories', 'categories');
       <?php endif; ?>
       <?php foreach ($cats as $c): ?>
         <tr>
-          <td>
-            <?php if ($editId === (int)$c['id']): ?>
-              <?php $formId = 'edit-category-' . (string)$c['id']; ?>
-              <form id="<?= h($formId) ?>" method="post" action="/categories.php">
+          <?php if ($editId === (int)$c['id']): ?>
+            <?php $formId = 'edit-category-' . (string)$c['id']; ?>
+            <td colspan="2">
+              <form id="<?= h($formId) ?>" method="post" action="/categories.php" class="inline-edit">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="id" value="<?= h((string)$c['id']) ?>">
-                <input class="input" name="name" value="<?= h($c['name']) ?>" style="min-width: 160px;">
+                <input class="input" name="name" value="<?= h($c['name']) ?>" aria-label="Edit category name">
+                <div class="inline-actions">
+                  <button class="btn" type="submit">Save</button>
+                  <a class="btn" href="/categories.php">Cancel</a>
+                </div>
               </form>
-            <?php else: ?>
+            </td>
+          <?php else: ?>
+            <td>
               <?= h($c['name']) ?>
-            <?php endif; ?>
-          </td>
-          <td class="action-cell">
-            <?php if ($editId === (int)$c['id']): ?>
-              <div class="inline-actions">
-                <button class="btn" type="submit" form="<?= h($formId) ?>">Save</button>
-                <a class="btn" href="/categories.php">Cancel</a>
-              </div>
-            <?php else: ?>
+            </td>
+            <td class="action-cell">
               <div class="inline-actions">
                 <a class="btn" href="/categories.php?edit=<?= h((string)$c['id']) ?>" aria-label="Edit category <?= h($c['name']) ?>">✏️ Edit</a>
               </div>
-            <?php endif; ?>
-          </td>
+            </td>
+          <?php endif; ?>
         </tr>
       <?php endforeach; ?>
     </tbody>
