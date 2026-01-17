@@ -34,18 +34,57 @@ function list_categories(): array {
 function categories_for_select(): array {
     $cats = list_categories();
     $byId = [];
-    foreach ($cats as $c) { $byId[(int)$c['id']] = $c; }
-
-    // Build labels with parent prefix
-    $out = [];
+    $childrenMap = [];
+    $orderByType = [];
     foreach ($cats as $c) {
-        $label = $c['name'];
-        if ($c['parent_id'] && isset($byId[(int)$c['parent_id']])) {
-            $label = $byId[(int)$c['parent_id']]['name'] . ' → ' . $label;
+        $id = (int)$c['id'];
+        $byId[$id] = $c;
+        $type = (string)$c['type'];
+        $orderByType[$type][] = $id;
+        if (!empty($c['parent_id'])) {
+            $childrenMap[(int)$c['parent_id']][] = $id;
+        }
+    }
+
+    $orderedIds = [];
+    foreach ($orderByType as $type => $ids) {
+        $added = [];
+        foreach ($ids as $id) {
+            $cat = $byId[$id];
+            if (!empty($cat['parent_id'])) {
+                continue;
+            }
+            $orderedIds[] = $id;
+            $added[$id] = true;
+            if (!empty($childrenMap[$id])) {
+                foreach ($ids as $childId) {
+                    if (!empty($byId[$childId]['parent_id']) && (int)$byId[$childId]['parent_id'] === $id) {
+                        $orderedIds[] = $childId;
+                        $added[$childId] = true;
+                    }
+                }
+            }
+        }
+        foreach ($ids as $id) {
+            if (empty($added[$id])) {
+                $orderedIds[] = $id;
+            }
+        }
+    }
+
+    $out = [];
+    foreach ($orderedIds as $id) {
+        if (!empty($childrenMap[$id])) {
+            continue;
+        }
+        $cat = $byId[$id];
+        $label = $cat['name'];
+        if (!empty($cat['parent_id']) && isset($byId[(int)$cat['parent_id']])) {
+            $label = $byId[(int)$cat['parent_id']]['name'] . ' → ' . $label;
         }
         $out[] = [
-            'id' => (int)$c['id'],
-            'type' => $c['type'],
+            'id' => $id,
+            'type' => $cat['type'],
             'label' => $label,
         ];
     }

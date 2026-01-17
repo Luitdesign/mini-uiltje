@@ -51,11 +51,15 @@ function repo_list_categories(PDO $db): array {
     }
     $rows = $stmt->fetchAll();
     $byId = [];
+    $children = [];
     foreach ($rows as $row) {
         if (!array_key_exists('parent_id', $row)) {
             $row['parent_id'] = null;
         }
         $byId[(int)$row['id']] = $row;
+        if ($row['parent_id'] !== null) {
+            $children[(int)$row['parent_id']][] = (int)$row['id'];
+        }
     }
     foreach ($rows as &$row) {
         $label = $row['name'];
@@ -66,7 +70,48 @@ function repo_list_categories(PDO $db): array {
         $row['label'] = $label;
     }
     unset($row);
-    return $rows;
+
+    $parents = array_values(array_filter($rows, static fn(array $row): bool => $row['parent_id'] === null));
+    usort($parents, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+    $ordered = [];
+    $added = [];
+    foreach ($parents as $parent) {
+        $parentId = (int)$parent['id'];
+        $ordered[] = $parent;
+        $added[$parentId] = true;
+        if (isset($children[$parentId])) {
+            $childRows = array_map(
+                static fn(int $childId): array => $byId[$childId],
+                $children[$parentId]
+            );
+            usort($childRows, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+            foreach ($childRows as $child) {
+                $ordered[] = $child;
+                $added[(int)$child['id']] = true;
+            }
+        }
+    }
+    foreach ($rows as $row) {
+        $id = (int)$row['id'];
+        if (!isset($added[$id])) {
+            $ordered[] = $row;
+        }
+    }
+    return $ordered;
+}
+
+function repo_list_assignable_categories(PDO $db): array {
+    $rows = repo_list_categories($db);
+    $hasChildrenMap = [];
+    foreach ($rows as $row) {
+        if ($row['parent_id'] !== null) {
+            $hasChildrenMap[(int)$row['parent_id']] = true;
+        }
+    }
+    return array_values(array_filter(
+        $rows,
+        static fn(array $row): bool => empty($hasChildrenMap[(int)$row['id']])
+    ));
 }
 
 function repo_find_category_id(PDO $db, string $name, ?int $parentId): ?int {

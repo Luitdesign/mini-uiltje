@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('/transactions.php?' . $qs);
 }
 
-$categories = repo_list_categories($db);
+$categories = repo_list_assignable_categories($db);
 $txns = repo_list_transactions($db, $userId, $year, $month, $q);
 $incomeTxns = [];
 $expenseTxns = [];

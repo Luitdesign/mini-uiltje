@@ -61,6 +61,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             $error = $e->getMessage();
         }
+    } elseif ($action === 'add_parent') {
+        $name = trim((string)($_POST['name'] ?? ''));
+        if ($name === '') {
+            $error = 'Category name cannot be empty.';
+        } else {
+            $id = repo_create_category($db, $name, null);
+            if ($id) {
+                redirect('/categories.php?saved=added');
+            } else {
+                $error = 'Could not save category.';
+            }
+        }
     } elseif ($action === 'bulk_add') {
         $bulk = (string)($_POST['bulk_names'] ?? '');
         $names = preg_split('/[\r\n,]+/', $bulk) ?: [];
@@ -145,7 +157,7 @@ render_header('Categories', 'categories');
 
 <div class="card">
   <h1>Categories</h1>
-  <p class="small">Create categories that you can assign to transactions.</p>
+  <p class="small">Create categories that you can assign to transactions. Parent categories are used for grouping and are not selectable on transactions.</p>
 
   <?php if ($info !== ''): ?>
     <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
@@ -157,6 +169,18 @@ render_header('Categories', 'categories');
       <?= h($error) ?>
     </div>
   <?php endif; ?>
+
+  <form method="post" action="/categories.php" class="row" style="align-items:flex-end; margin-top: 12px;">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="action" value="add_parent">
+    <div style="flex: 1; min-width: 260px;">
+      <label>New parent category</label>
+      <input class="input" name="name" placeholder="e.g. Household" required>
+    </div>
+    <div>
+      <button class="btn" type="submit">Add parent</button>
+    </div>
+  </form>
 
   <form method="post" action="/categories.php" class="row" style="align-items:flex-end; margin-top: 12px;">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
@@ -172,7 +196,7 @@ render_header('Categories', 'categories');
     </div>
     <div style="flex: 1; min-width: 260px;">
       <label>New category</label>
-      <input class="input" name="name" placeholder="e.g. Household - Boodschappen" required>
+      <input class="input" name="name" placeholder="e.g. Boodschappen" required>
     </div>
     <div>
       <button class="btn" type="submit">Add</button>
@@ -199,16 +223,23 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
-        <th style="width: 120px;">Edit</th>
+        <th>Path</th>
+        <th style="width: 120px;">Actions</th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($cats)): ?>
-        <tr><td class="small" colspan="2">No categories yet.</td></tr>
+        <tr><td class="small" colspan="3">No categories yet.</td></tr>
       <?php endif; ?>
       <?php foreach ($cats as $c): ?>
         <tr>
-          <td><?= h($c['name']) ?></td>
+          <td>
+            <?php if (!empty($c['parent_id'])): ?>
+              <span class="muted">↳</span> <?= h($c['name']) ?>
+            <?php else: ?>
+              <strong><?= h($c['name']) ?></strong>
+            <?php endif; ?>
+          </td>
           <td>
             <?php if ($editId === (int)$c['id']): ?>
               <?php $formId = 'category-edit-' . (int)$c['id']; ?>
