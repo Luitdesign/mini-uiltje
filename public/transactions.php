@@ -105,7 +105,7 @@ render_header('Transactions', 'transactions');
     <table class="table txn-table">
       <thead>
         <tr>
-          <th data-col="date">Date</th>
+          <th data-col="date" style="min-width: 110px; white-space: nowrap;">Date</th>
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
           <th data-col="category">Category</th>
@@ -123,7 +123,7 @@ render_header('Transactions', 'transactions');
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
         ?>
           <tr>
-            <td data-col="date"><?= h($t['txn_date']) ?></td>
+            <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <div><strong><?= h($t['description']) ?></strong></div>
               <?php if (!empty($t['notes'])): ?>
@@ -154,7 +154,7 @@ render_header('Transactions', 'transactions');
     <table class="table txn-table">
       <thead>
         <tr>
-          <th data-col="date">Date</th>
+          <th data-col="date" style="min-width: 110px; white-space: nowrap;">Date</th>
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
           <th data-col="category">Category</th>
@@ -172,7 +172,7 @@ render_header('Transactions', 'transactions');
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
         ?>
           <tr>
-            <td data-col="date"><?= h($t['txn_date']) ?></td>
+            <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <div><strong><?= h($t['description']) ?></strong></div>
               <?php if (!empty($t['notes'])): ?>
