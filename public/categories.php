@@ -31,6 +31,8 @@ if (isset($_GET['saved'])) {
         $info = sprintf('Added %d categories. Skipped %d.', $addedCount, $skippedCount);
     } elseif ($saved === 'updated') {
         $info = 'Category updated.';
+    } elseif ($saved === 'deleted') {
+        $info = 'Category deleted.';
     } else {
         $info = 'Changes saved.';
     }
@@ -107,6 +109,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Throwable $e) {
                 $error = $e->getMessage();
             }
+        }
+    } elseif ($action === 'delete') {
+        $categoryId = (int)($_POST['id'] ?? 0);
+        try {
+            repo_delete_category($db, $categoryId);
+            redirect('/categories.php?saved=deleted');
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
         }
     } else {
         $name = trim((string)($_POST['name'] ?? ''));
@@ -279,7 +289,15 @@ render_header('Categories', 'categories');
                 <a class="btn" href="/categories.php">Cancel</a>
               </div>
             <?php else: ?>
-              <a class="btn" href="/categories.php?edit=<?= h((string)$c['id']) ?>" aria-label="Edit category <?= h($c['name']) ?>">✏️ Edit</a>
+              <div class="inline-actions">
+                <a class="btn" href="/categories.php?edit=<?= h((string)$c['id']) ?>" aria-label="Edit category <?= h($c['name']) ?>">✏️ Edit</a>
+                <form method="post" action="/categories.php" onsubmit="return confirm('Delete this category? Transactions will become uncategorized.');">
+                  <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="id" value="<?= h((string)$c['id']) ?>">
+                  <button class="btn" type="submit" aria-label="Delete category <?= h($c['name']) ?>">🗑️ Delete</button>
+                </form>
+              </div>
             <?php endif; ?>
           </td>
         </tr>
