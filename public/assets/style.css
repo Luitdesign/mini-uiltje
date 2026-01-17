@@ -139,6 +139,10 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 }
 
 .table th { text-align: left; color: var(--muted); font-weight: 600; }
+.txn-table [data-col="date"] {
+  min-width: 120px;
+  white-space: nowrap;
+}
 
 .badge {
   display: inline-block;
