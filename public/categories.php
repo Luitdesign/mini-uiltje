@@ -116,7 +116,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
-        <th style="width: 120px;">Edit</th>
+        <th style="width: 180px;">Edit</th>
       </tr>
     </thead>
     <tbody>
@@ -138,12 +138,16 @@ render_header('Categories', 'categories');
               <?= h($c['name']) ?>
             <?php endif; ?>
           </td>
-          <td>
+          <td class="action-cell">
             <?php if ($editId === (int)$c['id']): ?>
-              <button class="btn" type="submit" form="<?= h($formId) ?>">Save</button>
-              <a class="btn" href="/categories.php">Cancel</a>
+              <div class="inline-actions">
+                <button class="btn" type="submit" form="<?= h($formId) ?>">Save</button>
+                <a class="btn" href="/categories.php">Cancel</a>
+              </div>
             <?php else: ?>
-              <a class="btn" href="/categories.php?edit=<?= h((string)$c['id']) ?>" aria-label="Edit category <?= h($c['name']) ?>">✏️ Edit</a>
+              <div class="inline-actions">
+                <a class="btn" href="/categories.php?edit=<?= h((string)$c['id']) ?>" aria-label="Edit category <?= h($c['name']) ?>">✏️ Edit</a>
+              </div>
             <?php endif; ?>
           </td>
         </tr>
