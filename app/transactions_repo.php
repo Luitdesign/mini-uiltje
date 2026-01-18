@@ -37,6 +37,15 @@ function repo_categories_has_parent_id(PDO $db): bool {
     try {
         $stmt = $db->query("SHOW COLUMNS FROM categories LIKE 'parent_id'");
         $cached = (bool)$stmt->fetch();
+        if ($cached) {
+            return $cached;
+        }
+    } catch (PDOException $e) {
+        // Fall back to a direct select in case SHOW COLUMNS is restricted.
+    }
+    try {
+        $db->query("SELECT parent_id FROM categories LIMIT 1");
+        $cached = true;
     } catch (PDOException $e) {
         $cached = false;
     }
