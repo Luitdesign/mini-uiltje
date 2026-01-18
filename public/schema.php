@@ -21,7 +21,18 @@ function execute_schema(PDO $db, string $sql): void {
     foreach ($statements as $stmtSql) {
         $stmtSql = trim($stmtSql);
         if ($stmtSql === '') continue;
-        $db->exec($stmtSql);
+        try {
+            $db->exec($stmtSql);
+        } catch (PDOException $e) {
+            $errorInfo = $e->errorInfo ?? [];
+            $errorCode = $errorInfo[1] ?? null;
+
+            if ($errorCode === 1060) {
+                continue;
+            }
+
+            throw $e;
+        }
     }
 }
 
