@@ -15,6 +15,8 @@ if (isset($_GET['saved'])) {
         $info = sprintf('Added %d categories. Skipped %d.', $addedCount, $skippedCount);
     } elseif ($saved === 'updated') {
         $info = 'Category updated.';
+    } elseif ($saved === 'uncategorized') {
+        $info = 'Uncategorized color updated.';
     } elseif ($saved === 'deleted') {
         $info = 'Category deleted.';
     } else {
@@ -33,6 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             repo_update_category($db, $categoryId, $name, $color);
             redirect('/categories.php?saved=updated');
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        }
+    } elseif ($action === 'update_uncategorized_color') {
+        $useColor = isset($_POST['use_color']);
+        $color = $useColor ? (string)($_POST['color'] ?? '') : null;
+        try {
+            $color = normalize_hex_color($color);
+            repo_set_setting($db, 'uncategorized_color', $color);
+            redirect('/categories.php?saved=uncategorized');
         } catch (Throwable $e) {
             $error = $e->getMessage();
         }
@@ -79,6 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $cats = repo_list_categories($db);
 $editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
+$uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
+$useUncategorizedColor = $uncategorizedColor !== null && $uncategorizedColor !== '';
 
 render_header('Categories', 'categories');
 ?>
@@ -151,6 +165,26 @@ render_header('Categories', 'categories');
         </tr>
       </thead>
       <tbody>
+        <tr>
+          <td>
+            <strong>Niet ingedeeld</strong>
+            <div class="small muted">Default for uncategorized transactions.</div>
+          </td>
+          <td>
+            <form id="uncategorized-color-form" method="post" action="/categories.php" class="row" style="align-items: center; gap: 8px;">
+              <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+              <input type="hidden" name="action" value="update_uncategorized_color">
+              <label class="small" style="margin: 0;">
+                <input type="checkbox" name="use_color" value="1" <?= $useUncategorizedColor ? 'checked' : '' ?>>
+                Use color
+              </label>
+              <input class="input" type="color" name="color" value="<?= h($useUncategorizedColor ? $uncategorizedColor : '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
+            </form>
+          </td>
+          <td class="action-cell">
+            <button class="btn" type="submit" form="uncategorized-color-form">Save</button>
+          </td>
+        </tr>
         <?php foreach ($cats as $cat): ?>
           <?php $catId = (int)$cat['id']; ?>
           <tr>
