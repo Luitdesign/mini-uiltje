@@ -97,6 +97,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="description" checked> Description</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="amount" checked> Amount</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="auto-category" checked> Auto Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
     </div>
@@ -109,13 +110,14 @@ render_header('Transactions', 'transactions');
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
           <th data-col="category">Category</th>
+          <th data-col="auto-category">Auto Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($incomeTxns)): ?>
-          <tr><td colspan="6" class="small">No income transactions found for this month.</td></tr>
+          <tr><td colspan="7" class="small">No income transactions found for this month.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($incomeTxns as $t):
@@ -139,6 +141,9 @@ render_header('Transactions', 'transactions');
                 <?php endforeach; ?>
               </select>
             </td>
+            <td data-col="auto-category">
+              <?= h((string)($t['auto_category_name'] ?? '—')) ?>
+            </td>
             <td data-col="type">
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
             </td>
@@ -158,13 +163,14 @@ render_header('Transactions', 'transactions');
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
           <th data-col="category">Category</th>
+          <th data-col="auto-category">Auto Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($expenseTxns)): ?>
-          <tr><td colspan="6" class="small">No expense transactions found for this month.</td></tr>
+          <tr><td colspan="7" class="small">No expense transactions found for this month.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($expenseTxns as $t):
@@ -187,6 +193,9 @@ render_header('Transactions', 'transactions');
                   <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['label']) ?></option>
                 <?php endforeach; ?>
               </select>
+            </td>
+            <td data-col="auto-category">
+              <?= h((string)($t['auto_category_name'] ?? '—')) ?>
             </td>
             <td data-col="type">
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>

@@ -53,15 +53,18 @@ CREATE TABLE IF NOT EXISTS transactions (
   tag VARCHAR(255) NULL,
 
   category_id INT UNSIGNED NULL,
+  category_auto_id INT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
   UNIQUE KEY uq_transactions_hash (txn_hash),
   KEY idx_transactions_user_date (user_id, txn_date),
   KEY idx_transactions_category (category_id),
+  KEY idx_transactions_category_auto (category_auto_id),
   KEY idx_transactions_import (import_id),
 
   CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL,
-  CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+  CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+  CONSTRAINT fk_transactions_category_auto FOREIGN KEY (category_auto_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
