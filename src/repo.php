@@ -27,65 +27,18 @@ function get_month_summary_counts(string $yyyymm): array {
 }
 
 function list_categories(): array {
-    $stmt = db()->query("SELECT id, type, parent_id, name, sort_order, is_active FROM categories WHERE is_active = 1 ORDER BY type, sort_order, name");
+    $stmt = db()->query("SELECT id, type, name, sort_order, is_active FROM categories WHERE is_active = 1 ORDER BY type, sort_order, name");
     return $stmt->fetchAll();
 }
 
 function categories_for_select(): array {
     $cats = list_categories();
-    $byId = [];
-    $childrenMap = [];
-    $orderByType = [];
-    foreach ($cats as $c) {
-        $id = (int)$c['id'];
-        $byId[$id] = $c;
-        $type = (string)$c['type'];
-        $orderByType[$type][] = $id;
-        if (!empty($c['parent_id'])) {
-            $childrenMap[(int)$c['parent_id']][] = $id;
-        }
-    }
-
-    $orderedIds = [];
-    foreach ($orderByType as $type => $ids) {
-        $added = [];
-        foreach ($ids as $id) {
-            $cat = $byId[$id];
-            if (!empty($cat['parent_id'])) {
-                continue;
-            }
-            $orderedIds[] = $id;
-            $added[$id] = true;
-            if (!empty($childrenMap[$id])) {
-                foreach ($ids as $childId) {
-                    if (!empty($byId[$childId]['parent_id']) && (int)$byId[$childId]['parent_id'] === $id) {
-                        $orderedIds[] = $childId;
-                        $added[$childId] = true;
-                    }
-                }
-            }
-        }
-        foreach ($ids as $id) {
-            if (empty($added[$id])) {
-                $orderedIds[] = $id;
-            }
-        }
-    }
-
     $out = [];
-    foreach ($orderedIds as $id) {
-        if (!empty($childrenMap[$id])) {
-            continue;
-        }
-        $cat = $byId[$id];
-        $label = $cat['name'];
-        if (!empty($cat['parent_id']) && isset($byId[(int)$cat['parent_id']])) {
-            $label = $byId[(int)$cat['parent_id']]['name'] . ' → ' . $label;
-        }
+    foreach ($cats as $cat) {
         $out[] = [
-            'id' => $id,
+            'id' => (int)$cat['id'],
             'type' => $cat['type'],
-            'label' => $label,
+            'label' => $cat['name'],
         ];
     }
     return $out;
@@ -166,8 +119,7 @@ function fetch_transactions_for_month(string $yyyymm, string $mode = 'all'): arr
         c1.name AS auto_category_name,
         c2.name AS manual_category_name,
         cf.name AS final_category_name,
-        cf.type AS final_category_type,
-        cf.parent_id AS final_category_parent_id
+        cf.type AS final_category_type
         FROM transactions t
         LEFT JOIN categories c1 ON c1.id = t.auto_category_id
         LEFT JOIN categories c2 ON c2.id = t.manual_category_id

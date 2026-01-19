@@ -29,133 +29,39 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
     return ['y' => $y, 'm' => $m];
 }
 
-function repo_categories_has_parent_id(PDO $db): bool {
-    static $cached = null;
-    if ($cached !== null) {
-        return $cached;
-    }
-    try {
-        $stmt = $db->query("SHOW COLUMNS FROM categories LIKE 'parent_id'");
-        $cached = (bool)$stmt->fetch();
-        if ($cached) {
-            return $cached;
-        }
-    } catch (PDOException $e) {
-        // Fall back to a direct select in case SHOW COLUMNS is restricted.
-    }
-    try {
-        $db->query("SELECT parent_id FROM categories LIMIT 1");
-        $cached = true;
-    } catch (PDOException $e) {
-        $cached = false;
-    }
-    return $cached;
-}
-
 function repo_list_categories(PDO $db): array {
-    if (repo_categories_has_parent_id($db)) {
-        $stmt = $db->query("SELECT id, name, parent_id FROM categories ORDER BY name ASC");
-    } else {
-        $stmt = $db->query("SELECT id, name FROM categories ORDER BY name ASC");
-    }
+    $stmt = $db->query("SELECT id, name FROM categories ORDER BY name ASC");
     $rows = $stmt->fetchAll();
-    $byId = [];
-    $children = [];
-    foreach ($rows as $row) {
-        if (!array_key_exists('parent_id', $row)) {
-            $row['parent_id'] = null;
-        }
-        $byId[(int)$row['id']] = $row;
-        if ($row['parent_id'] !== null) {
-            $children[(int)$row['parent_id']][] = (int)$row['id'];
-        }
-    }
     foreach ($rows as &$row) {
-        $label = $row['name'];
-        $parentId = $row['parent_id'];
-        if ($parentId !== null && isset($byId[(int)$parentId])) {
-            $label = $byId[(int)$parentId]['name'] . ' → ' . $label;
-        }
-        $row['label'] = $label;
+        $row['label'] = $row['name'];
     }
     unset($row);
-
-    $parents = array_values(array_filter($rows, static fn(array $row): bool => $row['parent_id'] === null));
-    usort($parents, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
-    $ordered = [];
-    $added = [];
-    foreach ($parents as $parent) {
-        $parentId = (int)$parent['id'];
-        $ordered[] = $parent;
-        $added[$parentId] = true;
-        if (isset($children[$parentId])) {
-            $childRows = array_map(
-                static fn(int $childId): array => $byId[$childId],
-                $children[$parentId]
-            );
-            usort($childRows, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
-            foreach ($childRows as $child) {
-                $ordered[] = $child;
-                $added[(int)$child['id']] = true;
-            }
-        }
-    }
-    foreach ($rows as $row) {
-        $id = (int)$row['id'];
-        if (!isset($added[$id])) {
-            $ordered[] = $row;
-        }
-    }
-    return $ordered;
+    return $rows;
 }
 
 function repo_list_assignable_categories(PDO $db): array {
-    $rows = repo_list_categories($db);
-    $hasChildrenMap = [];
-    foreach ($rows as $row) {
-        if ($row['parent_id'] !== null) {
-            $hasChildrenMap[(int)$row['parent_id']] = true;
-        }
-    }
-    return array_values(array_filter(
-        $rows,
-        static fn(array $row): bool => empty($hasChildrenMap[(int)$row['id']])
-    ));
+    return repo_list_categories($db);
 }
 
-function repo_find_category_id(PDO $db, string $name, ?int $parentId): ?int {
+function repo_find_category_id(PDO $db, string $name): ?int {
     $name = trim($name);
     if ($name === '') return null;
-    if (!repo_categories_has_parent_id($db)) {
-        $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n LIMIT 1");
-        $stmt->execute([':n' => $name]);
-    } elseif ($parentId === null) {
-        $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n AND parent_id IS NULL LIMIT 1");
-        $stmt->execute([':n' => $name]);
-    } else {
-        $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n AND parent_id = :pid LIMIT 1");
-        $stmt->execute([':n' => $name, ':pid' => $parentId]);
-    }
+    $stmt = $db->prepare("SELECT id FROM categories WHERE name = :n LIMIT 1");
+    $stmt->execute([':n' => $name]);
     $row = $stmt->fetch();
     return $row ? (int)$row['id'] : null;
 }
 
-function repo_create_category(PDO $db, string $name, ?int $parentId): ?int {
+function repo_create_category(PDO $db, string $name): ?int {
     $name = trim($name);
     if ($name === '') return null;
-    $parentId = ($parentId !== null && $parentId > 0) ? $parentId : null;
     // Insert ignore via try/catch for unique constraint
     try {
-        if (repo_categories_has_parent_id($db)) {
-            $stmt = $db->prepare("INSERT INTO categories(name, parent_id) VALUES(:n, :pid)");
-            $stmt->execute([':n' => $name, ':pid' => $parentId]);
-        } else {
-            $stmt = $db->prepare("INSERT INTO categories(name) VALUES(:n)");
-            $stmt->execute([':n' => $name]);
-        }
+        $stmt = $db->prepare("INSERT INTO categories(name) VALUES(:n)");
+        $stmt->execute([':n' => $name]);
         return (int)$db->lastInsertId();
     } catch (PDOException $e) {
-        $existingId = repo_find_category_id($db, $name, $parentId);
+        $existingId = repo_find_category_id($db, $name);
         return $existingId ?: null;
     }
 }
@@ -167,22 +73,15 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
 
     $db->beginTransaction();
     try {
-        foreach ($names as $name) {
-            if (!is_array($name)) {
-                $skipped++;
-                continue;
-            }
-            $cleanName = trim((string)($name['name'] ?? ''));
+        foreach ($names as $entry) {
+            $cleanName = is_array($entry)
+                ? trim((string)($entry['name'] ?? ''))
+                : trim((string)$entry);
             if ($cleanName === '') {
                 $skipped++;
                 continue;
             }
-            $parentId = $name['parent_id'] ?? null;
-            $parentId = $parentId !== null ? (int)$parentId : null;
-            if (!repo_categories_has_parent_id($db)) {
-                $parentId = null;
-            }
-            $id = repo_create_category($db, $cleanName, $parentId);
+            $id = repo_create_category($db, $cleanName);
             if ($id) {
                 $createdIds[] = $id;
             } else {
@@ -198,7 +97,7 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     return ['created_ids' => $createdIds, 'skipped' => $skipped];
 }
 
-function repo_update_category(PDO $db, int $categoryId, string $name, ?int $parentId): void {
+function repo_update_category(PDO $db, int $categoryId, string $name): void {
     $name = trim($name);
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
@@ -206,27 +105,13 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?int $pare
     if ($name === '') {
         throw new RuntimeException('Category name cannot be empty.');
     }
-    $parentId = ($parentId !== null && $parentId > 0) ? $parentId : null;
-    $hasParentId = repo_categories_has_parent_id($db);
-    if ($hasParentId && $parentId === $categoryId) {
-        throw new RuntimeException('Category cannot be its own parent.');
-    }
 
     try {
-        if ($hasParentId) {
-            $stmt = $db->prepare("UPDATE categories SET name = :name, parent_id = :pid WHERE id = :id");
-            $stmt->execute([
-                ':name' => $name,
-                ':pid' => $parentId,
-                ':id' => $categoryId,
-            ]);
-        } else {
-            $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
-            $stmt->execute([
-                ':name' => $name,
-                ':id' => $categoryId,
-            ]);
-        }
+        $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
+        $stmt->execute([
+            ':name' => $name,
+            ':id' => $categoryId,
+        ]);
     } catch (PDOException $e) {
         throw new RuntimeException('Category name already exists.');
     }
@@ -235,14 +120,6 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?int $pare
 function repo_delete_category(PDO $db, int $categoryId): void {
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
-    }
-    $hasParentId = repo_categories_has_parent_id($db);
-    if ($hasParentId) {
-        $stmt = $db->prepare("SELECT 1 FROM categories WHERE parent_id = :id LIMIT 1");
-        $stmt->execute([':id' => $categoryId]);
-        if ($stmt->fetch()) {
-            throw new RuntimeException('Category has child categories.');
-        }
     }
     $db->beginTransaction();
     try {
