@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id INT UNSIGNED NOT NULL,
   import_id INT UNSIGNED NULL,
+  import_batch_id INT UNSIGNED NULL,
   txn_hash CHAR(40) NOT NULL,
 
   txn_date DATE NOT NULL,
@@ -54,6 +55,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 
   category_id INT UNSIGNED NULL,
   category_auto_id INT UNSIGNED NULL,
+  rule_auto_id INT UNSIGNED NULL,
+  auto_reason VARCHAR(255) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
@@ -62,9 +65,12 @@ CREATE TABLE IF NOT EXISTS transactions (
   KEY idx_transactions_category (category_id),
   KEY idx_transactions_category_auto (category_auto_id),
   KEY idx_transactions_import (import_id),
+  KEY idx_transactions_import_batch (import_batch_id),
+  KEY idx_transactions_rule_auto (rule_auto_id),
 
   CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL,
+  CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category_auto FOREIGN KEY (category_auto_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

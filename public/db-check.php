@@ -19,6 +19,7 @@ $expectedSchema = [
         'id',
         'user_id',
         'import_id',
+        'import_batch_id',
         'txn_hash',
         'txn_date',
         'description',
@@ -34,6 +35,8 @@ $expectedSchema = [
         'tag',
         'category_id',
         'category_auto_id',
+        'rule_auto_id',
+        'auto_reason',
         'created_at',
     ],
 ];

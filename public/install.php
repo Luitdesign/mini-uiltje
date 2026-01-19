@@ -14,6 +14,59 @@ function table_exists(PDO $db, string $name): bool {
     return (bool)$stmt->fetch();
 }
 
+function column_exists(PDO $db, string $table, string $column): bool {
+    $stmt = $db->prepare(
+        'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = :table AND column_name = :column'
+    );
+    $stmt->execute([':table' => $table, ':column' => $column]);
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+function index_exists(PDO $db, string $table, string $index): bool {
+    $stmt = $db->prepare(
+        'SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = :table AND index_name = :index'
+    );
+    $stmt->execute([':table' => $table, ':index' => $index]);
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+function constraint_exists(PDO $db, string $table, string $constraint): bool {
+    $stmt = $db->prepare(
+        'SELECT COUNT(*) FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = :table AND constraint_name = :constraint'
+    );
+    $stmt->execute([':table' => $table, ':constraint' => $constraint]);
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+function ensure_transaction_extensions(PDO $db): void {
+    if (!table_exists($db, 'transactions')) {
+        return;
+    }
+
+    if (!column_exists($db, 'transactions', 'import_batch_id')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN import_batch_id INT UNSIGNED NULL AFTER import_id');
+    }
+    if (!column_exists($db, 'transactions', 'rule_auto_id')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN rule_auto_id INT UNSIGNED NULL AFTER category_auto_id');
+    }
+    if (!column_exists($db, 'transactions', 'auto_reason')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN auto_reason VARCHAR(255) NULL AFTER rule_auto_id');
+    }
+
+    if (!index_exists($db, 'transactions', 'idx_transactions_import_batch')) {
+        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_import_batch (import_batch_id)');
+    }
+    if (!index_exists($db, 'transactions', 'idx_transactions_rule_auto')) {
+        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_rule_auto (rule_auto_id)');
+    }
+
+    if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {
+        $db->exec(
+            'ALTER TABLE transactions ADD CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL'
+        );
+    }
+}
+
 function has_any_users(PDO $db): bool {
     if (!table_exists($db, 'users')) return false;
     try {
@@ -56,6 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($stmtSql === '') continue;
                 $db->exec($stmtSql);
             }
+
+            ensure_transaction_extensions($db);
 
             if (!has_any_users($db)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
