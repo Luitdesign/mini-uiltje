@@ -11,6 +11,7 @@ function render_header(string $title, ?string $active = null): void {
         ['Categories', '/categories.php', 'categories'],
         ['DB Check', '/db-check.php', 'db-check'],
         ['Schema', '/schema.php', 'schema'],
+        ['Reset DB', '/reset.php', 'reset'],
         ['Logout', '/logout.php', 'logout'],
     ] : [];
 
