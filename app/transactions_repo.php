@@ -169,9 +169,10 @@ function repo_list_transactions(PDO $db, int $userId, int $year, int $month, str
     }
 
     $sql = "
-        SELECT t.*, c.name AS category_name
+        SELECT t.*, c.name AS category_name, ac.name AS auto_category_name
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN categories ac ON ac.id = t.category_auto_id
         WHERE t.user_id = :uid
           AND YEAR(t.txn_date) = :y
           AND MONTH(t.txn_date) = :m

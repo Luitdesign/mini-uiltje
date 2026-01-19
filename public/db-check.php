@@ -33,6 +33,7 @@ $expectedSchema = [
         'balance_after',
         'tag',
         'category_id',
+        'category_auto_id',
         'created_at',
     ],
 ];
