@@ -19,6 +19,18 @@ if (isset($_GET['saved'])) {
         $info = 'Uncategorized color updated.';
     } elseif ($saved === 'deleted') {
         $info = 'Category deleted.';
+    } elseif ($saved === 'imported') {
+        $createdCategories = (int)($_GET['created_categories'] ?? 0);
+        $skippedCategories = (int)($_GET['skipped_categories'] ?? 0);
+        $createdRules = (int)($_GET['created_rules'] ?? 0);
+        $skippedRules = (int)($_GET['skipped_rules'] ?? 0);
+        $info = sprintf(
+            'Import complete. Categories: %d created, %d skipped. Rules: %d created, %d skipped.',
+            $createdCategories,
+            $skippedCategories,
+            $createdRules,
+            $skippedRules
+        );
     } else {
         $info = 'Changes saved.';
     }
@@ -27,7 +39,43 @@ if (isset($_GET['saved'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
     $action = (string)($_POST['action'] ?? 'add');
-    if ($action === 'update') {
+    if ($action === 'export_rules_categories') {
+        $payload = repo_export_rules_categories($db, current_user_id());
+        $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            throw new RuntimeException('Failed to encode export data.');
+        }
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="rules-categories-export.json"');
+        echo $json;
+        exit;
+    }
+    if ($action === 'import_rules_categories') {
+        $file = $_FILES['import_file'] ?? null;
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            $error = 'Please choose a JSON export file to import.';
+        } else {
+            $contents = file_get_contents($file['tmp_name']);
+            $payload = $contents !== false ? json_decode($contents, true) : null;
+            if (!is_array($payload)) {
+                $error = 'Import file is not valid JSON.';
+            } else {
+                try {
+                    $result = repo_import_rules_categories($db, current_user_id(), $payload);
+                    $query = http_build_query([
+                        'saved' => 'imported',
+                        'created_categories' => $result['created_categories'],
+                        'skipped_categories' => $result['skipped_categories'],
+                        'created_rules' => $result['created_rules'],
+                        'skipped_rules' => $result['skipped_rules'],
+                    ]);
+                    redirect('/categories.php?' . $query);
+                } catch (Throwable $e) {
+                    $error = $e->getMessage();
+                }
+            }
+        }
+    } elseif ($action === 'update') {
         $categoryId = (int)($_POST['id'] ?? 0);
         $name = (string)($_POST['name'] ?? '');
         $useColor = isset($_POST['use_color']);
@@ -98,8 +146,27 @@ render_header('Categories', 'categories');
 ?>
 
 <div class="card">
-  <h1>Categories</h1>
-  <p class="small">Create categories that you can assign to transactions.</p>
+  <div class="row" style="justify-content: space-between; align-items: center; gap: 12px;">
+    <div>
+      <h1>Categories</h1>
+      <p class="small">Create categories that you can assign to transactions.</p>
+    </div>
+    <div class="row" style="gap: 8px; flex-wrap: wrap;">
+      <form method="post" action="/categories.php">
+        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+        <input type="hidden" name="action" value="export_rules_categories">
+        <button class="btn" type="submit">Export rules & categories</button>
+      </form>
+      <form method="post" action="/categories.php" enctype="multipart/form-data" class="row" style="gap: 8px; align-items: center;">
+        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+        <input type="hidden" name="action" value="import_rules_categories">
+        <label class="small" style="margin: 0;">
+          <input class="input" type="file" name="import_file" accept="application/json">
+        </label>
+        <button class="btn" type="submit">Import rules & categories</button>
+      </form>
+    </div>
+  </div>
 
   <?php if ($info !== ''): ?>
     <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
