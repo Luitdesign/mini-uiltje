@@ -7,14 +7,65 @@ $userId = current_user_id();
 $okMsg = '';
 $errMsg = '';
 
+function parse_ini_size(?string $value): ?int {
+    if ($value === null) return null;
+    $value = trim($value);
+    if ($value === '') return null;
+    if (!preg_match('/^(\d+)([kKmMgG])?$/', $value, $matches)) return null;
+    $size = (int)$matches[1];
+    $unit = strtolower($matches[2] ?? '');
+    return match ($unit) {
+        'g' => $size * 1024 * 1024 * 1024,
+        'm' => $size * 1024 * 1024,
+        'k' => $size * 1024,
+        default => $size,
+    };
+}
+
+function upload_max_bytes(): ?int {
+    $uploadMax = parse_ini_size(ini_get('upload_max_filesize'));
+    $postMax = parse_ini_size(ini_get('post_max_size'));
+    if ($uploadMax === null) return $postMax;
+    if ($postMax === null) return $uploadMax;
+    return min($uploadMax, $postMax);
+}
+
+function format_bytes(?int $bytes): ?string {
+    if ($bytes === null || $bytes <= 0) return null;
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    $size = (float)$bytes;
+    $unit = 0;
+    while ($size >= 1024 && $unit < count($units) - 1) {
+        $size /= 1024;
+        $unit++;
+    }
+    return sprintf('%.1f %s', $size, $units[$unit]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
 
-    if (empty($_FILES['csv']['tmp_name'])) {
+    $file = $_FILES['csv'] ?? null;
+    $fileErr = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($fileErr !== UPLOAD_ERR_OK) {
+        $maxBytes = upload_max_bytes();
+        $maxText = format_bytes($maxBytes);
+        $errMsg = match ($fileErr) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => $maxText
+                ? "File is too large. Maximum upload size is {$maxText}."
+                : 'File is too large for the current upload limits.',
+            UPLOAD_ERR_PARTIAL => 'File upload was interrupted. Please try again.',
+            UPLOAD_ERR_NO_FILE => 'Please choose a CSV file.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Server error: missing temporary upload directory.',
+            UPLOAD_ERR_CANT_WRITE => 'Server error: failed to write the uploaded file.',
+            UPLOAD_ERR_EXTENSION => 'Server error: upload stopped by a PHP extension.',
+            default => 'Upload failed. Please try again.',
+        };
+    } elseif (empty($file['tmp_name'])) {
         $errMsg = 'Please choose a CSV file.';
     } else {
-        $tmp = (string)$_FILES['csv']['tmp_name'];
-        $name = (string)($_FILES['csv']['name'] ?? 'upload.csv');
+        $tmp = (string)$file['tmp_name'];
+        $name = (string)($file['name'] ?? 'upload.csv');
 
         try {
             $result = ing_import_csv($db, $userId, $tmp, $name);
