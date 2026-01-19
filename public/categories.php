@@ -221,17 +221,12 @@ render_header('Categories', 'categories');
   <table class="table" style="margin-top: 12px;">
     <thead>
       <tr>
-        <th>Name</th>
         <th style="width: 160px;">Color</th>
         <th style="width: 160px;">Actions</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>
-          <strong>Niet ingedeeld</strong>
-          <div class="small muted">Default for uncategorized transactions.</div>
-        </td>
         <td>
           <form id="uncategorized-color-form" method="post" action="/categories.php" class="row" style="align-items: center; gap: 8px;">
             <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
@@ -253,32 +248,17 @@ render_header('Categories', 'categories');
           <td>
             <?php if ($editId === $catId): ?>
               <?php $formId = 'category-edit-' . $catId; ?>
-              <form id="<?= h($formId) ?>" method="post" action="/categories.php" class="row" style="gap: 8px; align-items: flex-end;">
+              <form id="<?= h($formId) ?>" method="post" action="/categories.php" class="row" style="gap: 8px; align-items: center;">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="id" value="<?= h((string)$cat['id']) ?>">
-                <div style="min-width: 220px;">
-                  <label class="small">Name</label>
-                  <input class="input" name="name" value="<?= h($cat['name']) ?>">
-                </div>
-                <div style="min-width: 160px;">
-                  <label class="small">Color</label>
-                  <div class="row" style="align-items: center;">
-                    <label class="small" style="margin: 0;">
-                      <input type="checkbox" name="use_color" value="1" <?= $cat['color'] ? 'checked' : '' ?>>
-                      Use color
-                    </label>
-                    <input class="input" type="color" name="color" value="<?= h($cat['color'] ?: '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
-                  </div>
-                </div>
+                <input type="hidden" name="name" value="<?= h($cat['name']) ?>">
+                <label class="small" style="margin: 0;">
+                  <input type="checkbox" name="use_color" value="1" <?= $cat['color'] ? 'checked' : '' ?>>
+                  Use color
+                </label>
+                <input class="input" type="color" name="color" value="<?= h($cat['color'] ?: '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
               </form>
-            <?php else: ?>
-              <?= h($cat['name']) ?>
-            <?php endif; ?>
-          </td>
-          <td>
-            <?php if ($editId === $catId): ?>
-              <span class="small muted">—</span>
             <?php elseif (!empty($cat['color'])): ?>
               <?php $swatch = rgba_from_hex($cat['color'], 0.18); ?>
               <span class="badge" style="background: <?= h((string)$swatch) ?>; color: var(--text); border-color: <?= h($cat['color']) ?>;">
