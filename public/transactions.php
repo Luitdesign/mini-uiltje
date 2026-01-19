@@ -151,8 +151,10 @@ render_header('Transactions', 'transactions');
         <?php foreach ($incomeTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+          $rowColor = rgba_from_hex($t['category_color'] ?? $t['auto_category_color'] ?? null, 0.12);
+          $rowStyle = $rowColor ? ' style="background: ' . h($rowColor) . ';"' : '';
         ?>
-          <tr>
+          <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <div><strong><?= h($t['description']) ?></strong></div>
@@ -204,8 +206,10 @@ render_header('Transactions', 'transactions');
         <?php foreach ($expenseTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+          $rowColor = rgba_from_hex($t['category_color'] ?? $t['auto_category_color'] ?? null, 0.12);
+          $rowStyle = $rowColor ? ' style="background: ' . h($rowColor) . ';"' : '';
         ?>
-          <tr>
+          <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <div><strong><?= h($t['description']) ?></strong></div>

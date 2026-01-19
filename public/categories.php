@@ -28,8 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update') {
         $categoryId = (int)($_POST['id'] ?? 0);
         $name = (string)($_POST['name'] ?? '');
+        $useColor = isset($_POST['use_color']);
+        $color = $useColor ? (string)($_POST['color'] ?? '') : null;
         try {
-            repo_update_category($db, $categoryId, $name);
+            repo_update_category($db, $categoryId, $name, $color);
             redirect('/categories.php?saved=updated');
         } catch (Throwable $e) {
             $error = $e->getMessage();
@@ -60,10 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } else {
         $name = trim((string)($_POST['name'] ?? ''));
+        $useColor = isset($_POST['use_color']);
+        $color = $useColor ? (string)($_POST['color'] ?? '') : null;
         if ($name === '') {
             $error = 'Category name cannot be empty.';
         } else {
-            $id = repo_create_category($db, $name);
+            $id = repo_create_category($db, $name, $color);
             if ($id) {
                 redirect('/categories.php?saved=added');
             } else {
@@ -101,6 +105,17 @@ render_header('Categories', 'categories');
       <label>New category</label>
       <input class="input" name="name" placeholder="e.g. Boodschappen" required>
     </div>
+    <div style="min-width: 200px;">
+      <label>Category color</label>
+      <div class="row" style="align-items: center;">
+        <label class="small" style="margin: 0;">
+          <input type="checkbox" name="use_color" value="1">
+          Use color
+        </label>
+        <input class="input" type="color" name="color" value="#6ee7b7" style="width: 56px; height: 44px; padding: 4px;">
+      </div>
+      <div class="small">Applied softly to transaction rows.</div>
+    </div>
     <div>
       <button class="btn" type="submit">Add</button>
     </div>
@@ -131,6 +146,7 @@ render_header('Categories', 'categories');
       <thead>
         <tr>
           <th>Name</th>
+          <th style="width: 160px;">Color</th>
           <th style="width: 160px;">Actions</th>
         </tr>
       </thead>
@@ -149,9 +165,31 @@ render_header('Categories', 'categories');
                     <label class="small">Name</label>
                     <input class="input" name="name" value="<?= h($cat['name']) ?>">
                   </div>
+                  <div style="min-width: 160px;">
+                    <label class="small">Color</label>
+                    <div class="row" style="align-items: center;">
+                      <label class="small" style="margin: 0;">
+                        <input type="checkbox" name="use_color" value="1" <?= $cat['color'] ? 'checked' : '' ?>>
+                        Use color
+                      </label>
+                      <input class="input" type="color" name="color" value="<?= h($cat['color'] ?: '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
+                    </div>
+                  </div>
                 </form>
               <?php else: ?>
                 <?= h($cat['name']) ?>
+              <?php endif; ?>
+            </td>
+            <td>
+              <?php if ($editId === $catId): ?>
+                <span class="small muted">—</span>
+              <?php elseif (!empty($cat['color'])): ?>
+                <?php $swatch = rgba_from_hex($cat['color'], 0.18); ?>
+                <span class="badge" style="background: <?= h((string)$swatch) ?>; color: var(--text); border-color: <?= h($cat['color']) ?>;">
+                  <?= h($cat['color']) ?>
+                </span>
+              <?php else: ?>
+                <span class="small muted">None</span>
               <?php endif; ?>
             </td>
             <td class="action-cell">
