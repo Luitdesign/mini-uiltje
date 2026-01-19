@@ -9,6 +9,7 @@ $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
 $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
 $saved = isset($_GET['saved']);
+$autoUpdated = (int)($_GET['auto_updated'] ?? 0);
 
 $error = '';
 
@@ -16,7 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
 
     $action = (string)($_POST['action'] ?? '');
+    $savedFlag = false;
     if ($action === 'update_categories') {
+        $savedFlag = true;
         $categoryIds = $_POST['category_ids'] ?? [];
         if (is_array($categoryIds)) {
             foreach ($categoryIds as $txnIdRaw => $categoryIdRaw) {
@@ -29,9 +32,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'rerun_auto') {
+        $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
+    }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
-    $qs = http_build_query(['year'=>$year, 'month'=>$month, 'q'=>$q, 'saved'=>1]);
+    $qsParams = [
+        'year' => $year,
+        'month' => $month,
+        'q' => $q,
+    ];
+    if ($savedFlag) {
+        $qsParams['saved'] = 1;
+    }
+    if ($autoUpdated > 0) {
+        $qsParams['auto_updated'] = $autoUpdated;
+    }
+    $qs = http_build_query($qsParams);
     redirect('/transactions.php?' . $qs);
 }
 
@@ -78,8 +95,19 @@ render_header('Transactions', 'transactions');
     </div>
   </form>
 
+  <form method="post" action="/transactions.php?<?= h(http_build_query(['year'=>$year,'month'=>$month,'q'=>$q])) ?>" style="margin-top: 12px;">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="action" value="rerun_auto">
+    <button class="btn" type="submit">Auto categorie opnieuw toepassen</button>
+  </form>
+
   <?php if ($saved): ?>
     <div class="small" style="margin-top: 10px; color: var(--accent);">Saved.</div>
+  <?php endif; ?>
+  <?php if ($autoUpdated > 0): ?>
+    <div class="small" style="margin-top: 10px; color: var(--accent);">
+      Auto categorie bijgewerkt voor <?= (int)$autoUpdated ?> transacties.
+    </div>
   <?php endif; ?>
   <?php if ($error !== ''): ?>
     <div class="small" style="margin-top: 10px; color: var(--danger);"><?= h($error) ?></div>
