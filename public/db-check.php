@@ -16,6 +16,23 @@ $expectedSchema = [
     'categories' => ['id', 'name', 'color', 'parent_id', 'created_at'],
     'app_settings' => ['setting_key', 'setting_value'],
     'imports' => ['id', 'user_id', 'filename', 'imported_at'],
+    'rules' => [
+        'id',
+        'user_id',
+        'active',
+        'priority',
+        'name',
+        'from_text',
+        'from_text_match',
+        'from_iban',
+        'mededelingen_text',
+        'mededelingen_match',
+        'rekening_equals',
+        'amount_min',
+        'amount_max',
+        'target_category_id',
+        'created_at',
+    ],
     'transactions' => [
         'id',
         'user_id',
@@ -102,7 +119,7 @@ render_header('DB Check', 'db-check');
 
 <div class="card" style="max-width: 920px; margin: 20px auto;">
   <h1>Database check</h1>
-  <p class="muted">Verifies that the MySQL schema required for categories and transactions exists.</p>
+  <p class="muted">Verifies that the MySQL schema required for this app exists.</p>
 
   <?php if ($connectionError !== ''): ?>
     <div class="card" style="border-color: var(--danger); background: rgba(251,113,133,0.06);">
