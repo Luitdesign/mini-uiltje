@@ -65,6 +65,3 @@ CREATE TABLE IF NOT EXISTS transactions (
   CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-ALTER TABLE categories
-  ADD COLUMN parent_id INT UNSIGNED NULL AFTER name;
