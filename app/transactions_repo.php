@@ -194,6 +194,69 @@ function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int
     ]);
 }
 
+function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $month): int {
+    $stmtRules = $db->prepare(
+        'SELECT *
+         FROM rules
+         WHERE user_id = :uid AND active = 1
+         ORDER BY priority ASC, id ASC'
+    );
+    $stmtRules->execute([':uid' => $userId]);
+    $rules = $stmtRules->fetchAll();
+
+    $stmtTxns = $db->prepare(
+        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id
+         FROM transactions
+         WHERE user_id = :uid
+           AND YEAR(txn_date) = :y
+           AND MONTH(txn_date) = :m'
+    );
+    $stmtTxns->execute([':uid' => $userId, ':y' => $year, ':m' => $month]);
+    $transactions = $stmtTxns->fetchAll();
+
+    if ($transactions === []) {
+        return 0;
+    }
+
+    $stmtUpdate = $db->prepare(
+        'UPDATE transactions
+         SET category_auto_id = :auto_id,
+             rule_auto_id = :rule_id,
+             auto_reason = :auto_reason,
+             category_id = :category_id
+         WHERE id = :id AND user_id = :uid'
+    );
+
+    $updated = 0;
+    $db->beginTransaction();
+    try {
+        foreach ($transactions as $txn) {
+            $auto = ing_apply_rules($txn, $rules);
+            $newAutoId = $auto['category_auto_id'];
+            $currentCategoryId = $txn['category_id'] !== null ? (int)$txn['category_id'] : null;
+            $currentAutoId = $txn['category_auto_id'] !== null ? (int)$txn['category_auto_id'] : null;
+            $shouldUpdateCategory = $currentCategoryId === null || $currentCategoryId === $currentAutoId;
+            $categoryId = $shouldUpdateCategory ? $newAutoId : $currentCategoryId;
+
+            $stmtUpdate->execute([
+                ':auto_id' => $newAutoId,
+                ':rule_id' => $auto['rule_auto_id'],
+                ':auto_reason' => $auto['auto_reason'],
+                ':category_id' => $categoryId,
+                ':id' => (int)$txn['id'],
+                ':uid' => $userId,
+            ]);
+            $updated++;
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+
+    return $updated;
+}
+
 function repo_month_summary(PDO $db, int $userId, int $year, int $month): array {
     $sql = "
         SELECT
