@@ -8,7 +8,7 @@ function render_category_select(string $name, array $catsForSelect, ?int $select
     }
 
     $html = '<select name="' . h($name) . '">';
-    $html .= '<option value="">-- none --</option>';
+    $html .= '<option value="">Niet ingedeeld</option>';
     $labels = ['expense'=>'Expense', 'income'=>'Income', 'transfer'=>'Transfer'];
     foreach ($labels as $type => $lab) {
         if (empty($groups[$type])) continue;
