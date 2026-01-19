@@ -30,7 +30,7 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
 }
 
 function repo_list_categories(PDO $db): array {
-    $stmt = $db->query("SELECT id, name FROM categories ORDER BY name ASC");
+    $stmt = $db->query("SELECT id, name, color FROM categories ORDER BY name ASC");
     $rows = $stmt->fetchAll();
     foreach ($rows as &$row) {
         $row['label'] = $row['name'];
@@ -52,13 +52,14 @@ function repo_find_category_id(PDO $db, string $name): ?int {
     return $row ? (int)$row['id'] : null;
 }
 
-function repo_create_category(PDO $db, string $name): ?int {
+function repo_create_category(PDO $db, string $name, ?string $color): ?int {
     $name = trim($name);
     if ($name === '') return null;
+    $color = normalize_hex_color($color);
     // Insert ignore via try/catch for unique constraint
     try {
-        $stmt = $db->prepare("INSERT INTO categories(name) VALUES(:n)");
-        $stmt->execute([':n' => $name]);
+        $stmt = $db->prepare("INSERT INTO categories(name, color) VALUES(:n, :color)");
+        $stmt->execute([':n' => $name, ':color' => $color]);
         return (int)$db->lastInsertId();
     } catch (PDOException $e) {
         $existingId = repo_find_category_id($db, $name);
@@ -81,7 +82,8 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
                 $skipped++;
                 continue;
             }
-            $id = repo_create_category($db, $cleanName);
+            $color = is_array($entry) ? ($entry['color'] ?? null) : null;
+            $id = repo_create_category($db, $cleanName, $color);
             if ($id) {
                 $createdIds[] = $id;
             } else {
@@ -97,7 +99,7 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     return ['created_ids' => $createdIds, 'skipped' => $skipped];
 }
 
-function repo_update_category(PDO $db, int $categoryId, string $name): void {
+function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color): void {
     $name = trim($name);
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
@@ -105,11 +107,13 @@ function repo_update_category(PDO $db, int $categoryId, string $name): void {
     if ($name === '') {
         throw new RuntimeException('Category name cannot be empty.');
     }
+    $color = normalize_hex_color($color);
 
     try {
-        $stmt = $db->prepare("UPDATE categories SET name = :name WHERE id = :id");
+        $stmt = $db->prepare("UPDATE categories SET name = :name, color = :color WHERE id = :id");
         $stmt->execute([
             ':name' => $name,
+            ':color' => $color,
             ':id' => $categoryId,
         ]);
     } catch (PDOException $e) {
@@ -169,7 +173,8 @@ function repo_list_transactions(PDO $db, int $userId, int $year, int $month, str
     }
 
     $sql = "
-        SELECT t.*, c.name AS category_name, ac.name AS auto_category_name
+        SELECT t.*, c.name AS category_name, c.color AS category_color,
+               ac.name AS auto_category_name, ac.color AS auto_category_color
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
