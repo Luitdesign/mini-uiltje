@@ -151,103 +151,101 @@ render_header('Categories', 'categories');
 
 <div class="card">
   <h2>Existing</h2>
-  <?php if (empty($cats)): ?>
-    <div class="small muted">No categories yet.</div>
-  <?php endif; ?>
-
-  <?php if (!empty($cats)): ?>
-    <table class="table" style="margin-top: 12px;">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th style="width: 160px;">Color</th>
-          <th style="width: 160px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
+  <table class="table" style="margin-top: 12px;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th style="width: 160px;">Color</th>
+        <th style="width: 160px;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <strong>Niet ingedeeld</strong>
+          <div class="small muted">Default for uncategorized transactions.</div>
+        </td>
+        <td>
+          <form id="uncategorized-color-form" method="post" action="/categories.php" class="row" style="align-items: center; gap: 8px;">
+            <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+            <input type="hidden" name="action" value="update_uncategorized_color">
+            <label class="small" style="margin: 0;">
+              <input type="checkbox" name="use_color" value="1" <?= $useUncategorizedColor ? 'checked' : '' ?>>
+              Use color
+            </label>
+            <input class="input" type="color" name="color" value="<?= h($useUncategorizedColor ? $uncategorizedColor : '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
+          </form>
+        </td>
+        <td class="action-cell">
+          <button class="btn" type="submit" form="uncategorized-color-form">Save</button>
+        </td>
+      </tr>
+      <?php foreach ($cats as $cat): ?>
+        <?php $catId = (int)$cat['id']; ?>
         <tr>
           <td>
-            <strong>Niet ingedeeld</strong>
-            <div class="small muted">Default for uncategorized transactions.</div>
+            <?php if ($editId === $catId): ?>
+              <?php $formId = 'category-edit-' . $catId; ?>
+              <form id="<?= h($formId) ?>" method="post" action="/categories.php" class="row" style="gap: 8px; align-items: flex-end;">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="<?= h((string)$cat['id']) ?>">
+                <div style="min-width: 220px;">
+                  <label class="small">Name</label>
+                  <input class="input" name="name" value="<?= h($cat['name']) ?>">
+                </div>
+                <div style="min-width: 160px;">
+                  <label class="small">Color</label>
+                  <div class="row" style="align-items: center;">
+                    <label class="small" style="margin: 0;">
+                      <input type="checkbox" name="use_color" value="1" <?= $cat['color'] ? 'checked' : '' ?>>
+                      Use color
+                    </label>
+                    <input class="input" type="color" name="color" value="<?= h($cat['color'] ?: '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
+                  </div>
+                </div>
+              </form>
+            <?php else: ?>
+              <?= h($cat['name']) ?>
+            <?php endif; ?>
           </td>
           <td>
-            <form id="uncategorized-color-form" method="post" action="/categories.php" class="row" style="align-items: center; gap: 8px;">
-              <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-              <input type="hidden" name="action" value="update_uncategorized_color">
-              <label class="small" style="margin: 0;">
-                <input type="checkbox" name="use_color" value="1" <?= $useUncategorizedColor ? 'checked' : '' ?>>
-                Use color
-              </label>
-              <input class="input" type="color" name="color" value="<?= h($useUncategorizedColor ? $uncategorizedColor : '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
-            </form>
+            <?php if ($editId === $catId): ?>
+              <span class="small muted">—</span>
+            <?php elseif (!empty($cat['color'])): ?>
+              <?php $swatch = rgba_from_hex($cat['color'], 0.18); ?>
+              <span class="badge" style="background: <?= h((string)$swatch) ?>; color: var(--text); border-color: <?= h($cat['color']) ?>;">
+                <?= h($cat['color']) ?>
+              </span>
+            <?php else: ?>
+              <span class="small muted">None</span>
+            <?php endif; ?>
           </td>
           <td class="action-cell">
-            <button class="btn" type="submit" form="uncategorized-color-form">Save</button>
+            <?php if ($editId === $catId): ?>
+              <div class="inline-actions">
+                <button class="btn" type="submit" form="<?= h($formId) ?>">Save</button>
+                <a class="btn" href="/categories.php">Cancel</a>
+              </div>
+            <?php else: ?>
+              <div class="inline-actions">
+                <a class="btn" href="/categories.php?edit=<?= h((string)$cat['id']) ?>" aria-label="Edit category <?= h($cat['name']) ?>">✏️ Edit</a>
+                <form method="post" action="/categories.php" onsubmit="return confirm('Delete this category? Transactions will become uncategorized.');">
+                  <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="id" value="<?= h((string)$cat['id']) ?>">
+                  <button class="btn" type="submit" aria-label="Delete category <?= h($cat['name']) ?>">🗑️ Delete</button>
+                </form>
+              </div>
+            <?php endif; ?>
           </td>
         </tr>
-        <?php foreach ($cats as $cat): ?>
-          <?php $catId = (int)$cat['id']; ?>
-          <tr>
-            <td>
-              <?php if ($editId === $catId): ?>
-                <?php $formId = 'category-edit-' . $catId; ?>
-                <form id="<?= h($formId) ?>" method="post" action="/categories.php" class="row" style="gap: 8px; align-items: flex-end;">
-                  <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-                  <input type="hidden" name="action" value="update">
-                  <input type="hidden" name="id" value="<?= h((string)$cat['id']) ?>">
-                  <div style="min-width: 220px;">
-                    <label class="small">Name</label>
-                    <input class="input" name="name" value="<?= h($cat['name']) ?>">
-                  </div>
-                  <div style="min-width: 160px;">
-                    <label class="small">Color</label>
-                    <div class="row" style="align-items: center;">
-                      <label class="small" style="margin: 0;">
-                        <input type="checkbox" name="use_color" value="1" <?= $cat['color'] ? 'checked' : '' ?>>
-                        Use color
-                      </label>
-                      <input class="input" type="color" name="color" value="<?= h($cat['color'] ?: '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
-                    </div>
-                  </div>
-                </form>
-              <?php else: ?>
-                <?= h($cat['name']) ?>
-              <?php endif; ?>
-            </td>
-            <td>
-              <?php if ($editId === $catId): ?>
-                <span class="small muted">—</span>
-              <?php elseif (!empty($cat['color'])): ?>
-                <?php $swatch = rgba_from_hex($cat['color'], 0.18); ?>
-                <span class="badge" style="background: <?= h((string)$swatch) ?>; color: var(--text); border-color: <?= h($cat['color']) ?>;">
-                  <?= h($cat['color']) ?>
-                </span>
-              <?php else: ?>
-                <span class="small muted">None</span>
-              <?php endif; ?>
-            </td>
-            <td class="action-cell">
-              <?php if ($editId === $catId): ?>
-                <div class="inline-actions">
-                  <button class="btn" type="submit" form="<?= h($formId) ?>">Save</button>
-                  <a class="btn" href="/categories.php">Cancel</a>
-                </div>
-              <?php else: ?>
-                <div class="inline-actions">
-                  <a class="btn" href="/categories.php?edit=<?= h((string)$cat['id']) ?>" aria-label="Edit category <?= h($cat['name']) ?>">✏️ Edit</a>
-                  <form method="post" action="/categories.php" onsubmit="return confirm('Delete this category? Transactions will become uncategorized.');">
-                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="id" value="<?= h((string)$cat['id']) ?>">
-                    <button class="btn" type="submit" aria-label="Delete category <?= h($cat['name']) ?>">🗑️ Delete</button>
-                  </form>
-                </div>
-              <?php endif; ?>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+
+  <?php if (empty($cats)): ?>
+    <div class="small muted" style="margin-top: 8px;">No categories yet.</div>
   <?php endif; ?>
 </div>
 
