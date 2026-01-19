@@ -43,6 +43,86 @@ function ing_txn_hash(array $row): string {
     return sha1(implode('|', $parts));
 }
 
+function ing_normalize_iban(?string $iban): string {
+    if ($iban === null) return '';
+    return strtoupper(trim($iban));
+}
+
+function ing_rule_text_match(string $value, string $pattern, ?string $mode): bool {
+    $pattern = trim($pattern);
+    if ($pattern === '') return true;
+
+    $value = mb_strtolower($value);
+    $pattern = mb_strtolower($pattern);
+    $mode = $mode ?: 'contains';
+
+    return match ($mode) {
+        'starts' => str_starts_with($value, $pattern),
+        'equals' => $value === $pattern,
+        default => str_contains($value, $pattern),
+    };
+}
+
+function ing_rule_matches_transaction(array $rule, array $txn): bool {
+    if (empty($rule['active'])) return false;
+
+    $desc = (string)($txn['description'] ?? '');
+    $notes = (string)($txn['notes'] ?? '');
+    $amount = abs((float)($txn['amount_signed'] ?? 0));
+
+    $fromText = (string)($rule['from_text'] ?? '');
+    if ($fromText !== '' && !ing_rule_text_match($desc, $fromText, $rule['from_text_match'] ?? null)) {
+        return false;
+    }
+
+    $medText = (string)($rule['mededelingen_text'] ?? '');
+    if ($medText !== '' && !ing_rule_text_match($notes, $medText, $rule['mededelingen_match'] ?? null)) {
+        return false;
+    }
+
+    $fromIban = ing_normalize_iban($rule['from_iban'] ?? null);
+    if ($fromIban !== '' && $fromIban !== ing_normalize_iban($txn['counter_iban'] ?? null)) {
+        return false;
+    }
+
+    $rekening = ing_normalize_iban($rule['rekening_equals'] ?? null);
+    if ($rekening !== '' && $rekening !== ing_normalize_iban($txn['account_iban'] ?? null)) {
+        return false;
+    }
+
+    if ($rule['amount_min'] !== null && $rule['amount_min'] !== '') {
+        if ($amount < (float)$rule['amount_min']) return false;
+    }
+
+    if ($rule['amount_max'] !== null && $rule['amount_max'] !== '') {
+        if ($amount > (float)$rule['amount_max']) return false;
+    }
+
+    return true;
+}
+
+function ing_apply_rules(array $txn, array $rules): array {
+    foreach ($rules as $rule) {
+        $targetCategoryId = (int)($rule['target_category_id'] ?? 0);
+        if ($targetCategoryId <= 0) {
+            continue;
+        }
+        if (ing_rule_matches_transaction($rule, $txn)) {
+            return [
+                'category_auto_id' => $targetCategoryId,
+                'rule_auto_id' => (int)$rule['id'],
+                'auto_reason' => 'Rule: ' . (string)$rule['name'],
+            ];
+        }
+    }
+
+    return [
+        'category_auto_id' => null,
+        'rule_auto_id' => null,
+        'auto_reason' => null,
+    ];
+}
+
 function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalFilename): array {
     $handle = fopen($tmpFile, 'rb');
     if (!$handle) {
@@ -96,6 +176,15 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
     $inserted = 0;
     $skipped = 0;
 
+    $stmtRules = $db->prepare(
+        'SELECT *
+         FROM rules
+         WHERE user_id = :uid AND active = 1
+         ORDER BY priority ASC, id ASC'
+    );
+    $stmtRules->execute([':uid' => $userId]);
+    $rules = $stmtRules->fetchAll();
+
     $stmtIns = $db->prepare(
         'INSERT INTO transactions(
             user_id, import_id, import_batch_id, txn_hash,
@@ -103,12 +192,14 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             account_iban, counter_iban, code,
             direction, amount_signed, currency,
             mutation_type, notes, balance_after, tag
+            , category_auto_id, rule_auto_id, auto_reason
         ) VALUES(
             :uid, :import_id, :import_batch_id, :txn_hash,
             :txn_date, :description,
             :account_iban, :counter_iban, :code,
             :direction, :amount_signed, :currency,
             :mutation_type, :notes, :balance_after, :tag
+            , :category_auto_id, :rule_auto_id, :auto_reason
         )'
     );
 
@@ -146,6 +237,11 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             'tag' => isset($idx['Tag']) ? trim((string)($row[$idx['Tag']] ?? '')) : null,
         ];
 
+        $auto = ing_apply_rules($rec, $rules);
+        $rec['category_auto_id'] = $auto['category_auto_id'];
+        $rec['rule_auto_id'] = $auto['rule_auto_id'];
+        $rec['auto_reason'] = $auto['auto_reason'];
+
         $rec['txn_hash'] = ing_txn_hash([
             'txn_date' => $rec['txn_date'],
             'description' => $rec['description'],
@@ -178,6 +274,9 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':notes' => $rec['notes'] ?: null,
                 ':balance_after' => $rec['balance_after'],
                 ':tag' => $rec['tag'] ?: null,
+                ':category_auto_id' => $rec['category_auto_id'],
+                ':rule_auto_id' => $rec['rule_auto_id'],
+                ':auto_reason' => $rec['auto_reason'],
             ]);
             $inserted++;
         } catch (PDOException $e) {
