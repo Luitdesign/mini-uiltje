@@ -192,14 +192,14 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             account_iban, counter_iban, code,
             direction, amount_signed, currency,
             mutation_type, notes, balance_after, tag
-            , category_auto_id, rule_auto_id, auto_reason
+            , category_id, category_auto_id, rule_auto_id, auto_reason
         ) VALUES(
             :uid, :import_id, :import_batch_id, :txn_hash,
             :txn_date, :description,
             :account_iban, :counter_iban, :code,
             :direction, :amount_signed, :currency,
             :mutation_type, :notes, :balance_after, :tag
-            , :category_auto_id, :rule_auto_id, :auto_reason
+            , :category_id, :category_auto_id, :rule_auto_id, :auto_reason
         )'
     );
 
@@ -239,6 +239,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
 
         $auto = ing_apply_rules($rec, $rules);
         $rec['category_auto_id'] = $auto['category_auto_id'];
+        $rec['category_id'] = $auto['category_auto_id'];
         $rec['rule_auto_id'] = $auto['rule_auto_id'];
         $rec['auto_reason'] = $auto['auto_reason'];
 
@@ -274,6 +275,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':notes' => $rec['notes'] ?: null,
                 ':balance_after' => $rec['balance_after'],
                 ':tag' => $rec['tag'] ?: null,
+                ':category_id' => $rec['category_id'],
                 ':category_auto_id' => $rec['category_auto_id'],
                 ':rule_auto_id' => $rec['rule_auto_id'],
                 ':auto_reason' => $rec['auto_reason'],
