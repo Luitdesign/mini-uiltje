@@ -140,6 +140,10 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 
 .table th { text-align: left; color: var(--muted); font-weight: 600; }
 
+.show-row-colors .txn-table tr[data-row-color="1"] {
+  background: var(--row-color);
+}
+
 .badge {
   display: inline-block;
   padding: 2px 8px;
