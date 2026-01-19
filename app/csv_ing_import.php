@@ -98,13 +98,13 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
 
     $stmtIns = $db->prepare(
         'INSERT INTO transactions(
-            user_id, import_id, txn_hash,
+            user_id, import_id, import_batch_id, txn_hash,
             txn_date, description,
             account_iban, counter_iban, code,
             direction, amount_signed, currency,
             mutation_type, notes, balance_after, tag
         ) VALUES(
-            :uid, :import_id, :txn_hash,
+            :uid, :import_id, :import_batch_id, :txn_hash,
             :txn_date, :description,
             :account_iban, :counter_iban, :code,
             :direction, :amount_signed, :currency,
@@ -164,6 +164,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             $stmtIns->execute([
                 ':uid' => $userId,
                 ':import_id' => $importId,
+                ':import_batch_id' => $importId,
                 ':txn_hash' => $rec['txn_hash'],
                 ':txn_date' => $rec['txn_date'],
                 ':description' => $rec['description'],
