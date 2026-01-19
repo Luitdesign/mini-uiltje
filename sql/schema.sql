@@ -30,6 +30,28 @@ CREATE TABLE IF NOT EXISTS imports (
   CONSTRAINT fk_imports_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS rules (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  priority INT NOT NULL DEFAULT 0,
+  name VARCHAR(120) NOT NULL,
+  from_text VARCHAR(255) NULL,
+  from_text_match ENUM('contains','equals','starts_with','ends_with','regex') NULL,
+  from_iban VARCHAR(34) NULL,
+  mededelingen_text VARCHAR(255) NULL,
+  mededelingen_match ENUM('contains','equals','starts_with','ends_with','regex') NULL,
+  rekening_equals VARCHAR(34) NULL,
+  amount_min DECIMAL(12,2) NULL,
+  amount_max DECIMAL(12,2) NULL,
+  target_category_id INT UNSIGNED NULL,
+  PRIMARY KEY (id),
+  KEY idx_rules_user (user_id),
+  KEY idx_rules_priority (priority),
+  CONSTRAINT fk_rules_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rules_target_category FOREIGN KEY (target_category_id) REFERENCES categories(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS transactions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id INT UNSIGNED NOT NULL,
