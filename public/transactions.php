@@ -129,6 +129,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-category" checked> Auto Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
+      <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
     </div>
 
     <h2>Income</h2>
@@ -157,7 +158,7 @@ render_header('Transactions', 'transactions');
               $rowBaseColor = $uncategorizedColor;
           }
           $rowColor = rgba_from_hex($rowBaseColor, 0.12);
-          $rowStyle = $rowColor ? ' style="background: ' . h($rowColor) . ';"' : '';
+          $rowStyle = $rowColor ? ' style="--row-color: ' . h($rowColor) . ';" data-row-color="1"' : '';
         ?>
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
@@ -216,7 +217,7 @@ render_header('Transactions', 'transactions');
               $rowBaseColor = $uncategorizedColor;
           }
           $rowColor = rgba_from_hex($rowBaseColor, 0.12);
-          $rowStyle = $rowColor ? ' style="background: ' . h($rowColor) . ';"' : '';
+          $rowStyle = $rowColor ? ' style="--row-color: ' . h($rowColor) . ';" data-row-color="1"' : '';
         ?>
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
@@ -256,12 +257,28 @@ render_header('Transactions', 'transactions');
 <script>
   (function () {
     const storageKey = 'transactions.visibleColumns';
+    const rowColorStorageKey = 'transactions.showRowColors';
     const toggles = Array.from(document.querySelectorAll('.js-column-toggle'));
     const tables = Array.from(document.querySelectorAll('.txn-table'));
+    const rowColorToggle = document.getElementById('js-row-color-toggle');
 
     if (!toggles.length || !tables.length) {
       return;
     }
+
+    const applyRowColors = (enabled) => {
+      document.body.classList.toggle('show-row-colors', enabled);
+      if (rowColorToggle) {
+        rowColorToggle.textContent = enabled ? 'Row colours: On' : 'Row colours: Off';
+      }
+    };
+
+    let rowColorsEnabled = true;
+    const savedRowColors = window.localStorage.getItem(rowColorStorageKey);
+    if (savedRowColors !== null) {
+      rowColorsEnabled = savedRowColors === '1';
+    }
+    applyRowColors(rowColorsEnabled);
 
     const applyVisibility = (column, isVisible) => {
       tables.forEach((table) => {
@@ -293,6 +310,14 @@ render_header('Transactions', 'transactions');
       });
       window.localStorage.setItem(storageKey, JSON.stringify(state));
     };
+
+    if (rowColorToggle) {
+      rowColorToggle.addEventListener('click', () => {
+        rowColorsEnabled = !rowColorsEnabled;
+        applyRowColors(rowColorsEnabled);
+        window.localStorage.setItem(rowColorStorageKey, rowColorsEnabled ? '1' : '0');
+      });
+    }
 
     toggles.forEach((toggle) => {
       applyVisibility(toggle.dataset.column, toggle.checked);
