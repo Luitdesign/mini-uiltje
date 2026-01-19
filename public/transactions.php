@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = repo_list_assignable_categories($db);
+$uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
 $txns = repo_list_transactions($db, $userId, $year, $month, $q);
 $incomeTxns = [];
 $expenseTxns = [];
@@ -151,7 +152,11 @@ render_header('Transactions', 'transactions');
         <?php foreach ($incomeTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
-          $rowColor = rgba_from_hex($t['category_color'] ?? $t['auto_category_color'] ?? null, 0.12);
+          $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
+          if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
+              $rowBaseColor = $uncategorizedColor;
+          }
+          $rowColor = rgba_from_hex($rowBaseColor, 0.12);
           $rowStyle = $rowColor ? ' style="background: ' . h($rowColor) . ';"' : '';
         ?>
           <tr<?= $rowStyle ?>>
@@ -206,7 +211,11 @@ render_header('Transactions', 'transactions');
         <?php foreach ($expenseTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
-          $rowColor = rgba_from_hex($t['category_color'] ?? $t['auto_category_color'] ?? null, 0.12);
+          $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
+          if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
+              $rowBaseColor = $uncategorizedColor;
+          }
+          $rowColor = rgba_from_hex($rowBaseColor, 0.12);
           $rowStyle = $rowColor ? ' style="background: ' . h($rowColor) . ';"' : '';
         ?>
           <tr<?= $rowStyle ?>>

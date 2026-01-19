@@ -43,6 +43,36 @@ function repo_list_assignable_categories(PDO $db): array {
     return repo_list_categories($db);
 }
 
+function repo_get_setting(PDO $db, string $key): ?string {
+    $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key = :key");
+    $stmt->execute([':key' => $key]);
+    $value = $stmt->fetchColumn();
+    if ($value === false) {
+        return null;
+    }
+    $value = (string)$value;
+    return $value === '' ? null : $value;
+}
+
+function repo_set_setting(PDO $db, string $key, ?string $value): void {
+    $value = $value !== null ? trim($value) : null;
+    if ($value === null || $value === '') {
+        $stmt = $db->prepare("DELETE FROM app_settings WHERE setting_key = :key");
+        $stmt->execute([':key' => $key]);
+        return;
+    }
+
+    $stmt = $db->prepare(
+        "INSERT INTO app_settings(setting_key, setting_value)
+         VALUES(:key, :value)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)"
+    );
+    $stmt->execute([
+        ':key' => $key,
+        ':value' => $value,
+    ]);
+}
+
 function repo_find_category_id(PDO $db, string $name): ?int {
     $name = trim($name);
     if ($name === '') return null;
