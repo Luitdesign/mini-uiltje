@@ -125,8 +125,8 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="date" checked> Date</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="description" checked> Description</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="amount" checked> Amount</label>
-      <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-category" checked> Auto Category</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
@@ -139,8 +139,8 @@ render_header('Transactions', 'transactions');
           <th data-col="date" style="min-width: 110px; white-space: nowrap;">Date</th>
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
-          <th data-col="category">Category</th>
           <th data-col="auto-category">Auto Category</th>
+          <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
@@ -169,6 +169,9 @@ render_header('Transactions', 'transactions');
               <?php endif; ?>
             </td>
             <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
+            <td data-col="auto-category">
+              <?= h((string)($t['auto_category_name'] ?? '—')) ?>
+            </td>
             <td data-col="category">
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Niet ingedeeld</option>
@@ -176,9 +179,6 @@ render_header('Transactions', 'transactions');
                   <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['label']) ?></option>
                 <?php endforeach; ?>
               </select>
-            </td>
-            <td data-col="auto-category">
-              <?= h((string)($t['auto_category_name'] ?? '—')) ?>
             </td>
             <td data-col="type">
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
@@ -198,8 +198,8 @@ render_header('Transactions', 'transactions');
           <th data-col="date" style="min-width: 110px; white-space: nowrap;">Date</th>
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
-          <th data-col="category">Category</th>
           <th data-col="auto-category">Auto Category</th>
+          <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
@@ -228,6 +228,9 @@ render_header('Transactions', 'transactions');
               <?php endif; ?>
             </td>
             <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
+            <td data-col="auto-category">
+              <?= h((string)($t['auto_category_name'] ?? '—')) ?>
+            </td>
             <td data-col="category">
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Niet ingedeeld</option>
@@ -235,9 +238,6 @@ render_header('Transactions', 'transactions');
                   <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['label']) ?></option>
                 <?php endforeach; ?>
               </select>
-            </td>
-            <td data-col="auto-category">
-              <?= h((string)($t['auto_category_name'] ?? '—')) ?>
             </td>
             <td data-col="type">
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
