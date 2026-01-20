@@ -10,7 +10,7 @@ $error = '';
 
 $pot = null;
 if ($potId > 0) {
-    $pot = repo_get_pot($db, $userId, $potId);
+    $pot = repo_get_pot_with_balance($db, $userId, $potId);
     if (!$pot) {
         $error = 'Pot not found.';
         $potId = 0;
@@ -22,6 +22,7 @@ if (!$pot) {
         'id' => 0,
         'name' => '',
         'start_amount' => 0,
+        'current_amount' => 0,
         'archived' => 0,
     ];
 }
@@ -90,6 +91,14 @@ render_header($potId > 0 ? 'Edit Pot' : 'New Pot', 'pots');
       <label>Start amount</label>
       <input class="input" type="number" step="0.01" name="start_amount" value="<?= h((string)$pot['start_amount']) ?>">
       <div class="small muted">Set the amount already in this pot.</div>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label>Current amount</label>
+      <div class="input" style="display: flex; align-items: center;">
+        <?= number_format((float)($pot['balance'] ?? $pot['current_amount'] ?? 0), 2, ',', '.') ?>
+      </div>
+      <div class="small muted">Calculated from the start amount, allocations, and spending.</div>
     </div>
 
     <div style="margin-top: 12px;">
