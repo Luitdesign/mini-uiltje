@@ -85,13 +85,13 @@ function rule_summary(array $rule): string {
     if ($fromText !== '') {
         $label = rule_match_label($rule['from_text_match'] ?? null);
         $parts[] = $label !== ''
-            ? sprintf('From text %s "%s"', $label, $fromText)
-            : sprintf('From text "%s"', $fromText);
+            ? sprintf('Beschrijving text %s "%s"', $label, $fromText)
+            : sprintf('Beschrijving text "%s"', $fromText);
     }
 
     $fromIban = trim((string)($rule['from_iban'] ?? ''));
     if ($fromIban !== '') {
-        $parts[] = sprintf('From IBAN %s', $fromIban);
+        $parts[] = sprintf('Beschrijving IBAN %s', $fromIban);
     }
 
     $medText = trim((string)($rule['mededelingen_text'] ?? ''));

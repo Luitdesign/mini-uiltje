@@ -133,11 +133,11 @@ render_header($ruleId > 0 ? 'Edit Rule' : 'New Rule', 'rules');
 
     <div class="grid-2">
       <div>
-        <label>From text</label>
+        <label>Beschrijving text</label>
         <input class="input" name="from_text" value="<?= h((string)$rule['from_text']) ?>">
       </div>
       <div>
-        <label>From text match</label>
+        <label>Beschrijving text match</label>
         <select class="input" name="from_text_match">
           <?php foreach ($matchOptions as $value => $label): ?>
             <option value="<?= h($value) ?>" <?= ((string)$rule['from_text_match'] === (string)$value) ? 'selected' : '' ?>>
@@ -150,7 +150,7 @@ render_header($ruleId > 0 ? 'Edit Rule' : 'New Rule', 'rules');
 
     <div class="grid-2" style="margin-top: 12px;">
       <div>
-        <label>From IBAN</label>
+        <label>Beschrijving IBAN</label>
         <input class="input" name="from_iban" value="<?= h((string)$rule['from_iban']) ?>">
       </div>
       <div>
