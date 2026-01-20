@@ -30,7 +30,15 @@ function render_header(string $title): void {
             echo '<a href="/admin/users.php">Users</a>';
             echo '<a href="/admin/categories.php">Categories</a>';
         }
+        echo '<div class="menu">';
+        echo '<button class="menu-toggle" type="button">Settings ▾</button>';
+        echo '<div class="menu-items">';
+        echo '<a href="/db-check.php">DB Check</a>';
+        echo '<a href="/schema.php">Schema</a>';
+        echo '<a href="/reset.php">Reset DB</a>';
         echo '<a href="/logout.php">Logout</a>';
+        echo '</div>';
+        echo '</div>';
     } else {
         echo '<a href="/login.php">Login</a>';
     }

@@ -9,6 +9,12 @@ a:hover{text-decoration:underline}
 .row > .col{flex:1 1 320px}
 .nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .nav .links{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.menu{position:relative;display:inline-flex}
+.menu-toggle{border:none;background:transparent;color:var(--primary);font:inherit;padding:0;cursor:pointer}
+.menu-toggle:hover{text-decoration:underline}
+.menu-items{display:none;position:absolute;top:100%;right:0;min-width:160px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 12px 26px rgba(0,0,0,.12);flex-direction:column;gap:6px;z-index:20}
+.menu-items a{color:var(--text)}
+.menu:hover .menu-items,.menu:focus-within .menu-items{display:flex}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#1e40af;font-size:12px;border:1px solid #c7d2fe}
 .btn{display:inline-block;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);cursor:pointer}
 .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
