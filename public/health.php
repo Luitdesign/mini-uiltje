@@ -1,11 +1,11 @@
 <?php
-require_once __DIR__ . '/../app/core/bootstrap.php';
+require_once __DIR__ . '/../app/bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $checkDb = isset($_GET['db']) && (string)$_GET['db'] === '1';
 if ($checkDb) {
     try {
-        db()->query('SELECT 1')->fetch();
+        $db->query('SELECT 1')->fetch();
         echo json_encode(['status' => 'ok', 'db' => 'ok']);
         exit;
     } catch (Throwable $e) {

@@ -47,3 +47,13 @@ function rgba_from_hex(?string $value, float $alpha = 0.12): ?string {
     $alpha = max(0.0, min(1.0, $alpha));
     return sprintf('rgba(%d,%d,%d,%.2f)', $r, $g, $b, $alpha);
 }
+
+function app_version(): string {
+    $versionFile = __DIR__ . '/../VERSION';
+    $v = file_exists($versionFile) ? trim((string)file_get_contents($versionFile)) : 'dev';
+    $commit = getenv('APP_COMMIT') ?: '';
+    if ($commit !== '') {
+        return $v . '+' . $commit;
+    }
+    return $v;
+}

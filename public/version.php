@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../app/core/bootstrap.php';
+require_once __DIR__ . '/../app/bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $commit = getenv('APP_COMMIT') ?: null;
