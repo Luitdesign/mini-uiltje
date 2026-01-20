@@ -167,11 +167,15 @@ render_header('Rules', 'rules');
   <?php endif; ?>
 
   <?php if (!empty($rules)): ?>
+    <div class="row small" style="align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+      <span><strong>Visible columns:</strong></span>
+      <label><input class="js-column-toggle" type="checkbox" data-column="name" checked> Name</label>
+    </div>
     <table class="table" style="margin-top: 12px;">
       <thead>
         <tr>
           <th style="width: 90px;">Priority</th>
-          <th>Name</th>
+          <th data-col="name">Name</th>
           <th style="width: 90px;">Active</th>
           <th style="width: 200px;">Category</th>
           <th>Conditions</th>
@@ -182,7 +186,7 @@ render_header('Rules', 'rules');
         <?php foreach ($rules as $rule): ?>
           <tr>
             <td><?= h((string)$rule['priority']) ?></td>
-            <td><?= h($rule['name']) ?></td>
+            <td data-col="name"><?= h($rule['name']) ?></td>
             <td><?= !empty($rule['active']) ? 'Yes' : 'No' ?></td>
             <td><?= h($rule['category_name'] ?? '—') ?></td>
             <td class="small"><?= h(rule_summary($rule)) ?></td>
@@ -195,5 +199,54 @@ render_header('Rules', 'rules');
     </table>
   <?php endif; ?>
 </div>
+
+<script>
+  (function () {
+    const storageKey = 'rules.visibleColumns';
+    const toggles = Array.from(document.querySelectorAll('.js-column-toggle'));
+    const table = document.querySelector('.table');
+
+    if (!toggles.length || !table) {
+      return;
+    }
+
+    const applyVisibility = (column, isVisible) => {
+      table.querySelectorAll(`[data-col="${column}"]`).forEach((cell) => {
+        cell.style.display = isVisible ? '' : 'none';
+      });
+    };
+
+    const saved = window.localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const visibleColumns = JSON.parse(saved);
+        toggles.forEach((toggle) => {
+          const column = toggle.dataset.column;
+          if (typeof visibleColumns[column] === 'boolean') {
+            toggle.checked = visibleColumns[column];
+          }
+        });
+      } catch (error) {
+        window.localStorage.removeItem(storageKey);
+      }
+    }
+
+    const persist = () => {
+      const state = {};
+      toggles.forEach((toggle) => {
+        state[toggle.dataset.column] = toggle.checked;
+      });
+      window.localStorage.setItem(storageKey, JSON.stringify(state));
+    };
+
+    toggles.forEach((toggle) => {
+      applyVisibility(toggle.dataset.column, toggle.checked);
+      toggle.addEventListener('change', () => {
+        applyVisibility(toggle.dataset.column, toggle.checked);
+        persist();
+      });
+    });
+  })();
+</script>
 
 <?php render_footer(); ?>
