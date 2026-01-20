@@ -68,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $userId = current_user_id();
+repo_ensure_transfer_setup($db, $userId);
 $rules = repo_list_rules($db, $userId);
 
 function rule_match_label(?string $match): string {
