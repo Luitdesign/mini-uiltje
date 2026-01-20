@@ -26,4 +26,6 @@ require_once __DIR__ . '/rules_repo.php';
 require_once __DIR__ . '/pots_repo.php';
 require_once __DIR__ . '/csv_ing_import.php';
 
+header('X-App-Version: ' . app_version());
+
 $db = db_connect($config['db']);
