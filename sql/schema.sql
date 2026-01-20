@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
   direction ENUM('Af','Bij') NOT NULL,
   amount_signed DECIMAL(12,2) NOT NULL,
+  flow_type ENUM('income','expense','transfer') NOT NULL DEFAULT 'expense',
   currency CHAR(3) NOT NULL DEFAULT 'EUR',
 
   mutation_type VARCHAR(80) NULL,

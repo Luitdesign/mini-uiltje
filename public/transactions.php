@@ -207,7 +207,12 @@ render_header('Transactions', 'transactions');
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
-              <div><strong><?= h($t['description']) ?></strong></div>
+              <div>
+                <strong><?= h($t['description']) ?></strong>
+                <?php if (($t['flow_type'] ?? '') === 'transfer'): ?>
+                  <span class="badge" style="margin-left: 6px;">Transfer</span>
+                <?php endif; ?>
+              </div>
               <?php if (!empty($t['notes'])): ?>
                 <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
               <?php endif; ?>
@@ -266,7 +271,12 @@ render_header('Transactions', 'transactions');
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
-              <div><strong><?= h($t['description']) ?></strong></div>
+              <div>
+                <strong><?= h($t['description']) ?></strong>
+                <?php if (($t['flow_type'] ?? '') === 'transfer'): ?>
+                  <span class="badge" style="margin-left: 6px;">Transfer</span>
+                <?php endif; ?>
+              </div>
               <?php if (!empty($t['notes'])): ?>
                 <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
               <?php endif; ?>

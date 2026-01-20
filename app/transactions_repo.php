@@ -8,9 +8,9 @@ function repo_list_months(PDO $db, int $userId): array {
             MONTH(txn_date) AS m,
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
-            SUM(amount_signed) AS net,
-            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
+            SUM(CASE WHEN flow_type IN ('income','expense') THEN amount_signed ELSE 0 END) AS net,
+            SUM(CASE WHEN flow_type = 'income' THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN flow_type = 'expense' THEN amount_signed ELSE 0 END)) AS spending
         FROM transactions
         WHERE user_id = :uid
         GROUP BY YEAR(txn_date), MONTH(txn_date)
@@ -30,7 +30,80 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
     return ['y' => $y, 'm' => $m];
 }
 
+function repo_transfer_category_name(): string {
+    return 'Transfer (eigen rekeningen)';
+}
+
+function repo_ensure_transfer_category(PDO $db): int {
+    $name = repo_transfer_category_name();
+    $existingId = repo_find_category_id($db, $name);
+    if ($existingId) {
+        return $existingId;
+    }
+    $createdId = repo_create_category($db, $name, null);
+    return $createdId ?: 0;
+}
+
+function repo_ensure_transfer_rules(PDO $db, int $userId, int $transferCategoryId): void {
+    if ($userId <= 0 || $transferCategoryId <= 0) {
+        return;
+    }
+
+    $rulesToEnsure = [
+        [
+            'name' => 'Transfer: Naar Oranje spaarrekening',
+            'from_text' => 'Naar Oranje spaarrekening',
+        ],
+        [
+            'name' => 'Transfer: Van Oranje spaarrekening',
+            'from_text' => 'Van Oranje spaarrekening',
+        ],
+    ];
+
+    $stmtFind = $db->prepare('SELECT id FROM rules WHERE user_id = :uid AND name = :name LIMIT 1');
+
+    foreach ($rulesToEnsure as $rule) {
+        $stmtFind->execute([
+            ':uid' => $userId,
+            ':name' => $rule['name'],
+        ]);
+        $exists = $stmtFind->fetchColumn();
+        if ($exists) {
+            continue;
+        }
+
+        repo_create_rule($db, $userId, [
+            'active' => 1,
+            'priority' => 0,
+            'name' => $rule['name'],
+            'from_text' => $rule['from_text'],
+            'from_text_match' => 'contains',
+            'from_iban' => null,
+            'mededelingen_text' => null,
+            'mededelingen_match' => null,
+            'rekening_equals' => null,
+            'amount_min' => null,
+            'amount_max' => null,
+            'target_category_id' => $transferCategoryId,
+        ]);
+    }
+}
+
+function repo_ensure_transfer_setup(PDO $db, int $userId): int {
+    $transferCategoryId = repo_ensure_transfer_category($db);
+    repo_ensure_transfer_rules($db, $userId, $transferCategoryId);
+    return $transferCategoryId;
+}
+
+function repo_compute_flow_type(float $amountSigned, ?int $categoryId, int $transferCategoryId): string {
+    if ($categoryId !== null && $transferCategoryId > 0 && $categoryId === $transferCategoryId) {
+        return 'transfer';
+    }
+    return $amountSigned > 0 ? 'income' : 'expense';
+}
+
 function repo_list_categories(PDO $db): array {
+    repo_ensure_transfer_category($db);
     $stmt = $db->query("SELECT id, name, color FROM categories ORDER BY name ASC");
     $rows = $stmt->fetchAll();
     foreach ($rows as &$row) {
@@ -260,9 +333,22 @@ function repo_list_transactions(
 }
 
 function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int $categoryId): void {
-    $stmt = $db->prepare("UPDATE transactions SET category_id = :cid WHERE id = :id AND user_id = :uid");
+    $transferCategoryId = repo_ensure_transfer_category($db);
+
+    $stmtTxn = $db->prepare("SELECT amount_signed, category_auto_id FROM transactions WHERE id = :id AND user_id = :uid");
+    $stmtTxn->execute([
+        ':id' => $txnId,
+        ':uid' => $userId,
+    ]);
+    $txnRow = $stmtTxn->fetch(PDO::FETCH_ASSOC) ?: [];
+    $amountSigned = (float)($txnRow['amount_signed'] ?? 0);
+    $autoCategoryId = $txnRow['category_auto_id'] !== null ? (int)$txnRow['category_auto_id'] : null;
+    $flowType = repo_compute_flow_type($amountSigned, $categoryId ?? $autoCategoryId, $transferCategoryId);
+
+    $stmt = $db->prepare("UPDATE transactions SET category_id = :cid, flow_type = :flow_type WHERE id = :id AND user_id = :uid");
     $stmt->execute([
         ':cid' => $categoryId,
+        ':flow_type' => $flowType,
         ':id' => $txnId,
         ':uid' => $userId,
     ]);
@@ -277,7 +363,80 @@ function repo_update_transaction_pot(PDO $db, int $userId, int $txnId, ?int $pot
     ]);
 }
 
+function repo_apply_rules_to_import_batch(PDO $db, int $userId, int $importBatchId): int {
+    $transferCategoryId = repo_ensure_transfer_setup($db, $userId);
+
+    $stmtRules = $db->prepare(
+        'SELECT *
+         FROM rules
+         WHERE user_id = :uid AND active = 1
+         ORDER BY priority ASC, id ASC'
+    );
+    $stmtRules->execute([':uid' => $userId]);
+    $rules = $stmtRules->fetchAll();
+
+    $stmtTxns = $db->prepare(
+        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id
+         FROM transactions
+         WHERE user_id = :uid
+           AND import_batch_id = :bid'
+    );
+    $stmtTxns->execute([':uid' => $userId, ':bid' => $importBatchId]);
+    $transactions = $stmtTxns->fetchAll();
+
+    if ($transactions === []) {
+        return 0;
+    }
+
+    $stmtUpdate = $db->prepare(
+        'UPDATE transactions
+         SET category_auto_id = :auto_id,
+             rule_auto_id = :rule_id,
+             auto_reason = :auto_reason,
+             category_id = :category_id,
+             flow_type = :flow_type
+         WHERE id = :id AND user_id = :uid'
+    );
+
+    $updated = 0;
+    $db->beginTransaction();
+    try {
+        foreach ($transactions as $txn) {
+            $auto = ing_apply_rules($txn, $rules);
+            $newAutoId = $auto['category_auto_id'];
+            $currentCategoryId = $txn['category_id'] !== null ? (int)$txn['category_id'] : null;
+            $currentAutoId = $txn['category_auto_id'] !== null ? (int)$txn['category_auto_id'] : null;
+            $shouldUpdateCategory = $currentCategoryId === null || $currentCategoryId === $currentAutoId;
+            $categoryId = $shouldUpdateCategory ? $newAutoId : $currentCategoryId;
+            $flowType = repo_compute_flow_type(
+                (float)$txn['amount_signed'],
+                $categoryId ?? $newAutoId,
+                $transferCategoryId
+            );
+
+            $stmtUpdate->execute([
+                ':auto_id' => $newAutoId,
+                ':rule_id' => $auto['rule_auto_id'],
+                ':auto_reason' => $auto['auto_reason'],
+                ':category_id' => $categoryId,
+                ':flow_type' => $flowType,
+                ':id' => (int)$txn['id'],
+                ':uid' => $userId,
+            ]);
+            $updated++;
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+
+    return $updated;
+}
+
 function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $month): int {
+    $transferCategoryId = repo_ensure_transfer_setup($db, $userId);
+
     $stmtRules = $db->prepare(
         'SELECT *
          FROM rules
@@ -306,7 +465,8 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
          SET category_auto_id = :auto_id,
              rule_auto_id = :rule_id,
              auto_reason = :auto_reason,
-             category_id = :category_id
+             category_id = :category_id,
+             flow_type = :flow_type
          WHERE id = :id AND user_id = :uid'
     );
 
@@ -320,12 +480,18 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
             $currentAutoId = $txn['category_auto_id'] !== null ? (int)$txn['category_auto_id'] : null;
             $shouldUpdateCategory = $currentCategoryId === null || $currentCategoryId === $currentAutoId;
             $categoryId = $shouldUpdateCategory ? $newAutoId : $currentCategoryId;
+            $flowType = repo_compute_flow_type(
+                (float)$txn['amount_signed'],
+                $categoryId ?? $newAutoId,
+                $transferCategoryId
+            );
 
             $stmtUpdate->execute([
                 ':auto_id' => $newAutoId,
                 ':rule_id' => $auto['rule_auto_id'],
                 ':auto_reason' => $auto['auto_reason'],
                 ':category_id' => $categoryId,
+                ':flow_type' => $flowType,
                 ':id' => (int)$txn['id'],
                 ':uid' => $userId,
             ]);
@@ -343,9 +509,9 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
 function repo_month_summary(PDO $db, int $userId, int $year, int $month): array {
     $sql = "
         SELECT
-            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending,
-            SUM(amount_signed) AS net
+            SUM(CASE WHEN flow_type = 'income' THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN flow_type = 'expense' THEN amount_signed ELSE 0 END)) AS spending,
+            SUM(CASE WHEN flow_type IN ('income','expense') THEN amount_signed ELSE 0 END) AS net
         FROM transactions
         WHERE user_id = :uid
           AND YEAR(txn_date) = :y
@@ -365,9 +531,9 @@ function repo_month_breakdown_by_category(PDO $db, int $userId, int $year, int $
     $sql = "
         SELECT
             COALESCE(c.name, 'Niet ingedeeld') AS category,
-            SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
-            SUM(t.amount_signed) AS net
+            SUM(CASE WHEN t.flow_type = 'income' THEN t.amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN t.flow_type = 'expense' THEN t.amount_signed ELSE 0 END)) AS spending,
+            SUM(CASE WHEN t.flow_type IN ('income','expense') THEN t.amount_signed ELSE 0 END) AS net
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         WHERE t.user_id = :uid

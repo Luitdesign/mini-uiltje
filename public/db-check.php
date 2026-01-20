@@ -72,6 +72,7 @@ $expectedSchema = [
         'code',
         'direction',
         'amount_signed',
+        'flow_type',
         'currency',
         'mutation_type',
         'notes',
