@@ -14,7 +14,7 @@ try {
 $expectedSchema = [
     'users' => ['id', 'username', 'password_hash', 'created_at'],
     'categories' => ['id', 'name', 'color', 'parent_id', 'created_at'],
-    'pots' => ['id', 'user_id', 'name', 'archived', 'created_at'],
+    'pots' => ['id', 'user_id', 'name', 'start_amount', 'archived', 'created_at'],
     'pot_category_map' => ['category_id', 'pot_id'],
     'pot_allocation_rules' => [
         'id',
