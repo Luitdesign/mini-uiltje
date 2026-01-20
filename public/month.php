@@ -26,6 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         confirm_transaction($tid);
         flash_set('Confirmed.', 'info');
         redirect('/month.php?m=' . urlencode($month) . '&mode=' . urlencode((string)($_POST['mode'] ?? $mode)));
+    } elseif ($action === 'rerun_auto') {
+        $updated = reapply_auto_categories_for_month($month);
+        flash_set('Auto category applied to ' . $updated . ' transactions.', 'info');
+        redirect('/month.php?m=' . urlencode($month) . '&mode=' . urlencode((string)($_POST['mode'] ?? $mode)));
     }
 }
 
@@ -59,6 +63,13 @@ render_header('Transactions');
     <a class="btn <?= $mode==='review'?'primary':'' ?>" href="/month.php?m=<?=h((string)$m)?>&mode=review">Needs review</a>
     <a class="btn <?= $mode==='confirmed'?'primary':'' ?>" href="/month.php?m=<?=h((string)$m)?>&mode=confirmed">Confirmed</a>
     <a class="btn" href="/results.php?m=<?=h((string)$m)?>">Results</a>
+    <form method="post">
+      <?=csrf_field()?>
+      <input type="hidden" name="action" value="rerun_auto">
+      <input type="hidden" name="m" value="<?=h((string)$m)?>">
+      <input type="hidden" name="mode" value="<?=h((string)$mode)?>">
+      <button class="btn" type="submit">Run auto category</button>
+    </form>
   </div>
 
   <div style="margin-top:14px">

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ing_csv.php';
+require_once __DIR__ . '/../app/csv_ing_import.php';
 
 function db_has_tables(): bool {
     try {
@@ -147,6 +148,52 @@ function confirm_all_in_month(string $yyyymm): int {
     $stmt = db()->prepare("UPDATE transactions SET is_confirmed = 1 WHERE DATE_FORMAT(tx_date,'%Y-%m') = ?");
     $stmt->execute([$yyyymm]);
     return $stmt->rowCount();
+}
+
+function reapply_auto_categories_for_month(string $yyyymm): int {
+    $rules = db()->query('SELECT * FROM rules WHERE active = 1 ORDER BY priority ASC, id ASC')->fetchAll();
+    if (!$rules) {
+        return 0;
+    }
+
+    $stmtTx = db()->prepare(
+        'SELECT id, name_description, messages, amount_signed, counterparty_iban, account_iban, auto_category_id
+         FROM transactions
+         WHERE DATE_FORMAT(tx_date,\'%Y-%m\') = ?'
+    );
+    $stmtTx->execute([$yyyymm]);
+    $transactions = $stmtTx->fetchAll();
+    if (!$transactions) {
+        return 0;
+    }
+
+    $stmtUpdate = db()->prepare('UPDATE transactions SET auto_category_id = ? WHERE id = ?');
+    $updated = 0;
+    db()->beginTransaction();
+    try {
+        foreach ($transactions as $t) {
+            $auto = ing_apply_rules([
+                'description' => (string)($t['name_description'] ?? ''),
+                'notes' => (string)($t['messages'] ?? ''),
+                'amount_signed' => $t['amount_signed'] ?? 0,
+                'counter_iban' => $t['counterparty_iban'] ?? null,
+                'account_iban' => $t['account_iban'] ?? null,
+            ], $rules);
+            $newAutoId = $auto['category_auto_id'];
+            $currentAutoId = $t['auto_category_id'] !== null ? (int)$t['auto_category_id'] : null;
+            if ($newAutoId === $currentAutoId) {
+                continue;
+            }
+            $stmtUpdate->execute([$newAutoId, (int)$t['id']]);
+            $updated++;
+        }
+        db()->commit();
+    } catch (Throwable $e) {
+        db()->rollBack();
+        throw $e;
+    }
+
+    return $updated;
 }
 
 function month_results(string $yyyymm): array {
