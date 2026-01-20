@@ -23,19 +23,23 @@ function render_header(string $title): void {
     echo '<div class="links">';
     echo '<a href="/dashboard.php"><strong>Mini Uiltje</strong></a>';
     if ($u) {
+        echo '<a href="/months.php">Month</a>';
         echo '<a href="/upload.php">Upload</a>';
-        echo '<a href="/review.php">Review</a>';
-        echo '<a href="/results.php">Results</a>';
-        if ($u['role'] === 'admin') {
-            echo '<a href="/admin/users.php">Users</a>';
-            echo '<a href="/admin/categories.php">Categories</a>';
-        }
+        echo '<div class="menu">';
+        echo '<button class="menu-toggle" type="button">Pots ▾</button>';
+        echo '<div class="menu-items">';
+        echo '<a href="/pots.php">Pots</a>';
+        echo '<a href="/pots_categories.php">Pots categories</a>';
+        echo '</div>';
+        echo '</div>';
+        echo '<a href="/categories.php">Categroires</a>';
+        echo '<a href="/rules.php">Rules</a>';
         echo '<div class="menu">';
         echo '<button class="menu-toggle" type="button">Settings ▾</button>';
         echo '<div class="menu-items">';
         echo '<a href="/db-check.php">DB Check</a>';
-        echo '<a href="/schema.php">Schema</a>';
-        echo '<a href="/reset.php">Reset DB</a>';
+        echo '<a href="/schema.php">SCheme</a>';
+        echo '<a href="/reset.php">Reset Database</a>';
         echo '<a href="/logout.php">Logout</a>';
         echo '</div>';
         echo '</div>';
