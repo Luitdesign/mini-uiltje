@@ -1,7 +1,7 @@
 <?php
-require_once __DIR__ . '/../src/bootstrap.php';
-require_once __DIR__ . '/../src/layout.php';
-require_once __DIR__ . '/../src/repo.php';
+require_once __DIR__ . '/../app/core/bootstrap.php';
+require_once __DIR__ . '/../app/core/layout.php';
+require_once __DIR__ . '/../app/core/repo.php';
 require_login();
 
 $months = list_months();
