@@ -62,6 +62,50 @@ a:hover { text-decoration: underline; }
   border: 1px solid transparent;
 }
 
+.nav-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.navtoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.navcaret {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.navmenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 200px;
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 20;
+}
+
+.navmenu .navlink {
+  display: block;
+  width: 100%;
+}
+
+.nav-dropdown:hover .navmenu,
+.nav-dropdown:focus-within .navmenu {
+  display: flex;
+}
+
 .navlabel {
   padding: 8px 4px;
   color: var(--muted);
