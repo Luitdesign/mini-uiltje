@@ -22,7 +22,7 @@ if (!$pot) {
         'id' => 0,
         'name' => '',
         'start_amount' => 0,
-        'current_amount' => 0,
+        'current_amount' => '',
         'archived' => 0,
     ];
 }
@@ -31,18 +31,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
     $name = trim((string)($_POST['name'] ?? ''));
     $startAmountRaw = trim((string)($_POST['start_amount'] ?? ''));
-    if ($startAmountRaw === '') {
-        $startAmountRaw = '0';
-    }
+    $currentAmountRaw = trim((string)($_POST['current_amount'] ?? ''));
     $archived = isset($_POST['archived']);
 
     if ($name === '') {
         $error = 'Pot name cannot be empty.';
-    } elseif (!is_numeric($startAmountRaw)) {
+    } elseif ($startAmountRaw === '' && $currentAmountRaw === '') {
+        $error = 'Enter a start amount or a current amount.';
+    } elseif ($startAmountRaw !== '' && !is_numeric($startAmountRaw)) {
         $error = 'Start amount must be a number.';
+    } elseif ($currentAmountRaw !== '' && !is_numeric($currentAmountRaw)) {
+        $error = 'Current amount must be a number.';
     } else {
         try {
-            $startAmount = (float)$startAmountRaw;
+            $startAmount = (float)($startAmountRaw === '' ? 0 : $startAmountRaw);
+            if ($currentAmountRaw !== '') {
+                $currentAmount = (float)$currentAmountRaw;
+                $allocatedTotal = 0.0;
+                $spentTotal = 0.0;
+                if ($potId > 0) {
+                    $potWithBalance = repo_get_pot_with_balance($db, $userId, $potId);
+                    if (!$potWithBalance) {
+                        throw new RuntimeException('Pot not found.');
+                    }
+                    $allocatedTotal = (float)$potWithBalance['allocated_total'];
+                    $spentTotal = (float)$potWithBalance['spent_total'];
+                }
+                $startAmount = $currentAmount - $allocatedTotal + $spentTotal;
+            }
             if ($potId > 0) {
                 repo_update_pot($db, $userId, $potId, $name, $startAmount, $archived);
                 redirect('/pots.php?saved=updated');
@@ -55,7 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $pot['name'] = $name;
-    $pot['start_amount'] = (float)$startAmountRaw;
+    $pot['start_amount'] = $startAmountRaw === '' ? 0 : (float)$startAmountRaw;
+    $pot['current_amount'] = $currentAmountRaw;
     $pot['archived'] = $archived ? 1 : 0;
 }
 
@@ -90,7 +107,13 @@ render_header($potId > 0 ? 'Edit Pot' : 'New Pot', 'pots');
     <div style="margin-top: 12px;">
       <label>Start amount</label>
       <input class="input" type="number" step="0.01" name="start_amount" value="<?= h((string)$pot['start_amount']) ?>">
-      <div class="small muted">Set the amount already in this pot.</div>
+      <div class="small muted">Set the amount already in this pot, or use the current amount below.</div>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label>Current amount</label>
+      <input class="input" type="number" step="0.01" name="current_amount" value="<?= h((string)($pot['current_amount'] !== '' ? $pot['current_amount'] : ($pot['balance'] ?? ''))) ?>">
+      <div class="small muted">Enter the current amount and we will calculate the start amount.</div>
     </div>
 
     <div style="margin-top: 12px;">
