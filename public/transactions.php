@@ -39,6 +39,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+        $friendlyNames = $_POST['friendly_names'] ?? [];
+        if (is_array($friendlyNames)) {
+            foreach ($friendlyNames as $txnIdRaw => $friendlyNameRaw) {
+                $txnId = (int)$txnIdRaw;
+                if ($txnId > 0) {
+                    $friendlyName = is_string($friendlyNameRaw) ? $friendlyNameRaw : '';
+                    repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
+                }
+            }
+        }
     }
     if ($action === 'rerun_auto') {
         $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
@@ -197,6 +207,8 @@ render_header('Transactions', 'transactions');
         <?php foreach ($incomeTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+          $friendlyName = trim((string)($t['friendly_name'] ?? ''));
+          $hasFriendlyName = $friendlyName !== '';
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
@@ -207,11 +219,37 @@ render_header('Transactions', 'transactions');
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
-              <div>
-                <strong><?= h($t['description']) ?></strong>
-                <?php if (($t['flow_type'] ?? '') === 'transfer'): ?>
-                  <span class="badge" style="margin-left: 6px;">Transfer</span>
-                <?php endif; ?>
+              <div class="txn-friendly">
+                <div class="txn-friendly-display">
+                  <?php if ($hasFriendlyName): ?>
+                    <button
+                      class="link-button txn-friendly-name js-friendly-toggle"
+                      type="button"
+                      data-friendly="<?= h($friendlyName) ?>"
+                      data-original="<?= h((string)$t['description']) ?>"
+                      data-showing="friendly"
+                      title="Click to show original description"
+                    >
+                      <?= h($friendlyName) ?>
+                    </button>
+                  <?php else: ?>
+                    <span class="txn-friendly-name"><?= h($t['description']) ?></span>
+                  <?php endif; ?>
+                  <?php if (($t['flow_type'] ?? '') === 'transfer'): ?>
+                    <span class="badge">Transfer</span>
+                  <?php endif; ?>
+                  <button class="link-button small js-friendly-edit" type="button">edit</button>
+                </div>
+                <div class="txn-friendly-editor js-friendly-editor" hidden>
+                  <input
+                    class="input txn-friendly-input"
+                    type="text"
+                    name="friendly_names[<?= (int)$t['id'] ?>]"
+                    value="<?= h($friendlyName) ?>"
+                    placeholder="Add a friendly name"
+                  >
+                  <button class="btn btn-small js-friendly-cancel" type="button">Cancel</button>
+                </div>
               </div>
               <?php if (!empty($t['notes'])): ?>
                 <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
@@ -261,6 +299,8 @@ render_header('Transactions', 'transactions');
         <?php foreach ($expenseTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+          $friendlyName = trim((string)($t['friendly_name'] ?? ''));
+          $hasFriendlyName = $friendlyName !== '';
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
@@ -271,11 +311,37 @@ render_header('Transactions', 'transactions');
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
-              <div>
-                <strong><?= h($t['description']) ?></strong>
-                <?php if (($t['flow_type'] ?? '') === 'transfer'): ?>
-                  <span class="badge" style="margin-left: 6px;">Transfer</span>
-                <?php endif; ?>
+              <div class="txn-friendly">
+                <div class="txn-friendly-display">
+                  <?php if ($hasFriendlyName): ?>
+                    <button
+                      class="link-button txn-friendly-name js-friendly-toggle"
+                      type="button"
+                      data-friendly="<?= h($friendlyName) ?>"
+                      data-original="<?= h((string)$t['description']) ?>"
+                      data-showing="friendly"
+                      title="Click to show original description"
+                    >
+                      <?= h($friendlyName) ?>
+                    </button>
+                  <?php else: ?>
+                    <span class="txn-friendly-name"><?= h($t['description']) ?></span>
+                  <?php endif; ?>
+                  <?php if (($t['flow_type'] ?? '') === 'transfer'): ?>
+                    <span class="badge">Transfer</span>
+                  <?php endif; ?>
+                  <button class="link-button small js-friendly-edit" type="button">edit</button>
+                </div>
+                <div class="txn-friendly-editor js-friendly-editor" hidden>
+                  <input
+                    class="input txn-friendly-input"
+                    type="text"
+                    name="friendly_names[<?= (int)$t['id'] ?>]"
+                    value="<?= h($friendlyName) ?>"
+                    placeholder="Add a friendly name"
+                  >
+                  <button class="btn btn-small js-friendly-cancel" type="button">Cancel</button>
+                </div>
               </div>
               <?php if (!empty($t['notes'])): ?>
                 <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
@@ -378,6 +444,57 @@ render_header('Transactions', 'transactions');
       toggle.addEventListener('change', () => {
         applyVisibility(toggle.dataset.column, toggle.checked);
         persist();
+      });
+    });
+
+    const friendlyToggles = Array.from(document.querySelectorAll('.js-friendly-toggle'));
+    friendlyToggles.forEach((button) => {
+      button.addEventListener('click', () => {
+        const friendly = button.dataset.friendly || '';
+        const original = button.dataset.original || '';
+        if (!friendly || !original) {
+          return;
+        }
+        const showing = button.dataset.showing || 'friendly';
+        const next = showing === 'friendly' ? 'original' : 'friendly';
+        button.textContent = next === 'friendly' ? friendly : original;
+        button.dataset.showing = next;
+      });
+    });
+
+    const friendlyEdits = Array.from(document.querySelectorAll('.js-friendly-edit'));
+    friendlyEdits.forEach((button) => {
+      button.addEventListener('click', () => {
+        const container = button.closest('.txn-friendly');
+        if (!container) {
+          return;
+        }
+        const editor = container.querySelector('.js-friendly-editor');
+        if (!editor) {
+          return;
+        }
+        const isHidden = editor.hasAttribute('hidden');
+        if (isHidden) {
+          editor.removeAttribute('hidden');
+          const input = editor.querySelector('input');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        } else {
+          editor.setAttribute('hidden', 'hidden');
+        }
+      });
+    });
+
+    const friendlyCancels = Array.from(document.querySelectorAll('.js-friendly-cancel'));
+    friendlyCancels.forEach((button) => {
+      button.addEventListener('click', () => {
+        const editor = button.closest('.js-friendly-editor');
+        if (!editor) {
+          return;
+        }
+        editor.setAttribute('hidden', 'hidden');
       });
     });
   })();

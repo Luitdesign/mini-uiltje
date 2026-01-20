@@ -354,6 +354,27 @@ function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int
     ]);
 }
 
+function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId, ?string $friendlyName): void {
+    if ($txnId <= 0) {
+        return;
+    }
+
+    $friendlyName = $friendlyName !== null ? trim($friendlyName) : null;
+    if ($friendlyName === '') {
+        $friendlyName = null;
+    }
+    if ($friendlyName !== null) {
+        $friendlyName = mb_substr($friendlyName, 0, 255);
+    }
+
+    $stmt = $db->prepare("UPDATE transactions SET friendly_name = :name WHERE id = :id AND user_id = :uid");
+    $stmt->execute([
+        ':name' => $friendlyName,
+        ':id' => $txnId,
+        ':uid' => $userId,
+    ]);
+}
+
 function repo_update_transaction_pot(PDO $db, int $userId, int $txnId, ?int $potId): void {
     $stmt = $db->prepare("UPDATE transactions SET pot_id = :pid WHERE id = :id AND user_id = :uid");
     $stmt->execute([
