@@ -7,6 +7,7 @@ function repo_list_months(PDO $db, int $userId): array {
             YEAR(txn_date) AS y,
             MONTH(txn_date) AS m,
             COUNT(*) AS cnt,
+            SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
             SUM(amount_signed) AS net,
             SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
