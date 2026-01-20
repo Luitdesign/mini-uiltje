@@ -8,6 +8,8 @@ $latest = repo_get_latest_month($db, $userId);
 $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
 $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
+$categoryFilter = (string)($_GET['category_id'] ?? '');
+$autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
 $saved = isset($_GET['saved']);
 $autoUpdated = (int)($_GET['auto_updated'] ?? 0);
 
@@ -42,6 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'month' => $month,
         'q' => $q,
     ];
+    if ($categoryFilter !== '') {
+        $qsParams['category_id'] = $categoryFilter;
+    }
+    if ($autoCategoryFilter !== '') {
+        $qsParams['auto_category_id'] = $autoCategoryFilter;
+    }
     if ($savedFlag) {
         $qsParams['saved'] = 1;
     }
@@ -54,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $categories = repo_list_assignable_categories($db);
 $uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
-$txns = repo_list_transactions($db, $userId, $year, $month, $q);
+$txns = repo_list_transactions($db, $userId, $year, $month, $q, $categoryFilter, $autoCategoryFilter);
 $incomeTxns = [];
 $expenseTxns = [];
 
@@ -91,12 +99,42 @@ render_header('Transactions', 'transactions');
       <label>Search (description/notes)</label>
       <input class="input" name="q" value="<?= h($q) ?>" placeholder="e.g. Albert Heijn">
     </div>
+    <div style="min-width: 220px;">
+      <label>Auto Category</label>
+      <select class="input" name="auto_category_id">
+        <option value="" <?= $autoCategoryFilter === '' ? 'selected' : '' ?>>All</option>
+        <option value="0" <?= $autoCategoryFilter === '0' ? 'selected' : '' ?>>Not set</option>
+        <?php foreach ($categories as $c): ?>
+          <option value="<?= (int)$c['id'] ?>" <?= $autoCategoryFilter === (string)$c['id'] ? 'selected' : '' ?>>
+            <?= h($c['label']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div style="min-width: 220px;">
+      <label>Category</label>
+      <select class="input" name="category_id">
+        <option value="" <?= $categoryFilter === '' ? 'selected' : '' ?>>All</option>
+        <option value="0" <?= $categoryFilter === '0' ? 'selected' : '' ?>>Not set</option>
+        <?php foreach ($categories as $c): ?>
+          <option value="<?= (int)$c['id'] ?>" <?= $categoryFilter === (string)$c['id'] ? 'selected' : '' ?>>
+            <?= h($c['label']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
     <div>
       <button class="btn" type="submit">Apply</button>
     </div>
   </form>
 
-  <form method="post" action="/transactions.php?<?= h(http_build_query(['year'=>$year,'month'=>$month,'q'=>$q])) ?>" style="margin-top: 12px;">
+  <form method="post" action="/transactions.php?<?= h(http_build_query([
+      'year' => $year,
+      'month' => $month,
+      'q' => $q,
+      'category_id' => $categoryFilter,
+      'auto_category_id' => $autoCategoryFilter,
+    ])) ?>" style="margin-top: 12px;">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="action" value="rerun_auto">
     <button class="btn" type="submit">Auto categorie opnieuw toepassen</button>
@@ -116,7 +154,13 @@ render_header('Transactions', 'transactions');
 </div>
 
 <div class="card">
-  <form method="post" action="/transactions.php?<?= h(http_build_query(['year'=>$year,'month'=>$month,'q'=>$q])) ?>">
+  <form method="post" action="/transactions.php?<?= h(http_build_query([
+      'year' => $year,
+      'month' => $month,
+      'q' => $q,
+      'category_id' => $categoryFilter,
+      'auto_category_id' => $autoCategoryFilter,
+    ])) ?>">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="action" value="update_categories">
 
