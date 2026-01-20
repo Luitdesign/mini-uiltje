@@ -21,33 +21,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
     $savedFlag = false;
     if ($action === 'update_categories') {
-        $savedFlag = true;
-        $categoryPotMap = repo_get_category_pot_map($db, $userId);
-        $categoryIds = $_POST['category_ids'] ?? [];
-        if (is_array($categoryIds)) {
-            foreach ($categoryIds as $txnIdRaw => $categoryIdRaw) {
-                $txnId = (int)$txnIdRaw;
-                $categoryIdRaw = (string)$categoryIdRaw;
-                $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
-                if ($txnId > 0) {
-                    repo_update_transaction_category($db, $userId, $txnId, $categoryId);
-                    $potId = null;
-                    if ($categoryId !== null && isset($categoryPotMap[$categoryId])) {
-                        $potId = (int)$categoryPotMap[$categoryId];
+        try {
+            $savedFlag = true;
+            $categoryPotMap = repo_get_category_pot_map($db, $userId);
+            $validCategoryIds = [];
+            foreach (repo_list_assignable_categories($db) as $category) {
+                $validCategoryIds[(int)$category['id']] = true;
+            }
+            $categoryIds = $_POST['category_ids'] ?? [];
+            if (is_array($categoryIds)) {
+                foreach ($categoryIds as $txnIdRaw => $categoryIdRaw) {
+                    $txnId = (int)$txnIdRaw;
+                    $categoryIdRaw = (string)$categoryIdRaw;
+                    $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
+                    if ($categoryId !== null && !isset($validCategoryIds[$categoryId])) {
+                        $categoryId = null;
                     }
-                    repo_update_transaction_pot($db, $userId, $txnId, $potId);
+                    if ($txnId > 0) {
+                        repo_update_transaction_category($db, $userId, $txnId, $categoryId);
+                        $potId = null;
+                        if ($categoryId !== null && isset($categoryPotMap[$categoryId])) {
+                            $potId = (int)$categoryPotMap[$categoryId];
+                        }
+                        repo_update_transaction_pot($db, $userId, $txnId, $potId);
+                    }
                 }
             }
-        }
-        $friendlyNames = $_POST['friendly_names'] ?? [];
-        if (is_array($friendlyNames)) {
-            foreach ($friendlyNames as $txnIdRaw => $friendlyNameRaw) {
-                $txnId = (int)$txnIdRaw;
-                if ($txnId > 0) {
-                    $friendlyName = is_string($friendlyNameRaw) ? $friendlyNameRaw : '';
-                    repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
+            $friendlyNames = $_POST['friendly_names'] ?? [];
+            if (is_array($friendlyNames)) {
+                foreach ($friendlyNames as $txnIdRaw => $friendlyNameRaw) {
+                    $txnId = (int)$txnIdRaw;
+                    if ($txnId > 0) {
+                        $friendlyName = is_string($friendlyNameRaw) ? $friendlyNameRaw : '';
+                        repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
+                    }
                 }
             }
+        } catch (Throwable $e) {
+            $savedFlag = false;
+            $error = 'Saving categories failed. Please refresh the page and try again.';
         }
     }
     if ($action === 'rerun_auto') {
@@ -55,25 +67,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
-    $qsParams = [
-        'year' => $year,
-        'month' => $month,
-        'q' => $q,
-    ];
-    if ($categoryFilter !== '') {
-        $qsParams['category_id'] = $categoryFilter;
+    if ($error === '') {
+        $qsParams = [
+            'year' => $year,
+            'month' => $month,
+            'q' => $q,
+        ];
+        if ($categoryFilter !== '') {
+            $qsParams['category_id'] = $categoryFilter;
+        }
+        if ($autoCategoryFilter !== '') {
+            $qsParams['auto_category_id'] = $autoCategoryFilter;
+        }
+        if ($savedFlag) {
+            $qsParams['saved'] = 1;
+        }
+        if ($autoUpdated > 0) {
+            $qsParams['auto_updated'] = $autoUpdated;
+        }
+        $qs = http_build_query($qsParams);
+        redirect('/transactions.php?' . $qs);
     }
-    if ($autoCategoryFilter !== '') {
-        $qsParams['auto_category_id'] = $autoCategoryFilter;
-    }
-    if ($savedFlag) {
-        $qsParams['saved'] = 1;
-    }
-    if ($autoUpdated > 0) {
-        $qsParams['auto_updated'] = $autoUpdated;
-    }
-    $qs = http_build_query($qsParams);
-    redirect('/transactions.php?' . $qs);
 }
 
 $categories = repo_list_assignable_categories($db);
