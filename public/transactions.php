@@ -87,14 +87,8 @@ render_header('Transactions', 'transactions');
   </p>
 
   <form method="get" action="/transactions.php" class="row" style="align-items: flex-end;">
-    <div style="min-width: 160px;">
-      <label>Year</label>
-      <input class="input" type="number" name="year" value="<?= $year ?>" min="2000" max="2100">
-    </div>
-    <div style="min-width: 140px;">
-      <label>Month</label>
-      <input class="input" type="number" name="month" value="<?= $month ?>" min="1" max="12">
-    </div>
+    <input type="hidden" name="year" value="<?= $year ?>">
+    <input type="hidden" name="month" value="<?= $month ?>">
     <div style="flex: 1; min-width: 220px;">
       <label>Search (description/notes)</label>
       <input class="input" name="q" value="<?= h($q) ?>" placeholder="e.g. Albert Heijn">
