@@ -27,7 +27,7 @@ function render_header(string $title, ?string $active = null): void {
     echo "</head>\n<body>\n";
 
     echo "<header class=\"topbar\">";
-    echo "<div class=\"brand\">Financial MVP</div>";
+    echo "<div class=\"brand\"><a href=\"/months.php\">Mini Uiltje</a></div>";
     if ($username !== '') {
         echo "<div class=\"user\">Logged in as <strong>" . h($username) . "</strong></div>";
     }
