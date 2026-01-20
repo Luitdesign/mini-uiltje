@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ing_csv.php';
-require_once __DIR__ . '/../app/csv_ing_import.php';
+require_once __DIR__ . '/../csv_ing_import.php';
 
 function db_has_tables(): bool {
     try {
