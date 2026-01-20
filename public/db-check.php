@@ -77,6 +77,7 @@ $expectedSchema = [
         'notes',
         'balance_after',
         'tag',
+        'pot_id',
         'category_id',
         'category_auto_id',
         'rule_auto_id',

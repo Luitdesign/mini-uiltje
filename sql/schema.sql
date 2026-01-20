@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   balance_after DECIMAL(12,2) NULL,
   tag VARCHAR(255) NULL,
 
+  pot_id INT UNSIGNED NULL,
   category_id INT UNSIGNED NULL,
   category_auto_id INT UNSIGNED NULL,
   rule_auto_id INT UNSIGNED NULL,
@@ -150,6 +151,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   PRIMARY KEY (id),
   UNIQUE KEY uq_transactions_hash (txn_hash),
   KEY idx_transactions_user_date (user_id, txn_date),
+  KEY idx_transactions_pot (pot_id),
   KEY idx_transactions_category (category_id),
   KEY idx_transactions_category_auto (category_auto_id),
   KEY idx_transactions_import (import_id),
@@ -159,6 +161,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL,
+  CONSTRAINT fk_transactions_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category_auto FOREIGN KEY (category_auto_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
