@@ -3,6 +3,20 @@ require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
 $userId = current_user_id();
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_validate($config);
+    $action = $_POST['action'] ?? '';
+    if ($action === 'rerun_auto') {
+        $year = (int)($_POST['year'] ?? 0);
+        $month = (int)($_POST['month'] ?? 0);
+        if ($year > 0 && $month > 0) {
+            repo_reapply_auto_categories($db, $userId, $year, $month);
+        }
+        header('Location: /months.php');
+        exit;
+    }
+}
+
 $months = repo_list_months($db, $userId);
 
 render_header('Months', 'months');
@@ -45,6 +59,14 @@ render_header('Months', 'months');
             <a href="/transactions.php?year=<?= $y ?>&month=<?= $mo ?>">Transactions</a>
             &nbsp;|&nbsp;
             <a href="/summary.php?year=<?= $y ?>&month=<?= $mo ?>">Summary</a>
+            &nbsp;|&nbsp;
+            <form method="post" action="/months.php" style="display:inline">
+              <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+              <input type="hidden" name="action" value="rerun_auto">
+              <input type="hidden" name="year" value="<?= $y ?>">
+              <input type="hidden" name="month" value="<?= $mo ?>">
+              <button class="btn" type="submit">Auto categorize</button>
+            </form>
           </td>
         </tr>
       <?php endforeach; ?>
