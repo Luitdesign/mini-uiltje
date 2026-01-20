@@ -50,11 +50,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $priority = trim((string)($_POST['priority'] ?? ''));
     $targetCategoryId = (int)($_POST['target_category_id'] ?? 0);
 
-    if ($name === '') {
+    if ($ruleId > 0 && $name === '') {
         $error = 'Name is required.';
     } elseif ($targetCategoryId <= 0) {
         $error = 'Category is required.';
     } else {
+        if ($ruleId === 0 && $name === '') {
+            $name = 'Rule';
+        }
         $data = [
             'name' => $name,
             'priority' => $priority === '' ? null : (int)$priority,
@@ -107,10 +110,12 @@ render_header($ruleId > 0 ? 'Edit Rule' : 'New Rule', 'rules');
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
 
     <div class="grid-2">
-      <div>
-        <label>Name</label>
-        <input class="input" name="name" value="<?= h((string)$rule['name']) ?>" required>
-      </div>
+      <?php if ($ruleId > 0): ?>
+        <div>
+          <label>Name</label>
+          <input class="input" name="name" value="<?= h((string)$rule['name']) ?>" required>
+        </div>
+      <?php endif; ?>
       <div>
         <label>Priority</label>
         <input class="input" type="number" name="priority" value="<?= h((string)$rule['priority']) ?>" min="0">
