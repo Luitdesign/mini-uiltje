@@ -52,6 +52,7 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: 12px;
   padding: 10px 18px;
+  flex-wrap: wrap;
 }
 
 .navlink {
@@ -59,6 +60,14 @@ a:hover { text-decoration: underline; }
   border-radius: 10px;
   color: var(--text);
   border: 1px solid transparent;
+}
+
+.navlabel {
+  padding: 8px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .navlink.active {

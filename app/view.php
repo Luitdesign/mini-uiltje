@@ -4,18 +4,17 @@ declare(strict_types=1);
 function render_header(string $title, ?string $active = null): void {
     $username = $_SESSION['username'] ?? '';
     $nav = is_logged_in() ? [
-        ['Months', '/months.php', 'months'],
-        ['Upload', '/upload.php', 'upload'],
-        ['Transactions', '/transactions.php', 'transactions'],
-        ['Summary', '/summary.php', 'summary'],
-        ['Pots', '/pots.php', 'pots'],
-        ['Pot Categories', '/pots_categories.php', 'pots-categories'],
-        ['Categories', '/categories.php', 'categories'],
-        ['Rules', '/rules.php', 'rules'],
-        ['DB Check', '/db-check.php', 'db-check'],
-        ['Schema', '/schema.php', 'schema'],
-        ['Reset DB', '/reset.php', 'reset'],
-        ['Logout', '/logout.php', 'logout'],
+        ['type' => 'link', 'label' => 'Month', 'href' => '/months.php', 'key' => 'months'],
+        ['type' => 'link', 'label' => 'Upload', 'href' => '/upload.php', 'key' => 'upload'],
+        ['type' => 'link', 'label' => 'Pots', 'href' => '/pots.php', 'key' => 'pots'],
+        ['type' => 'link', 'label' => 'Pots Categories', 'href' => '/pots_categories.php', 'key' => 'pots-categories'],
+        ['type' => 'link', 'label' => 'Categories', 'href' => '/categories.php', 'key' => 'categories'],
+        ['type' => 'link', 'label' => 'Rules', 'href' => '/rules.php', 'key' => 'rules'],
+        ['type' => 'label', 'label' => 'Settings'],
+        ['type' => 'link', 'label' => 'DB Check', 'href' => '/db-check.php', 'key' => 'db-check'],
+        ['type' => 'link', 'label' => 'Scheme', 'href' => '/schema.php', 'key' => 'schema'],
+        ['type' => 'link', 'label' => 'Reset Database', 'href' => '/reset.php', 'key' => 'reset'],
+        ['type' => 'link', 'label' => 'Logout', 'href' => '/logout.php', 'key' => 'logout'],
     ] : [];
 
     echo "<!doctype html>\n";
@@ -35,9 +34,13 @@ function render_header(string $title, ?string $active = null): void {
 
     if (!empty($nav)) {
         echo "<nav class=\"nav\"><div class=\"nav-inner\">";
-        foreach ($nav as [$label, $href, $key]) {
-            $cls = ($active === $key) ? 'active' : '';
-            echo "<a class=\"navlink {$cls}\" href=\"{$href}\">" . h($label) . "</a>";
+        foreach ($nav as $item) {
+            if (($item['type'] ?? 'link') === 'label') {
+                echo "<span class=\"navlabel\">" . h($item['label']) . "</span>";
+                continue;
+            }
+            $cls = ($active === $item['key']) ? 'active' : '';
+            echo "<a class=\"navlink {$cls}\" href=\"{$item['href']}\">" . h($item['label']) . "</a>";
         }
         echo "</div></nav>";
     }
