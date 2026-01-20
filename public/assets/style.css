@@ -19,6 +19,16 @@ body {
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  line-height: inherit;
+}
+.link-button:hover { text-decoration: underline; }
 
 .topbar {
   display: flex;
@@ -163,6 +173,11 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 }
 
 .btn:hover { background: rgba(110,231,183,0.18); }
+.btn-small {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
 
 .btn-danger {
   background: rgba(251,113,133,0.12);
@@ -180,6 +195,18 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 }
 
 .small { font-size: 13px; color: var(--muted); }
+.txn-friendly { display: flex; flex-direction: column; gap: 6px; }
+.txn-friendly-display { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.txn-friendly-name { font-weight: 600; }
+span.txn-friendly-name { color: var(--text); }
+button.txn-friendly-name { color: var(--accent); }
+.txn-friendly-editor { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.txn-friendly-input {
+  min-width: 220px;
+  max-width: 320px;
+  width: auto;
+  flex: 1 1 220px;
+}
 
 .table {
   width: 100%;

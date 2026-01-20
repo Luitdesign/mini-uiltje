@@ -117,6 +117,14 @@ render_header($potId > 0 ? 'Edit Pot' : 'New Pot', 'pots');
     </div>
 
     <div style="margin-top: 12px;">
+      <label>Current amount</label>
+      <div class="input" style="display: flex; align-items: center;">
+        <?= number_format((float)($pot['balance'] ?? $pot['current_amount'] ?? 0), 2, ',', '.') ?>
+      </div>
+      <div class="small muted">Calculated from the start amount, allocations, and spending.</div>
+    </div>
+
+    <div style="margin-top: 12px;">
       <label>
         <input type="checkbox" name="archived" value="1" <?= !empty($pot['archived']) ? 'checked' : '' ?>>
         Archived
