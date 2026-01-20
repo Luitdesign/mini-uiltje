@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $savedFlag = false;
     if ($action === 'update_categories') {
         $savedFlag = true;
+        $categoryPotMap = repo_get_category_pot_map($db, $userId);
         $categoryIds = $_POST['category_ids'] ?? [];
         if (is_array($categoryIds)) {
             foreach ($categoryIds as $txnIdRaw => $categoryIdRaw) {
@@ -30,6 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
                 if ($txnId > 0) {
                     repo_update_transaction_category($db, $userId, $txnId, $categoryId);
+                    $potId = null;
+                    if ($categoryId !== null && isset($categoryPotMap[$categoryId])) {
+                        $potId = (int)$categoryPotMap[$categoryId];
+                    }
+                    repo_update_transaction_pot($db, $userId, $txnId, $potId);
                 }
             }
         }

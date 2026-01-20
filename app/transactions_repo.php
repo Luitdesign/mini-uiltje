@@ -268,6 +268,15 @@ function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int
     ]);
 }
 
+function repo_update_transaction_pot(PDO $db, int $userId, int $txnId, ?int $potId): void {
+    $stmt = $db->prepare("UPDATE transactions SET pot_id = :pid WHERE id = :id AND user_id = :uid");
+    $stmt->execute([
+        ':pid' => $potId,
+        ':id' => $txnId,
+        ':uid' => $userId,
+    ]);
+}
+
 function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $month): int {
     $stmtRules = $db->prepare(
         'SELECT *
