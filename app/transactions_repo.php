@@ -43,6 +43,16 @@ function repo_list_assignable_categories(PDO $db): array {
     return repo_list_categories($db);
 }
 
+function repo_get_category(PDO $db, int $categoryId): ?array {
+    if ($categoryId <= 0) {
+        return null;
+    }
+    $stmt = $db->prepare("SELECT id, name, color FROM categories WHERE id = :id LIMIT 1");
+    $stmt->execute([':id' => $categoryId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
 function repo_get_setting(PDO $db, string $key): ?string {
     $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key = :key");
     $stmt->execute([':key' => $key]);
