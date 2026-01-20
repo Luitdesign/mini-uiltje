@@ -21,6 +21,7 @@ if (!$pot) {
     $pot = [
         'id' => 0,
         'name' => '',
+        'start_amount' => 0,
         'archived' => 0,
     ];
 }
@@ -28,17 +29,24 @@ if (!$pot) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
     $name = trim((string)($_POST['name'] ?? ''));
+    $startAmountRaw = trim((string)($_POST['start_amount'] ?? ''));
+    if ($startAmountRaw === '') {
+        $startAmountRaw = '0';
+    }
     $archived = isset($_POST['archived']);
 
     if ($name === '') {
         $error = 'Pot name cannot be empty.';
+    } elseif (!is_numeric($startAmountRaw)) {
+        $error = 'Start amount must be a number.';
     } else {
         try {
+            $startAmount = (float)$startAmountRaw;
             if ($potId > 0) {
-                repo_update_pot($db, $userId, $potId, $name, $archived);
+                repo_update_pot($db, $userId, $potId, $name, $startAmount, $archived);
                 redirect('/pots.php?saved=updated');
             }
-            repo_create_pot($db, $userId, $name, $archived);
+            repo_create_pot($db, $userId, $name, $startAmount, $archived);
             redirect('/pots.php?saved=created');
         } catch (Throwable $e) {
             $error = $e->getMessage();
@@ -46,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $pot['name'] = $name;
+    $pot['start_amount'] = (float)$startAmountRaw;
     $pot['archived'] = $archived ? 1 : 0;
 }
 
@@ -75,6 +84,12 @@ render_header($potId > 0 ? 'Edit Pot' : 'New Pot', 'pots');
     <div style="margin-top: 12px;">
       <label>Pot name</label>
       <input class="input" name="name" value="<?= h((string)$pot['name']) ?>" required>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label>Start amount</label>
+      <input class="input" type="number" step="0.01" name="start_amount" value="<?= h((string)$pot['start_amount']) ?>">
+      <div class="small muted">Set the amount already in this pot.</div>
     </div>
 
     <div style="margin-top: 12px;">
