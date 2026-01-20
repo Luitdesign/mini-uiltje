@@ -204,12 +204,38 @@ function repo_bulk_update_categories(PDO $db, array $categories): void {
     }
 }
 
-function repo_list_transactions(PDO $db, int $userId, int $year, int $month, string $q = ''): array {
+function repo_list_transactions(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    string $q = '',
+    string $categoryFilter = '',
+    string $autoCategoryFilter = ''
+): array {
     $params = [':uid' => $userId, ':y' => $year, ':m' => $month];
     $whereQ = '';
     if ($q !== '') {
         $whereQ = " AND (description LIKE :q OR notes LIKE :q)";
         $params[':q'] = '%' . $q . '%';
+    }
+    $whereCategory = '';
+    if ($categoryFilter !== '') {
+        if ($categoryFilter === '0') {
+            $whereCategory = " AND t.category_id IS NULL";
+        } else {
+            $whereCategory = " AND t.category_id = :category_id";
+            $params[':category_id'] = (int)$categoryFilter;
+        }
+    }
+    $whereAutoCategory = '';
+    if ($autoCategoryFilter !== '') {
+        if ($autoCategoryFilter === '0') {
+            $whereAutoCategory = " AND t.category_auto_id IS NULL";
+        } else {
+            $whereAutoCategory = " AND t.category_auto_id = :auto_category_id";
+            $params[':auto_category_id'] = (int)$autoCategoryFilter;
+        }
     }
 
     $sql = "
@@ -222,6 +248,8 @@ function repo_list_transactions(PDO $db, int $userId, int $year, int $month, str
           AND YEAR(t.txn_date) = :y
           AND MONTH(t.txn_date) = :m
           {$whereQ}
+          {$whereCategory}
+          {$whereAutoCategory}
         ORDER BY t.txn_date DESC, t.id DESC
     ";
 
