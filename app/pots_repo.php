@@ -63,6 +63,46 @@ function repo_get_pot(PDO $db, int $userId, int $potId): ?array {
     return $row ?: null;
 }
 
+function repo_get_pot_with_balance(PDO $db, int $userId, int $potId): ?array {
+    if ($potId <= 0) {
+        return null;
+    }
+    $sql = "
+        SELECT
+            p.id,
+            p.name,
+            p.archived,
+            p.start_amount,
+            COALESCE(alloc.total_allocated, 0) AS allocated_total,
+            COALESCE(spent.total_spent, 0) AS spent_total,
+            COALESCE(p.start_amount, 0)
+                + COALESCE(alloc.total_allocated, 0)
+                - COALESCE(spent.total_spent, 0) AS balance
+        FROM pots p
+        LEFT JOIN (
+            SELECT pot_id, SUM(amount) AS total_allocated
+            FROM pot_allocations
+            WHERE user_id = :uid
+            GROUP BY pot_id
+        ) alloc ON alloc.pot_id = p.id
+        LEFT JOIN (
+            SELECT pcm.pot_id,
+                   ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS total_spent
+            FROM transactions t
+            JOIN pot_category_map pcm ON pcm.category_id = t.category_id
+            WHERE t.user_id = :uid
+            GROUP BY pcm.pot_id
+        ) spent ON spent.pot_id = p.id
+        WHERE p.user_id = :uid AND p.id = :id
+        LIMIT 1
+    ";
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute([':uid' => $userId, ':id' => $potId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
 function repo_create_pot(PDO $db, int $userId, string $name, float $startAmount, bool $archived = false): int {
     $name = trim($name);
     if ($name === '') {
