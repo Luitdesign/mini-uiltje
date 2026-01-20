@@ -77,14 +77,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'update') {
         $categoryId = (int)($_POST['id'] ?? 0);
-        $name = (string)($_POST['name'] ?? '');
+        $category = repo_get_category($db, $categoryId);
+        if (!$category) {
+            $error = 'Category not found.';
+        } else {
+            $name = (string)$category['name'];
+        }
         $useColor = isset($_POST['use_color']);
         $color = $useColor ? (string)($_POST['color'] ?? '') : null;
-        try {
-            repo_update_category($db, $categoryId, $name, $color);
-            redirect('/categories.php?saved=updated');
-        } catch (Throwable $e) {
-            $error = $e->getMessage();
+        if ($error === '') {
+            try {
+                repo_update_category($db, $categoryId, $name, $color);
+                redirect('/categories.php?saved=updated');
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
         }
     } elseif ($action === 'update_uncategorized_color') {
         $useColor = isset($_POST['use_color']);
@@ -252,7 +259,6 @@ render_header('Categories', 'categories');
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="id" value="<?= h((string)$cat['id']) ?>">
-                <input type="hidden" name="name" value="<?= h($cat['name']) ?>">
                 <label class="small" style="margin: 0;">
                   <input type="checkbox" name="use_color" value="1" <?= $cat['color'] ? 'checked' : '' ?>>
                   Use color
@@ -276,12 +282,12 @@ render_header('Categories', 'categories');
               </div>
             <?php else: ?>
               <div class="inline-actions">
-                <a class="btn" href="/categories.php?edit=<?= h((string)$cat['id']) ?>" aria-label="Edit category <?= h($cat['name']) ?>">✏️ Edit</a>
+                <a class="btn" href="/categories.php?edit=<?= h((string)$cat['id']) ?>" aria-label="Edit category">✏️ Edit</a>
                 <form method="post" action="/categories.php" onsubmit="return confirm('Delete this category? Transactions will become uncategorized.');">
                   <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
                   <input type="hidden" name="action" value="delete">
                   <input type="hidden" name="id" value="<?= h((string)$cat['id']) ?>">
-                  <button class="btn" type="submit" aria-label="Delete category <?= h($cat['name']) ?>">🗑️ Delete</button>
+                  <button class="btn" type="submit" aria-label="Delete category">🗑️ Delete</button>
                 </form>
               </div>
             <?php endif; ?>
