@@ -21,6 +21,65 @@ CREATE TABLE IF NOT EXISTS categories (
   CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS pots (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  archived TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_pots_user (user_id),
+  CONSTRAINT fk_pots_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS pot_category_map (
+  category_id INT UNSIGNED NOT NULL,
+  pot_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (category_id),
+  KEY idx_pot_category_map_pot (pot_id),
+  CONSTRAINT fk_pot_category_map_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pot_category_map_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS pot_allocation_rules (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  pot_id INT UNSIGNED NOT NULL,
+  amount_monthly DECIMAL(12,2) NOT NULL,
+  start_year SMALLINT UNSIGNED NOT NULL,
+  start_month TINYINT UNSIGNED NOT NULL,
+  end_year SMALLINT UNSIGNED NULL,
+  end_month TINYINT UNSIGNED NULL,
+  name VARCHAR(120) NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_pot_allocation_rules_user (user_id),
+  KEY idx_pot_allocation_rules_pot (pot_id),
+  CONSTRAINT fk_pot_allocation_rules_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pot_allocation_rules_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS pot_allocations (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  pot_id INT UNSIGNED NOT NULL,
+  year SMALLINT UNSIGNED NOT NULL,
+  month TINYINT UNSIGNED NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  rule_id INT UNSIGNED NULL,
+  import_id INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_pot_allocations_period (user_id, pot_id, year, month),
+  KEY idx_pot_allocations_rule (rule_id),
+  KEY idx_pot_allocations_import (import_id),
+  CONSTRAINT fk_pot_allocations_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pot_allocations_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pot_allocations_rule FOREIGN KEY (rule_id) REFERENCES pot_allocation_rules(id) ON DELETE SET NULL,
+  CONSTRAINT fk_pot_allocations_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS imports (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id INT UNSIGNED NOT NULL,
