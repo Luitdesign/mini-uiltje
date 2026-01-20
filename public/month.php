@@ -10,6 +10,18 @@ $m = $_GET['m'] ?? ($months[0] ?? date('Y-m'));
 $mode = $_GET['mode'] ?? 'all'; // all|review|confirmed
 if (!in_array($mode, ['all','review','confirmed'], true)) { $mode = 'all'; }
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['rerun_auto'])) {
+    $token = (string)($_GET['_csrf'] ?? '');
+    if (!$token || !hash_equals((string)($_SESSION['_csrf'] ?? ''), $token)) {
+        http_response_code(403);
+        echo 'CSRF validation failed.';
+        exit;
+    }
+    $updated = reapply_auto_categories_for_month((string)$m);
+    flash_set('Auto category applied to ' . $updated . ' transactions.', 'info');
+    redirect('/month.php?m=' . urlencode((string)$m) . '&mode=' . urlencode((string)$mode));
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     $action = $_POST['action'] ?? '';
@@ -25,6 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tid = (int)($_POST['tx_id'] ?? 0);
         confirm_transaction($tid);
         flash_set('Confirmed.', 'info');
+        redirect('/month.php?m=' . urlencode($month) . '&mode=' . urlencode((string)($_POST['mode'] ?? $mode)));
+    } elseif ($action === 'rerun_auto') {
+        $updated = reapply_auto_categories_for_month($month);
+        flash_set('Auto category applied to ' . $updated . ' transactions.', 'info');
         redirect('/month.php?m=' . urlencode($month) . '&mode=' . urlencode((string)($_POST['mode'] ?? $mode)));
     }
 }
@@ -59,6 +75,7 @@ render_header('Transactions');
     <a class="btn <?= $mode==='review'?'primary':'' ?>" href="/month.php?m=<?=h((string)$m)?>&mode=review">Needs review</a>
     <a class="btn <?= $mode==='confirmed'?'primary':'' ?>" href="/month.php?m=<?=h((string)$m)?>&mode=confirmed">Confirmed</a>
     <a class="btn" href="/results.php?m=<?=h((string)$m)?>">Results</a>
+    <a class="btn" href="/month.php?m=<?=h((string)$m)?>&mode=<?=h((string)$mode)?>&rerun_auto=1&_csrf=<?=h(csrf_token())?>">Run auto category</a>
   </div>
 
   <div style="margin-top:14px">
