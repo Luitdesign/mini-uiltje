@@ -29,3 +29,23 @@ require_once __DIR__ . '/csv_ing_import.php';
 header('X-App-Version: ' . app_version());
 
 $db = db_connect($config['db']);
+
+function table_exists(PDO $db, string $table): bool {
+    $stmt = $db->prepare(
+        'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = :table'
+    );
+    $stmt->execute([':table' => $table]);
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+function column_exists(PDO $db, string $table, string $column): bool {
+    $stmt = $db->prepare(
+        'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = :table AND column_name = :column'
+    );
+    $stmt->execute([':table' => $table, ':column' => $column]);
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+if (table_exists($db, 'pots') && !column_exists($db, 'pots', 'start_amount')) {
+    $db->exec('ALTER TABLE pots ADD COLUMN start_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER name');
+}

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function repo_list_pots(PDO $db, int $userId): array {
     $stmt = $db->prepare(
-        "SELECT id, name, archived
+        "SELECT id, name, archived, start_amount
          FROM pots
          WHERE user_id = :uid
          ORDER BY archived ASC, name ASC, id ASC"
@@ -18,9 +18,12 @@ function repo_list_pots_with_balances(PDO $db, int $userId): array {
             p.id,
             p.name,
             p.archived,
+            p.start_amount,
             COALESCE(alloc.total_allocated, 0) AS allocated_total,
             COALESCE(spent.total_spent, 0) AS spent_total,
-            COALESCE(alloc.total_allocated, 0) - COALESCE(spent.total_spent, 0) AS balance
+            COALESCE(p.start_amount, 0)
+                + COALESCE(alloc.total_allocated, 0)
+                - COALESCE(spent.total_spent, 0) AS balance
         FROM pots p
         LEFT JOIN (
             SELECT pot_id, SUM(amount) AS total_allocated
@@ -50,7 +53,7 @@ function repo_get_pot(PDO $db, int $userId, int $potId): ?array {
         return null;
     }
     $stmt = $db->prepare(
-        "SELECT id, name, archived
+        "SELECT id, name, archived, start_amount
          FROM pots
          WHERE id = :id AND user_id = :uid
          LIMIT 1"
@@ -60,24 +63,25 @@ function repo_get_pot(PDO $db, int $userId, int $potId): ?array {
     return $row ?: null;
 }
 
-function repo_create_pot(PDO $db, int $userId, string $name, bool $archived = false): int {
+function repo_create_pot(PDO $db, int $userId, string $name, float $startAmount, bool $archived = false): int {
     $name = trim($name);
     if ($name === '') {
         throw new RuntimeException('Pot name cannot be empty.');
     }
     $stmt = $db->prepare(
-        "INSERT INTO pots(user_id, name, archived)
-         VALUES(:uid, :name, :archived)"
+        "INSERT INTO pots(user_id, name, start_amount, archived)
+         VALUES(:uid, :name, :start_amount, :archived)"
     );
     $stmt->execute([
         ':uid' => $userId,
         ':name' => $name,
+        ':start_amount' => $startAmount,
         ':archived' => $archived ? 1 : 0,
     ]);
     return (int)$db->lastInsertId();
 }
 
-function repo_update_pot(PDO $db, int $userId, int $potId, string $name, bool $archived): void {
+function repo_update_pot(PDO $db, int $userId, int $potId, string $name, float $startAmount, bool $archived): void {
     $name = trim($name);
     if ($potId <= 0) {
         throw new RuntimeException('Invalid pot.');
@@ -88,11 +92,13 @@ function repo_update_pot(PDO $db, int $userId, int $potId, string $name, bool $a
     $stmt = $db->prepare(
         "UPDATE pots
          SET name = :name,
+             start_amount = :start_amount,
              archived = :archived
          WHERE id = :id AND user_id = :uid"
     );
     $stmt->execute([
         ':name' => $name,
+        ':start_amount' => $startAmount,
         ':archived' => $archived ? 1 : 0,
         ':id' => $potId,
         ':uid' => $userId,
