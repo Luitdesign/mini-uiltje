@@ -85,9 +85,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $useColor = isset($_POST['use_color']);
         $color = $useColor ? (string)($_POST['color'] ?? '') : null;
+        $savingsIdRaw = trim((string)($_POST['savings_id'] ?? ''));
+        $savingsId = $savingsIdRaw !== '' ? (int)$savingsIdRaw : null;
+        if ($savingsId !== null && $savingsId <= 0) {
+            $savingsId = null;
+        }
+        if ($error === '' && $savingsId !== null) {
+            $saving = repo_find_saving($db, $savingsId);
+            if (!$saving) {
+                $error = 'Selected savings account not found.';
+            }
+        }
         if ($error === '') {
             try {
-                repo_update_category($db, $categoryId, $name, $color);
+                repo_update_category($db, $categoryId, $name, $color, $savingsId);
                 redirect('/categories.php?saved=updated');
             } catch (Throwable $e) {
                 $error = $e->getMessage();
@@ -130,10 +141,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string)($_POST['name'] ?? ''));
         $useColor = isset($_POST['use_color']);
         $color = $useColor ? (string)($_POST['color'] ?? '') : null;
+        $savingsIdRaw = trim((string)($_POST['savings_id'] ?? ''));
+        $savingsId = $savingsIdRaw !== '' ? (int)$savingsIdRaw : null;
+        if ($savingsId !== null && $savingsId <= 0) {
+            $savingsId = null;
+        }
         if ($name === '') {
             $error = 'Category name cannot be empty.';
+        } elseif ($savingsId !== null && !repo_find_saving($db, $savingsId)) {
+            $error = 'Selected savings account not found.';
         } else {
-            $id = repo_create_category($db, $name, $color);
+            $id = repo_create_category($db, $name, $color, $savingsId);
             if ($id) {
                 redirect('/categories.php?saved=added');
             } else {
@@ -144,6 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $cats = repo_list_categories($db);
+$savings = repo_list_savings($db);
 $editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
 $uncategorizedColor = '#ff0000';
 $storedUncategorizedColor = repo_get_setting($db, 'uncategorized_color');
@@ -195,6 +214,16 @@ render_header('Categories', 'categories');
       <label>New category</label>
       <input class="input" name="name" placeholder="e.g. Boodschappen" required>
     </div>
+    <div style="min-width: 220px;">
+      <label>Linked savings account</label>
+      <select class="input" name="savings_id">
+        <option value="">None</option>
+        <?php foreach ($savings as $saving): ?>
+          <option value="<?= h((string)$saving['id']) ?>"><?= h((string)$saving['name']) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <div class="small">Optional. Used for savings tracking.</div>
+    </div>
     <div style="min-width: 200px;">
       <label>Category color</label>
       <div class="row" style="align-items: center;">
@@ -234,6 +263,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
+        <th style="width: 220px;">Savings</th>
         <th style="width: 200px;">Color</th>
         <th style="width: 200px;">Actions</th>
       </tr>
@@ -244,6 +274,7 @@ render_header('Categories', 'categories');
         <td style="height:44px;">
           <span >Uncategorized</span>
         </td>
+        <td><span class="small muted">None</span></td>
         <td>
           <?php $swatch = rgba_from_hex($uncategorizedColor, 0.18); ?>
           <span class="badge" style="background: <?= h((string)$swatch) ?>; color: var(--text); border-color: <?= h($uncategorizedColor) ?>;">
@@ -255,11 +286,28 @@ render_header('Categories', 'categories');
       <?php foreach ($cats as $cat): ?>
         <?php $catId = (int)$cat['id']; ?>
         <?php $catRowColor = !empty($cat['color']) ? rgba_from_hex($cat['color'], 0.12) : null; ?>
+        <?php $formId = $editId === $catId ? 'category-edit-' . $catId : null; ?>
         <tr<?= $catRowColor ? ' style="--row-color: ' . h((string)$catRowColor) . ';" data-row-color="1"' : '' ?>>
           <td><?= h($cat['name']) ?></td>
           <td>
             <?php if ($editId === $catId): ?>
-              <?php $formId = 'category-edit-' . $catId; ?>
+              <select class="input" name="savings_id" form="<?= h((string)$formId) ?>">
+                <option value="">None</option>
+                <?php foreach ($savings as $saving): ?>
+                  <?php $selected = (int)$cat['savings_id'] === (int)$saving['id']; ?>
+                  <option value="<?= h((string)$saving['id']) ?>" <?= $selected ? 'selected' : '' ?>>
+                    <?= h((string)$saving['name']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            <?php elseif (!empty($cat['savings_name'])): ?>
+              <?= h((string)$cat['savings_name']) ?>
+            <?php else: ?>
+              <span class="small muted">None</span>
+            <?php endif; ?>
+          </td>
+          <td>
+            <?php if ($editId === $catId): ?>
               <form id="<?= h($formId) ?>" method="post" action="/categories.php" class="row" style="gap: 8px; align-items: center;">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
                 <input type="hidden" name="action" value="update">
