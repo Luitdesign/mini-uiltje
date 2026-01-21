@@ -38,15 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $savedFlag = true;
         $txnId = (int)($_POST['friendly_name_id'] ?? 0);
         $friendlyNames = $_POST['friendly_names'] ?? [];
-        if ($txnId <= 0 || !is_array($friendlyNames)) {
-            $error = 'Unable to save friendly name.';
-        } else {
+        if ($txnId > 0 && is_array($friendlyNames)) {
             $friendlyName = (string)($friendlyNames[$txnId] ?? '');
-            try {
-                repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
-            } catch (Throwable $e) {
-                $error = 'Unable to save friendly name. Ensure the database schema is up to date.';
-            }
+            repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
         }
     }
     if ($action === 'rerun_auto') {
