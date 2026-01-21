@@ -34,6 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'update_friendly_name') {
+        $savedFlag = true;
+        $txnId = (int)($_POST['friendly_name_id'] ?? 0);
+        $friendlyNames = $_POST['friendly_names'] ?? [];
+        if ($txnId > 0 && is_array($friendlyNames)) {
+            $friendlyName = (string)($friendlyNames[$txnId] ?? '');
+            repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
+        }
+    }
     if ($action === 'rerun_auto') {
         $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
     }
@@ -156,7 +165,7 @@ render_header('Transactions', 'transactions');
       'auto_category_id' => $autoCategoryFilter,
     ])) ?>">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-    <input type="hidden" name="action" value="update_categories">
+    <input type="hidden" name="friendly_name_id" id="js-friendly-name-id" value="">
 
     <div class="row small" style="align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
       <span><strong>Visible columns:</strong></span>
@@ -201,10 +210,38 @@ render_header('Transactions', 'transactions');
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
-              <div><strong><?= h($t['description']) ?></strong></div>
-              <?php if (!empty($t['notes'])): ?>
-                <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
-              <?php endif; ?>
+              <?php $hasFriendly = !empty($t['friendly_name']); ?>
+              <div class="txn-description js-friendly-row" data-has-friendly="<?= $hasFriendly ? '1' : '0' ?>">
+                <div class="txn-friendly-display js-friendly-display" <?= $hasFriendly ? '' : 'hidden' ?>>
+                  <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
+                    <strong><?= h((string)$t['friendly_name']) ?></strong>
+                  </button>
+                </div>
+                <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
+                  <?php if ($hasFriendly): ?>
+                    <button type="button" class="txn-toggle js-friendly-toggle" data-target="friendly">
+                      <div><strong><?= h($t['description']) ?></strong></div>
+                      <?php if (!empty($t['notes'])): ?>
+                        <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                      <?php endif; ?>
+                    </button>
+                  <?php else: ?>
+                    <div><strong><?= h($t['description']) ?></strong></div>
+                    <?php if (!empty($t['notes'])): ?>
+                      <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                </div>
+                <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                <div class="txn-friendly-editor js-friendly-editor" hidden>
+                  <label class="small" style="margin-bottom: 6px;">Friendly name</label>
+                  <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
+                  <div class="row" style="margin-top: 8px; gap: 8px;">
+                    <button class="btn js-friendly-save" type="submit" name="action" value="update_friendly_name" data-friendly-id="<?= (int)$t['id'] ?>">Save name</button>
+                    <button class="btn js-friendly-cancel" type="button">Cancel</button>
+                  </div>
+                </div>
+              </div>
             </td>
             <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
             <td data-col="auto-category">
@@ -260,10 +297,38 @@ render_header('Transactions', 'transactions');
           <tr<?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
-              <div><strong><?= h($t['description']) ?></strong></div>
-              <?php if (!empty($t['notes'])): ?>
-                <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
-              <?php endif; ?>
+              <?php $hasFriendly = !empty($t['friendly_name']); ?>
+              <div class="txn-description js-friendly-row" data-has-friendly="<?= $hasFriendly ? '1' : '0' ?>">
+                <div class="txn-friendly-display js-friendly-display" <?= $hasFriendly ? '' : 'hidden' ?>>
+                  <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
+                    <strong><?= h((string)$t['friendly_name']) ?></strong>
+                  </button>
+                </div>
+                <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
+                  <?php if ($hasFriendly): ?>
+                    <button type="button" class="txn-toggle js-friendly-toggle" data-target="friendly">
+                      <div><strong><?= h($t['description']) ?></strong></div>
+                      <?php if (!empty($t['notes'])): ?>
+                        <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                      <?php endif; ?>
+                    </button>
+                  <?php else: ?>
+                    <div><strong><?= h($t['description']) ?></strong></div>
+                    <?php if (!empty($t['notes'])): ?>
+                      <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                </div>
+                <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                <div class="txn-friendly-editor js-friendly-editor" hidden>
+                  <label class="small" style="margin-bottom: 6px;">Friendly name</label>
+                  <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
+                  <div class="row" style="margin-top: 8px; gap: 8px;">
+                    <button class="btn js-friendly-save" type="submit" name="action" value="update_friendly_name" data-friendly-id="<?= (int)$t['id'] ?>">Save name</button>
+                    <button class="btn js-friendly-cancel" type="button">Cancel</button>
+                  </div>
+                </div>
+              </div>
             </td>
             <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
             <td data-col="auto-category">
@@ -288,7 +353,7 @@ render_header('Transactions', 'transactions');
       </tbody>
     </table>
 
-    <button class="btn floating-save" type="submit">Save all categories</button>
+    <button class="btn floating-save" type="submit" name="action" value="update_categories">Save all categories</button>
   </form>
 </div>
 
@@ -363,6 +428,74 @@ render_header('Transactions', 'transactions');
         applyVisibility(toggle.dataset.column, toggle.checked);
         persist();
       });
+    });
+
+    const friendlyRows = Array.from(document.querySelectorAll('.js-friendly-row'));
+    const friendlyIdInput = document.getElementById('js-friendly-name-id');
+
+    friendlyRows.forEach((row) => {
+      const hasFriendly = row.dataset.hasFriendly === '1';
+      const friendlyDisplay = row.querySelector('.js-friendly-display');
+      const originalDisplay = row.querySelector('.js-original-display');
+      const editToggle = row.querySelector('.js-friendly-edit-toggle');
+      const editor = row.querySelector('.js-friendly-editor');
+      const cancelButton = row.querySelector('.js-friendly-cancel');
+      const saveButton = row.querySelector('.js-friendly-save');
+      const input = row.querySelector('.js-friendly-input');
+
+      const showDisplay = (view) => {
+        if (friendlyDisplay) {
+          friendlyDisplay.hidden = view !== 'friendly';
+        }
+        if (originalDisplay) {
+          originalDisplay.hidden = view !== 'original';
+        }
+      };
+
+      showDisplay(hasFriendly ? 'friendly' : 'original');
+
+      row.querySelectorAll('.js-friendly-toggle').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (!hasFriendly) {
+            return;
+          }
+          const targetView = button.dataset.target === 'original' ? 'original' : 'friendly';
+          showDisplay(targetView);
+        });
+      });
+
+      if (editToggle && editor) {
+        editToggle.addEventListener('click', () => {
+          editor.hidden = false;
+          if (friendlyDisplay) {
+            friendlyDisplay.hidden = true;
+          }
+          if (originalDisplay) {
+            originalDisplay.hidden = true;
+          }
+          editToggle.hidden = true;
+          if (input) {
+            input.focus();
+          }
+        });
+      }
+
+      if (cancelButton && editor && editToggle) {
+        cancelButton.addEventListener('click', () => {
+          editor.hidden = true;
+          editToggle.hidden = false;
+          showDisplay(hasFriendly ? 'friendly' : 'original');
+        });
+      }
+
+      if (saveButton && friendlyIdInput) {
+        saveButton.addEventListener('click', () => {
+          const txnId = saveButton.dataset.friendlyId;
+          if (txnId) {
+            friendlyIdInput.value = txnId;
+          }
+        });
+      }
     });
   })();
 </script>

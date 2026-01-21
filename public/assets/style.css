@@ -158,6 +158,39 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   color: var(--muted);
 }
 
+.txn-description {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.txn-toggle {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.txn-toggle:hover {
+  text-decoration: underline;
+}
+
+.txn-edit-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.txn-friendly-editor {
+  margin-top: 6px;
+}
+
 .money-pos { color: var(--accent); font-variant-numeric: tabular-nums; }
 .money-neg { color: var(--danger); font-variant-numeric: tabular-nums; }
 .money { font-variant-numeric: tabular-nums; }

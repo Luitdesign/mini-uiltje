@@ -268,6 +268,23 @@ function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int
     ]);
 }
 
+function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId, ?string $friendlyName): void {
+    $friendlyName = $friendlyName !== null ? trim($friendlyName) : null;
+    if ($friendlyName === '') {
+        $friendlyName = null;
+    }
+    $stmt = $db->prepare(
+        "UPDATE transactions
+         SET friendly_name = :friendly_name
+         WHERE id = :id AND user_id = :uid"
+    );
+    $stmt->execute([
+        ':friendly_name' => $friendlyName,
+        ':id' => $txnId,
+        ':uid' => $userId,
+    ]);
+}
+
 function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $month): int {
     $stmtRules = $db->prepare(
         'SELECT *
