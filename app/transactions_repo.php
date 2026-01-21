@@ -13,6 +13,7 @@ function repo_list_months(PDO $db, int $userId): array {
             ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
         FROM transactions
         WHERE user_id = :uid
+          AND is_internal_transfer = 0
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
     ";
@@ -220,7 +221,8 @@ function repo_list_transactions(
     int $month,
     string $q = '',
     string $categoryFilter = '',
-    string $autoCategoryFilter = ''
+    string $autoCategoryFilter = '',
+    bool $showInternalTransfers = false
 ): array {
     $params = [':uid' => $userId, ':y' => $year, ':m' => $month];
     $whereQ = '';
@@ -246,6 +248,7 @@ function repo_list_transactions(
             $params[':auto_category_id'] = (int)$autoCategoryFilter;
         }
     }
+    $whereInternalTransfer = $showInternalTransfers ? '' : ' AND t.is_internal_transfer = 0';
 
     $sql = "
         SELECT t.*, c.name AS category_name, c.color AS category_color,
@@ -259,6 +262,7 @@ function repo_list_transactions(
           {$whereQ}
           {$whereCategory}
           {$whereAutoCategory}
+          {$whereInternalTransfer}
         ORDER BY t.txn_date DESC, t.id DESC
     ";
 
@@ -304,7 +308,7 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     $rules = $stmtRules->fetchAll();
 
     $stmtTxns = $db->prepare(
-        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id
+        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer
          FROM transactions
          WHERE user_id = :uid
            AND YEAR(txn_date) = :y
@@ -330,6 +334,9 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     $db->beginTransaction();
     try {
         foreach ($transactions as $txn) {
+            if (!empty($txn['is_internal_transfer'])) {
+                continue;
+            }
             $auto = ing_apply_rules($txn, $rules);
             $newAutoId = $auto['category_auto_id'];
             $currentCategoryId = $txn['category_id'] !== null ? (int)$txn['category_id'] : null;
@@ -366,6 +373,7 @@ function repo_month_summary(PDO $db, int $userId, int $year, int $month): array 
         WHERE user_id = :uid
           AND YEAR(txn_date) = :y
           AND MONTH(txn_date) = :m
+          AND is_internal_transfer = 0
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute([':uid' => $userId, ':y' => $year, ':m' => $month]);
@@ -389,6 +397,7 @@ function repo_month_breakdown_by_category(PDO $db, int $userId, int $year, int $
         WHERE t.user_id = :uid
           AND YEAR(t.txn_date) = :y
           AND MONTH(t.txn_date) = :m
+          AND t.is_internal_transfer = 0
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
     ";

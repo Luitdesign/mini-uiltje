@@ -10,6 +10,7 @@ $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
 $categoryFilter = (string)($_GET['category_id'] ?? '');
 $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
+$showInternal = (string)($_GET['show_internal'] ?? '') === '1';
 $saved = isset($_GET['saved']);
 $autoUpdated = (int)($_GET['auto_updated'] ?? 0);
 
@@ -60,6 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($autoCategoryFilter !== '') {
             $qsParams['auto_category_id'] = $autoCategoryFilter;
         }
+        if ($showInternal) {
+            $qsParams['show_internal'] = 1;
+        }
         if ($savedFlag) {
             $qsParams['saved'] = 1;
         }
@@ -73,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $categories = repo_list_assignable_categories($db);
 $uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
-$txns = repo_list_transactions($db, $userId, $year, $month, $q, $categoryFilter, $autoCategoryFilter);
+$txns = repo_list_transactions($db, $userId, $year, $month, $q, $categoryFilter, $autoCategoryFilter, $showInternal);
 $incomeTxns = [];
 $expenseTxns = [];
 
@@ -84,6 +88,17 @@ foreach ($txns as $txn) {
     } else {
         $expenseTxns[] = $txn;
     }
+}
+
+$actionQueryParams = [
+    'year' => $year,
+    'month' => $month,
+    'q' => $q,
+    'category_id' => $categoryFilter,
+    'auto_category_id' => $autoCategoryFilter,
+];
+if ($showInternal) {
+    $actionQueryParams['show_internal'] = '1';
 }
 
 render_header('Transactions', 'transactions');
@@ -128,18 +143,19 @@ render_header('Transactions', 'transactions');
         <?php endforeach; ?>
       </select>
     </div>
+    <div style="min-width: 200px;">
+      <label>&nbsp;</label>
+      <label style="display: flex; gap: 8px; align-items: center; color: var(--text); font-size: 14px;">
+        <input type="checkbox" name="show_internal" value="1" <?= $showInternal ? 'checked' : '' ?>>
+        Show internal transfers
+      </label>
+    </div>
     <div>
       <button class="btn" type="submit">Apply</button>
     </div>
   </form>
 
-  <form method="post" action="/transactions.php?<?= h(http_build_query([
-      'year' => $year,
-      'month' => $month,
-      'q' => $q,
-      'category_id' => $categoryFilter,
-      'auto_category_id' => $autoCategoryFilter,
-    ])) ?>" style="margin-top: 12px;">
+  <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>" style="margin-top: 12px;">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="action" value="rerun_auto">
     <button class="btn" type="submit">Auto categorie opnieuw toepassen</button>
@@ -159,13 +175,7 @@ render_header('Transactions', 'transactions');
 </div>
 
 <div class="card">
-  <form method="post" action="/transactions.php?<?= h(http_build_query([
-      'year' => $year,
-      'month' => $month,
-      'q' => $q,
-      'category_id' => $categoryFilter,
-      'auto_category_id' => $autoCategoryFilter,
-    ])) ?>">
+  <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="friendly_name_id" id="js-friendly-name-id" value="">
 
@@ -202,14 +212,16 @@ render_header('Transactions', 'transactions');
         <?php foreach ($incomeTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+          $isInternal = !empty($t['is_internal_transfer']);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
           }
           $rowColor = rgba_from_hex($rowBaseColor, 0.12);
           $rowStyle = $rowColor ? ' style="--row-color: ' . h($rowColor) . ';" data-row-color="1"' : '';
+          $rowClass = $isInternal ? ' class="txn-internal"' : '';
         ?>
-          <tr<?= $rowStyle ?>>
+          <tr<?= $rowClass ?><?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <?php $hasFriendly = !empty($t['friendly_name']); ?>
@@ -218,19 +230,32 @@ render_header('Transactions', 'transactions');
                   <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
                     <strong><?= h((string)$t['friendly_name']) ?></strong>
                   </button>
+                  <?php if ($isInternal): ?>
+                    <span class="badge badge-transfer">Transfer</span>
+                  <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
                   <?php if ($hasFriendly): ?>
                     <button type="button" class="txn-toggle js-friendly-toggle" data-target="friendly">
-                      <div><strong><?= h($t['description']) ?></strong></div>
+                      <div class="txn-flags">
+                        <strong><?= h($t['description']) ?></strong>
+                        <?php if ($isInternal): ?>
+                          <span class="badge badge-transfer">Transfer</span>
+                        <?php endif; ?>
+                      </div>
                       <?php if (!empty($t['notes'])): ?>
                         <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php else: ?>
-                    <div><strong><?= h($t['description']) ?></strong></div>
+                    <div class="txn-flags">
+                      <strong><?= h($t['description']) ?></strong>
+                      <?php if ($isInternal): ?>
+                        <span class="badge badge-transfer">Transfer</span>
+                      <?php endif; ?>
+                    </div>
                     <?php if (!empty($t['notes'])): ?>
                       <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>
@@ -291,14 +316,16 @@ render_header('Transactions', 'transactions');
         <?php foreach ($expenseTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
+          $isInternal = !empty($t['is_internal_transfer']);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
           }
           $rowColor = rgba_from_hex($rowBaseColor, 0.12);
           $rowStyle = $rowColor ? ' style="--row-color: ' . h($rowColor) . ';" data-row-color="1"' : '';
+          $rowClass = $isInternal ? ' class="txn-internal"' : '';
         ?>
-          <tr<?= $rowStyle ?>>
+          <tr<?= $rowClass ?><?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <?php $hasFriendly = !empty($t['friendly_name']); ?>
@@ -307,19 +334,32 @@ render_header('Transactions', 'transactions');
                   <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
                     <strong><?= h((string)$t['friendly_name']) ?></strong>
                   </button>
+                  <?php if ($isInternal): ?>
+                    <span class="badge badge-transfer">Transfer</span>
+                  <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
                   <?php if ($hasFriendly): ?>
                     <button type="button" class="txn-toggle js-friendly-toggle" data-target="friendly">
-                      <div><strong><?= h($t['description']) ?></strong></div>
+                      <div class="txn-flags">
+                        <strong><?= h($t['description']) ?></strong>
+                        <?php if ($isInternal): ?>
+                          <span class="badge badge-transfer">Transfer</span>
+                        <?php endif; ?>
+                      </div>
                       <?php if (!empty($t['notes'])): ?>
                         <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php else: ?>
-                    <div><strong><?= h($t['description']) ?></strong></div>
+                    <div class="txn-flags">
+                      <strong><?= h($t['description']) ?></strong>
+                      <?php if ($isInternal): ?>
+                        <span class="badge badge-transfer">Transfer</span>
+                      <?php endif; ?>
+                    </div>
                     <?php if (!empty($t['notes'])): ?>
                       <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>

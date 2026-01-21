@@ -52,6 +52,7 @@ $expectedSchema = [
         'notes',
         'balance_after',
         'tag',
+        'is_internal_transfer',
         'category_id',
         'category_auto_id',
         'rule_auto_id',

@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   notes TEXT NULL,
   balance_after DECIMAL(12,2) NULL,
   tag VARCHAR(255) NULL,
+  is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0,
 
   category_id INT UNSIGNED NULL,
   category_auto_id INT UNSIGNED NULL,
@@ -110,6 +111,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   KEY idx_transactions_import (import_id),
   KEY idx_transactions_import_batch (import_batch_id),
   KEY idx_transactions_rule_auto (rule_auto_id),
+  KEY idx_transactions_internal_transfer (is_internal_transfer),
 
   CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL,
