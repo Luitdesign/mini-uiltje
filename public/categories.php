@@ -231,7 +231,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
-        <th style="width: 160px;">Color</th>
+        <th style="width: 200px;">Color</th>
         <th style="width: 200px;">Actions</th>
       </tr>
     </thead>
