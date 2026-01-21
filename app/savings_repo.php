@@ -39,3 +39,44 @@ function repo_create_saving(
     ]);
     return (int)$db->lastInsertId();
 }
+
+function repo_find_saving(PDO $db, int $id): ?array {
+    $sql = "
+        SELECT id, name, active, sort_order, start_amount, monthly_amount
+        FROM savings
+        WHERE id = :id
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute(['id' => $id]);
+    $saving = $stmt->fetch();
+    return $saving === false ? null : $saving;
+}
+
+function repo_update_saving(
+    PDO $db,
+    int $id,
+    string $name,
+    float $startAmount,
+    float $monthlyAmount,
+    int $active,
+    int $sortOrder
+): void {
+    $sql = "
+        UPDATE savings
+        SET name = :name,
+            active = :active,
+            sort_order = :sort_order,
+            start_amount = :start_amount,
+            monthly_amount = :monthly_amount
+        WHERE id = :id
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute([
+        'id' => $id,
+        'name' => $name,
+        'active' => $active,
+        'sort_order' => $sortOrder,
+        'start_amount' => $startAmount,
+        'monthly_amount' => $monthlyAmount,
+    ]);
+}
