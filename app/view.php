@@ -8,8 +8,6 @@ function render_header(string $title, ?string $active = null): void {
         ['Upload', '/upload.php', 'upload'],
         ['Transactions', '/transactions.php', 'transactions'],
         ['Summary', '/summary.php', 'summary'],
-        ['Pots', '/pots.php', 'pots'],
-        ['Pot Categories', '/pots_categories.php', 'pots-categories'],
         ['Categories', '/categories.php', 'categories'],
         ['Rules', '/rules.php', 'rules'],
         ['DB Check', '/db-check.php', 'db-check'],
