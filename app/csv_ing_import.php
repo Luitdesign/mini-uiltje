@@ -48,18 +48,12 @@ function ing_normalize_iban(?string $iban): string {
     return strtoupper(trim($iban));
 }
 
-function ing_normalize_text(string $value): string {
-    $value = mb_strtolower(trim($value));
-    $value = preg_replace('/\s+/', ' ', $value) ?? '';
-    return $value;
-}
-
 function ing_rule_text_match(string $value, string $pattern, ?string $mode): bool {
     $pattern = trim($pattern);
     if ($pattern === '') return true;
 
-    $value = ing_normalize_text($value);
-    $pattern = ing_normalize_text($pattern);
+    $value = mb_strtolower($value);
+    $pattern = mb_strtolower($pattern);
     $mode = $mode ?: 'contains';
 
     return match ($mode) {
@@ -182,13 +176,21 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
     $inserted = 0;
     $skipped = 0;
 
+    $stmtRules = $db->prepare(
+        'SELECT *
+         FROM rules
+         WHERE user_id = :uid AND active = 1
+         ORDER BY priority ASC, id ASC'
+    );
+    $stmtRules->execute([':uid' => $userId]);
+    $rules = $stmtRules->fetchAll();
+
     $stmtIns = $db->prepare(
         'INSERT INTO transactions(
             user_id, import_id, import_batch_id, txn_hash,
             txn_date, description,
             account_iban, counter_iban, code,
             direction, amount_signed, currency,
-            flow_type,
             mutation_type, notes, balance_after, tag
             , category_id, category_auto_id, rule_auto_id, auto_reason
         ) VALUES(
@@ -196,7 +198,6 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             :txn_date, :description,
             :account_iban, :counter_iban, :code,
             :direction, :amount_signed, :currency,
-            :flow_type,
             :mutation_type, :notes, :balance_after, :tag
             , :category_id, :category_auto_id, :rule_auto_id, :auto_reason
         )'
@@ -219,7 +220,6 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
 
         $signed = ($dir === 'Af') ? -abs($amt) : abs($amt);
 
-        $flowType = $signed > 0 ? 'income' : 'expense';
         $rec = [
             'user_id' => $userId,
             'import_id' => $importId,
@@ -231,17 +231,17 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             'direction' => $dir,
             'amount_signed' => $signed,
             'currency' => 'EUR',
-            'flow_type' => $flowType,
             'mutation_type' => isset($idx['Mutatiesoort']) ? trim((string)($row[$idx['Mutatiesoort']] ?? '')) : null,
             'notes' => isset($idx['Mededelingen']) ? trim((string)($row[$idx['Mededelingen']] ?? '')) : null,
             'balance_after' => isset($idx['Saldo na mutatie']) ? ing_parse_decimal((string)($row[$idx['Saldo na mutatie']] ?? '')) : null,
             'tag' => isset($idx['Tag']) ? trim((string)($row[$idx['Tag']] ?? '')) : null,
         ];
 
-        $rec['category_auto_id'] = null;
-        $rec['category_id'] = null;
-        $rec['rule_auto_id'] = null;
-        $rec['auto_reason'] = null;
+        $auto = ing_apply_rules($rec, $rules);
+        $rec['category_auto_id'] = $auto['category_auto_id'];
+        $rec['category_id'] = $auto['category_auto_id'];
+        $rec['rule_auto_id'] = $auto['rule_auto_id'];
+        $rec['auto_reason'] = $auto['auto_reason'];
 
         $rec['txn_hash'] = ing_txn_hash([
             'txn_date' => $rec['txn_date'],
@@ -271,7 +271,6 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':direction' => $rec['direction'],
                 ':amount_signed' => $rec['amount_signed'],
                 ':currency' => $rec['currency'],
-                ':flow_type' => $rec['flow_type'],
                 ':mutation_type' => $rec['mutation_type'] ?: null,
                 ':notes' => $rec['notes'] ?: null,
                 ':balance_after' => $rec['balance_after'],
@@ -289,8 +288,6 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
     }
 
     fclose($handle);
-
-    repo_apply_rules_to_import_batch($db, $userId, $importId);
 
     return [
         'import_id' => $importId,

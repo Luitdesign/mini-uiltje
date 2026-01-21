@@ -19,16 +19,6 @@ body {
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
-.link-button {
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  cursor: pointer;
-  font: inherit;
-  line-height: inherit;
-}
-.link-button:hover { text-decoration: underline; }
 
 .topbar {
   display: flex;
@@ -62,7 +52,6 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: 12px;
   padding: 10px 18px;
-  flex-wrap: wrap;
 }
 
 .navlink {
@@ -70,58 +59,6 @@ a:hover { text-decoration: underline; }
   border-radius: 10px;
   color: var(--text);
   border: 1px solid transparent;
-}
-
-.nav-dropdown {
-  position: relative;
-  display: inline-flex;
-}
-
-.navtoggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.navcaret {
-  font-size: 10px;
-  color: var(--muted);
-}
-
-.navmenu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  min-width: 200px;
-  padding: 8px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
-  display: none;
-  flex-direction: column;
-  gap: 4px;
-  z-index: 20;
-}
-
-.navmenu .navlink {
-  display: block;
-  width: 100%;
-}
-
-.nav-dropdown:hover .navmenu,
-.nav-dropdown:focus-within .navmenu {
-  display: flex;
-}
-
-.navlabel {
-  padding: 8px 4px;
-  color: var(--muted);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .navlink.active {
@@ -173,11 +110,6 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 }
 
 .btn:hover { background: rgba(110,231,183,0.18); }
-.btn-small {
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-}
 
 .btn-danger {
   background: rgba(251,113,133,0.12);
@@ -195,18 +127,6 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 }
 
 .small { font-size: 13px; color: var(--muted); }
-.txn-friendly { display: flex; flex-direction: column; gap: 6px; }
-.txn-friendly-display { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.txn-friendly-name { font-weight: 600; }
-span.txn-friendly-name { color: var(--text); }
-button.txn-friendly-name { color: var(--accent); }
-.txn-friendly-editor { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.txn-friendly-input {
-  min-width: 220px;
-  max-width: 320px;
-  width: auto;
-  flex: 1 1 220px;
-}
 
 .table {
   width: 100%;

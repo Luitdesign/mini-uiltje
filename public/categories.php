@@ -228,14 +228,12 @@ render_header('Categories', 'categories');
   <table class="table" style="margin-top: 12px;">
     <thead>
       <tr>
-        <th>Category</th>
         <th style="width: 160px;">Color</th>
         <th style="width: 160px;">Actions</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td><span class="small muted">Uncategorized</span></td>
         <td>
           <form id="uncategorized-color-form" method="post" action="/categories.php" class="row" style="align-items: center; gap: 8px;">
             <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
@@ -254,7 +252,6 @@ render_header('Categories', 'categories');
       <?php foreach ($cats as $cat): ?>
         <?php $catId = (int)$cat['id']; ?>
         <tr>
-          <td><?= h($cat['name']) ?></td>
           <td>
             <?php if ($editId === $catId): ?>
               <?php $formId = 'category-edit-' . $catId; ?>

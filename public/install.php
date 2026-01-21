@@ -43,10 +43,6 @@ function ensure_transaction_extensions(PDO $db): void {
         return;
     }
 
-    if (!column_exists($db, 'transactions', 'flow_type')) {
-        $db->exec("ALTER TABLE transactions ADD COLUMN flow_type ENUM('income','expense','transfer') NOT NULL DEFAULT 'expense' AFTER amount_signed");
-        $db->exec("UPDATE transactions SET flow_type = CASE WHEN amount_signed > 0 THEN 'income' ELSE 'expense' END");
-    }
     if (!column_exists($db, 'transactions', 'import_batch_id')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN import_batch_id INT UNSIGNED NULL AFTER import_id');
     }
@@ -120,8 +116,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $db->prepare('INSERT INTO users(username, password_hash) VALUES(:u, :p)');
                 $stmt->execute([':u' => $username, ':p' => $hash]);
-                $newUserId = (int)$db->lastInsertId();
-                repo_ensure_transfer_setup($db, $newUserId);
             }
 
             $ok = true;
