@@ -31,7 +31,12 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
 }
 
 function repo_list_categories(PDO $db): array {
-    $stmt = $db->query("SELECT id, name, color FROM categories ORDER BY name ASC");
+    $stmt = $db->query("
+        SELECT c.id, c.name, c.color, c.savings_id, s.name AS savings_name
+        FROM categories c
+        LEFT JOIN savings s ON s.id = c.savings_id
+        ORDER BY c.name ASC
+    ");
     $rows = $stmt->fetchAll();
     foreach ($rows as &$row) {
         $row['label'] = $row['name'];
@@ -48,7 +53,7 @@ function repo_get_category(PDO $db, int $categoryId): ?array {
     if ($categoryId <= 0) {
         return null;
     }
-    $stmt = $db->prepare("SELECT id, name, color FROM categories WHERE id = :id LIMIT 1");
+    $stmt = $db->prepare("SELECT id, name, color, savings_id FROM categories WHERE id = :id LIMIT 1");
     $stmt->execute([':id' => $categoryId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
@@ -93,14 +98,15 @@ function repo_find_category_id(PDO $db, string $name): ?int {
     return $row ? (int)$row['id'] : null;
 }
 
-function repo_create_category(PDO $db, string $name, ?string $color): ?int {
+function repo_create_category(PDO $db, string $name, ?string $color, ?int $savingsId = null): ?int {
     $name = trim($name);
     if ($name === '') return null;
     $color = normalize_hex_color($color);
+    $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
     // Insert ignore via try/catch for unique constraint
     try {
-        $stmt = $db->prepare("INSERT INTO categories(name, color) VALUES(:n, :color)");
-        $stmt->execute([':n' => $name, ':color' => $color]);
+        $stmt = $db->prepare("INSERT INTO categories(name, color, savings_id) VALUES(:n, :color, :savings_id)");
+        $stmt->execute([':n' => $name, ':color' => $color, ':savings_id' => $savingsId]);
         return (int)$db->lastInsertId();
     } catch (PDOException $e) {
         $existingId = repo_find_category_id($db, $name);
@@ -140,7 +146,7 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     return ['created_ids' => $createdIds, 'skipped' => $skipped];
 }
 
-function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color): void {
+function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color, ?int $savingsId = null): void {
     $name = trim($name);
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
@@ -149,12 +155,14 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?string $c
         throw new RuntimeException('Category name cannot be empty.');
     }
     $color = normalize_hex_color($color);
+    $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
 
     try {
-        $stmt = $db->prepare("UPDATE categories SET name = :name, color = :color WHERE id = :id");
+        $stmt = $db->prepare("UPDATE categories SET name = :name, color = :color, savings_id = :savings_id WHERE id = :id");
         $stmt->execute([
             ':name' => $name,
             ':color' => $color,
+            ':savings_id' => $savingsId,
             ':id' => $categoryId,
         ]);
     } catch (PDOException $e) {
