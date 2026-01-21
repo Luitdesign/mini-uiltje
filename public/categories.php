@@ -226,8 +226,11 @@ render_header('Categories', 'categories');
 </div>
 
 <div class="card">
-  <h2>Existing</h2>
-  <table class="table" style="margin-top: 12px;">
+  <div class="row" style="justify-content: space-between; align-items: center; gap: 12px;">
+    <h2>Existing</h2>
+    <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
+  </div>
+  <table class="table category-table" style="margin-top: 12px;">
     <thead>
       <tr>
         <th>Name</th>
@@ -236,7 +239,8 @@ render_header('Categories', 'categories');
       </tr>
     </thead>
     <tbody>
-      <tr>
+      <?php $uncategorizedRowColor = rgba_from_hex($uncategorizedColor, 0.12); ?>
+      <tr<?= $uncategorizedRowColor ? ' style="--row-color: ' . h($uncategorizedRowColor) . ';" data-row-color="1"' : '' ?>>
         <td>
           <span class="small muted">Uncategorized</span>
         </td>
@@ -250,7 +254,8 @@ render_header('Categories', 'categories');
       </tr>
       <?php foreach ($cats as $cat): ?>
         <?php $catId = (int)$cat['id']; ?>
-        <tr>
+        <?php $catRowColor = !empty($cat['color']) ? rgba_from_hex($cat['color'], 0.12) : null; ?>
+        <tr<?= $catRowColor ? ' style="--row-color: ' . h((string)$catRowColor) . ';" data-row-color="1"' : '' ?>>
           <td><?= h($cat['name']) ?></td>
           <td>
             <?php if ($editId === $catId): ?>
@@ -301,5 +306,34 @@ render_header('Categories', 'categories');
     <div class="small muted" style="margin-top: 8px;">No categories yet.</div>
   <?php endif; ?>
 </div>
+
+<script>
+  (function () {
+    const rowColorStorageKey = 'categories.showRowColors';
+    const rowColorToggle = document.getElementById('js-row-color-toggle');
+
+    if (!rowColorToggle) {
+      return;
+    }
+
+    const applyRowColors = (enabled) => {
+      document.body.classList.toggle('show-row-colors', enabled);
+      rowColorToggle.textContent = enabled ? 'Row colours: On' : 'Row colours: Off';
+    };
+
+    let rowColorsEnabled = true;
+    const savedRowColors = window.localStorage.getItem(rowColorStorageKey);
+    if (savedRowColors !== null) {
+      rowColorsEnabled = savedRowColors === '1';
+    }
+    applyRowColors(rowColorsEnabled);
+
+    rowColorToggle.addEventListener('click', () => {
+      rowColorsEnabled = !rowColorsEnabled;
+      applyRowColors(rowColorsEnabled);
+      window.localStorage.setItem(rowColorStorageKey, rowColorsEnabled ? '1' : '0');
+    });
+  })();
+</script>
 
 <?php render_footer(); ?>
