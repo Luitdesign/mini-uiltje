@@ -23,7 +23,6 @@ require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/transactions_repo.php';
 require_once __DIR__ . '/rules_repo.php';
-require_once __DIR__ . '/pots_repo.php';
 require_once __DIR__ . '/csv_ing_import.php';
 
 header('X-App-Version: ' . app_version());
@@ -44,8 +43,4 @@ function column_exists(PDO $db, string $table, string $column): bool {
     );
     $stmt->execute([':table' => $table, ':column' => $column]);
     return ((int)$stmt->fetchColumn() > 0);
-}
-
-if (table_exists($db, 'pots') && !column_exists($db, 'pots', 'start_amount')) {
-    $db->exec('ALTER TABLE pots ADD COLUMN start_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER name');
 }

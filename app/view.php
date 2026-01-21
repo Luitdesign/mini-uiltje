@@ -6,14 +6,6 @@ function render_header(string $title, ?string $active = null): void {
     $nav = is_logged_in() ? [
         ['type' => 'link', 'label' => 'Month', 'href' => '/months.php', 'key' => 'months'],
         ['type' => 'link', 'label' => 'Upload', 'href' => '/upload.php', 'key' => 'upload'],
-        [
-            'type' => 'dropdown',
-            'label' => 'Pots',
-            'children' => [
-                ['label' => 'Pots', 'href' => '/pots.php', 'key' => 'pots'],
-                ['label' => 'Pots Categories', 'href' => '/pots_categories.php', 'key' => 'pots-categories'],
-            ],
-        ],
         ['type' => 'link', 'label' => 'Categories', 'href' => '/categories.php', 'key' => 'categories'],
         ['type' => 'link', 'label' => 'Rules', 'href' => '/rules.php', 'key' => 'rules'],
         [

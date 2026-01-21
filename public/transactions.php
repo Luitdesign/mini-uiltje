@@ -23,10 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_categories') {
         try {
             $savedFlag = true;
-            $canUpdatePots = table_exists($db, 'pots')
-                && table_exists($db, 'pot_category_map')
-                && column_exists($db, 'transactions', 'pot_id');
-            $categoryPotMap = $canUpdatePots ? repo_get_category_pot_map($db, $userId) : [];
             $validCategoryIds = [];
             foreach (repo_list_assignable_categories($db) as $category) {
                 $validCategoryIds[(int)$category['id']] = true;
@@ -42,13 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     if ($txnId > 0) {
                         repo_update_transaction_category($db, $userId, $txnId, $categoryId);
-                        if ($canUpdatePots) {
-                            $potId = null;
-                            if ($categoryId !== null && isset($categoryPotMap[$categoryId])) {
-                                $potId = (int)$categoryPotMap[$categoryId];
-                            }
-                            repo_update_transaction_pot($db, $userId, $txnId, $potId);
-                        }
                     }
                 }
             }

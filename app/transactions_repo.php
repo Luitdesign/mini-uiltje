@@ -375,15 +375,6 @@ function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId,
     ]);
 }
 
-function repo_update_transaction_pot(PDO $db, int $userId, int $txnId, ?int $potId): void {
-    $stmt = $db->prepare("UPDATE transactions SET pot_id = :pid WHERE id = :id AND user_id = :uid");
-    $stmt->execute([
-        ':pid' => $potId,
-        ':id' => $txnId,
-        ':uid' => $userId,
-    ]);
-}
-
 function repo_apply_rules_to_import_batch(PDO $db, int $userId, int $importBatchId): int {
     $transferCategoryId = repo_ensure_transfer_setup($db, $userId);
 
