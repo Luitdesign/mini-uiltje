@@ -218,6 +218,7 @@ render_header('Transactions', 'transactions');
                   <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
                     <strong><?= h((string)$t['friendly_name']) ?></strong>
                   </button>
+                  <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
                   <?php if ($hasFriendly): ?>
@@ -227,14 +228,15 @@ render_header('Transactions', 'transactions');
                         <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
+                    <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php else: ?>
                     <div><strong><?= h($t['description']) ?></strong></div>
                     <?php if (!empty($t['notes'])): ?>
                       <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>
+                    <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php endif; ?>
                 </div>
-                <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
                   <label class="small" style="margin-bottom: 6px;">Friendly name</label>
                   <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
@@ -305,6 +307,7 @@ render_header('Transactions', 'transactions');
                   <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
                     <strong><?= h((string)$t['friendly_name']) ?></strong>
                   </button>
+                  <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
                   <?php if ($hasFriendly): ?>
@@ -314,14 +317,15 @@ render_header('Transactions', 'transactions');
                         <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
+                    <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php else: ?>
                     <div><strong><?= h($t['description']) ?></strong></div>
                     <?php if (!empty($t['notes'])): ?>
                       <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>
+                    <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php endif; ?>
                 </div>
-                <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
                   <label class="small" style="margin-bottom: 6px;">Friendly name</label>
                   <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
@@ -439,7 +443,7 @@ render_header('Transactions', 'transactions');
       const hasFriendly = row.dataset.hasFriendly === '1';
       const friendlyDisplay = row.querySelector('.js-friendly-display');
       const originalDisplay = row.querySelector('.js-original-display');
-      const editToggle = row.querySelector('.js-friendly-edit-toggle');
+      const editToggles = Array.from(row.querySelectorAll('.js-friendly-edit-toggle'));
       const editor = row.querySelector('.js-friendly-editor');
       const cancelButton = row.querySelector('.js-friendly-cancel');
       const saveButton = row.querySelector('.js-friendly-save');
@@ -484,8 +488,11 @@ render_header('Transactions', 'transactions');
         toggleDisplay();
       });
 
-      if (editToggle && editor) {
+      editToggles.forEach((editToggle) => {
         editToggle.addEventListener('click', () => {
+          if (!editor) {
+            return;
+          }
           editor.hidden = false;
           if (friendlyDisplay) {
             friendlyDisplay.hidden = true;
@@ -493,17 +500,21 @@ render_header('Transactions', 'transactions');
           if (originalDisplay) {
             originalDisplay.hidden = true;
           }
-          editToggle.hidden = true;
+          editToggles.forEach((toggle) => {
+            toggle.hidden = true;
+          });
           if (input) {
             input.focus();
           }
         });
-      }
+      });
 
-      if (cancelButton && editor && editToggle) {
+      if (cancelButton && editor) {
         cancelButton.addEventListener('click', () => {
           editor.hidden = true;
-          editToggle.hidden = false;
+          editToggles.forEach((toggle) => {
+            toggle.hidden = false;
+          });
           showDisplay(hasFriendly ? 'friendly' : 'original');
         });
       }
