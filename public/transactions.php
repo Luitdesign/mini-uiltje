@@ -48,25 +48,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
-    $qsParams = [
-        'year' => $year,
-        'month' => $month,
-        'q' => $q,
-    ];
-    if ($categoryFilter !== '') {
-        $qsParams['category_id'] = $categoryFilter;
+    if ($error === '') {
+        $qsParams = [
+            'year' => $year,
+            'month' => $month,
+            'q' => $q,
+        ];
+        if ($categoryFilter !== '') {
+            $qsParams['category_id'] = $categoryFilter;
+        }
+        if ($autoCategoryFilter !== '') {
+            $qsParams['auto_category_id'] = $autoCategoryFilter;
+        }
+        if ($savedFlag) {
+            $qsParams['saved'] = 1;
+        }
+        if ($autoUpdated > 0) {
+            $qsParams['auto_updated'] = $autoUpdated;
+        }
+        $qs = http_build_query($qsParams);
+        redirect('/transactions.php?' . $qs);
     }
-    if ($autoCategoryFilter !== '') {
-        $qsParams['auto_category_id'] = $autoCategoryFilter;
-    }
-    if ($savedFlag) {
-        $qsParams['saved'] = 1;
-    }
-    if ($autoUpdated > 0) {
-        $qsParams['auto_updated'] = $autoUpdated;
-    }
-    $qs = http_build_query($qsParams);
-    redirect('/transactions.php?' . $qs);
 }
 
 $categories = repo_list_assignable_categories($db);
