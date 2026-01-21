@@ -84,6 +84,12 @@ h1 { font-size: 22px; margin: 0 0 12px; }
 h2 { font-size: 18px; margin: 14px 0 10px; }
 
 .row { display: flex; gap: 12px; flex-wrap: wrap; }
+.inline-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 
 .input, select {
   width: 100%;
