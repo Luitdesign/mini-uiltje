@@ -41,6 +41,7 @@ $expectedSchema = [
         'txn_hash',
         'txn_date',
         'description',
+        'friendly_name',
         'account_iban',
         'counter_iban',
         'code',
@@ -56,6 +57,14 @@ $expectedSchema = [
         'rule_auto_id',
         'auto_reason',
         'created_at',
+    ],
+    'savings' => [
+        'id',
+        'name',
+        'active',
+        'sort_order',
+        'start_amount',
+        'monthly_amount',
     ],
 ];
 
