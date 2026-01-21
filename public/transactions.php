@@ -225,14 +225,14 @@ render_header('Transactions', 'transactions');
                     <button type="button" class="txn-toggle js-friendly-toggle" data-target="friendly">
                       <div><strong><?= h($t['description']) ?></strong></div>
                       <?php if (!empty($t['notes'])): ?>
-                        <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                        <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php else: ?>
                     <div><strong><?= h($t['description']) ?></strong></div>
                     <?php if (!empty($t['notes'])): ?>
-                      <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                      <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php endif; ?>
@@ -314,14 +314,14 @@ render_header('Transactions', 'transactions');
                     <button type="button" class="txn-toggle js-friendly-toggle" data-target="friendly">
                       <div><strong><?= h($t['description']) ?></strong></div>
                       <?php if (!empty($t['notes'])): ?>
-                        <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                        <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php else: ?>
                     <div><strong><?= h($t['description']) ?></strong></div>
                     <?php if (!empty($t['notes'])): ?>
-                      <div class="small"><?= h(mb_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
+                      <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php endif; ?>

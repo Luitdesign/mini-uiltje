@@ -32,6 +32,19 @@ function normalize_hex_color(?string $value): ?string {
     return strtolower($value);
 }
 
+function safe_strimwidth(string $value, int $start, int $width, string $trimMarker = '…'): string {
+    if (function_exists('mb_strimwidth')) {
+        return mb_strimwidth($value, $start, $width, $trimMarker);
+    }
+
+    $slice = substr($value, $start, $width);
+    if (strlen($value) > $width) {
+        return $slice . $trimMarker;
+    }
+
+    return $slice;
+}
+
 function rgba_from_hex(?string $value, float $alpha = 0.12): ?string {
     $value = trim((string)$value);
     if ($value === '') {
