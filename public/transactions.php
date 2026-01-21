@@ -454,16 +454,34 @@ render_header('Transactions', 'transactions');
         }
       };
 
+      const toggleDisplay = () => {
+        if (!hasFriendly) {
+          return;
+        }
+        const showingFriendly = friendlyDisplay ? !friendlyDisplay.hidden : false;
+        showDisplay(showingFriendly ? 'original' : 'friendly');
+      };
+
       showDisplay(hasFriendly ? 'friendly' : 'original');
 
       row.querySelectorAll('.js-friendly-toggle').forEach((button) => {
         button.addEventListener('click', () => {
-          if (!hasFriendly) {
-            return;
-          }
           const targetView = button.dataset.target === 'original' ? 'original' : 'friendly';
           showDisplay(targetView);
         });
+      });
+
+      row.addEventListener('click', (event) => {
+        if (editor && !editor.hidden) {
+          return;
+        }
+        const interactive = event.target.closest(
+          '.js-friendly-toggle, .js-friendly-edit-toggle, .js-friendly-editor, button, input, select, textarea, a, label'
+        );
+        if (interactive) {
+          return;
+        }
+        toggleDisplay();
       });
 
       if (editToggle && editor) {
