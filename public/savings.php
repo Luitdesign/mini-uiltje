@@ -128,9 +128,6 @@ render_header('Savings', 'savings');
             <td>
               <div class="row" style="gap: 6px; flex-wrap: wrap;">
                 <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
-                <button class="btn" type="button" disabled>
-                  <?= !empty($saving['active']) ? 'Deactivate' : 'Activate' ?>
-                </button>
               </div>
             </td>
           </tr>
