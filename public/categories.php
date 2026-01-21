@@ -241,8 +241,8 @@ render_header('Categories', 'categories');
     <tbody>
       <?php $uncategorizedRowColor = rgba_from_hex($uncategorizedColor, 0.12); ?>
       <tr<?= $uncategorizedRowColor ? ' style="--row-color: ' . h($uncategorizedRowColor) . ';" data-row-color="1"' : '' ?>>
-        <td>
-          <span class="small muted">Uncategorized</span>
+        <td style="height:44px;">
+          <span >Uncategorized</span>
         </td>
         <td>
           <?php $swatch = rgba_from_hex($uncategorizedColor, 0.18); ?>
