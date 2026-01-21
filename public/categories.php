@@ -229,6 +229,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th style="width: 160px;">Color</th>
+        <th>Name</th>
         <th style="width: 160px;">Actions</th>
       </tr>
     </thead>
@@ -244,6 +245,9 @@ render_header('Categories', 'categories');
             </label>
             <input class="input" type="color" name="color" value="<?= h($useUncategorizedColor ? $uncategorizedColor : '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
           </form>
+        </td>
+        <td>
+          <span class="small muted">Uncategorized</span>
         </td>
         <td class="action-cell">
           <button class="btn" type="submit" form="uncategorized-color-form">Save</button>
@@ -274,6 +278,7 @@ render_header('Categories', 'categories');
               <span class="small muted">None</span>
             <?php endif; ?>
           </td>
+          <td><?= h($cat['name']) ?></td>
           <td class="action-cell">
             <?php if ($editId === $catId): ?>
               <div class="inline-actions">
