@@ -52,12 +52,18 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!column_exists($db, 'transactions', 'auto_reason')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN auto_reason VARCHAR(255) NULL AFTER rule_auto_id');
     }
+    if (!column_exists($db, 'transactions', 'is_internal_transfer')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0 AFTER tag');
+    }
 
     if (!index_exists($db, 'transactions', 'idx_transactions_import_batch')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_import_batch (import_batch_id)');
     }
     if (!index_exists($db, 'transactions', 'idx_transactions_rule_auto')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_rule_auto (rule_auto_id)');
+    }
+    if (!index_exists($db, 'transactions', 'idx_transactions_internal_transfer')) {
+        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_internal_transfer (is_internal_transfer)');
     }
 
     if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {
