@@ -94,8 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'update_uncategorized_color') {
-        $useColor = isset($_POST['use_color']);
-        $color = $useColor ? (string)($_POST['color'] ?? '') : null;
+        $color = '#ff0000';
         try {
             $color = normalize_hex_color($color);
             repo_set_setting($db, 'uncategorized_color', $color);
@@ -146,8 +145,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $cats = repo_list_categories($db);
 $editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
-$uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
-$useUncategorizedColor = $uncategorizedColor !== null && $uncategorizedColor !== '';
+$uncategorizedColor = '#ff0000';
+$storedUncategorizedColor = repo_get_setting($db, 'uncategorized_color');
+if ($storedUncategorizedColor !== $uncategorizedColor) {
+    repo_set_setting($db, 'uncategorized_color', $uncategorizedColor);
+}
 
 render_header('Categories', 'categories');
 ?>
@@ -228,34 +230,28 @@ render_header('Categories', 'categories');
   <table class="table" style="margin-top: 12px;">
     <thead>
       <tr>
-        <th style="width: 160px;">Color</th>
         <th>Name</th>
+        <th style="width: 160px;">Color</th>
         <th style="width: 160px;">Actions</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td>
-          <form id="uncategorized-color-form" method="post" action="/categories.php" class="row" style="align-items: center; gap: 8px;">
-            <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-            <input type="hidden" name="action" value="update_uncategorized_color">
-            <label class="small" style="margin: 0;">
-              <input type="checkbox" name="use_color" value="1" <?= $useUncategorizedColor ? 'checked' : '' ?>>
-              Use color
-            </label>
-            <input class="input" type="color" name="color" value="<?= h($useUncategorizedColor ? $uncategorizedColor : '#6ee7b7') ?>" style="width: 56px; height: 44px; padding: 4px;">
-          </form>
-        </td>
-        <td>
           <span class="small muted">Uncategorized</span>
         </td>
-        <td class="action-cell">
-          <button class="btn" type="submit" form="uncategorized-color-form">Save</button>
+        <td>
+          <?php $swatch = rgba_from_hex($uncategorizedColor, 0.18); ?>
+          <span class="badge" style="background: <?= h((string)$swatch) ?>; color: var(--text); border-color: <?= h($uncategorizedColor) ?>;">
+            <?= h($uncategorizedColor) ?>
+          </span>
         </td>
+        <td class="action-cell"></td>
       </tr>
       <?php foreach ($cats as $cat): ?>
         <?php $catId = (int)$cat['id']; ?>
         <tr>
+          <td><?= h($cat['name']) ?></td>
           <td>
             <?php if ($editId === $catId): ?>
               <?php $formId = 'category-edit-' . $catId; ?>
@@ -278,7 +274,6 @@ render_header('Categories', 'categories');
               <span class="small muted">None</span>
             <?php endif; ?>
           </td>
-          <td><?= h($cat['name']) ?></td>
           <td class="action-cell">
             <?php if ($editId === $catId): ?>
               <div class="inline-actions">
