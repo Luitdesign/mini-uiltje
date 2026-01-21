@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
   txn_date DATE NOT NULL,
   description VARCHAR(255) NOT NULL,
+  friendly_name VARCHAR(255) NULL,
 
   account_iban VARCHAR(34) NULL,
   counter_iban VARCHAR(34) NULL,
