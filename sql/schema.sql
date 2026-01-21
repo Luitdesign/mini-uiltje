@@ -104,3 +104,13 @@ CREATE TABLE IF NOT EXISTS transactions (
   CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category_auto FOREIGN KEY (category_auto_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS savings (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  start_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  monthly_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
