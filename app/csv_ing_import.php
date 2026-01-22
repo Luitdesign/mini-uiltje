@@ -244,10 +244,18 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
         ];
 
         $friendlyName = isset($idx['friendly_name']) ? trim((string)($row[$idx['friendly_name']] ?? '')) : '';
-        $categoryId = isset($idx['category_id']) ? trim((string)($row[$idx['category_id']] ?? '')) : '';
-        $categoryAutoId = isset($idx['category_auto_id']) ? trim((string)($row[$idx['category_auto_id']] ?? '')) : '';
+        $hasCategoryColumn = isset($idx['category_id']);
+        $hasAutoCategoryColumn = isset($idx['category_auto_id']);
+        $categoryId = $hasCategoryColumn ? trim((string)($row[$idx['category_id']] ?? '')) : '';
+        $categoryAutoId = $hasAutoCategoryColumn ? trim((string)($row[$idx['category_auto_id']] ?? '')) : '';
         $categoryId = $categoryId !== '' ? (int)$categoryId : null;
         $categoryAutoId = $categoryAutoId !== '' ? (int)$categoryAutoId : null;
+        if ($categoryId === 0) {
+            $categoryId = null;
+        }
+        if ($categoryAutoId === 0) {
+            $categoryAutoId = null;
+        }
         $rec['friendly_name'] = $friendlyName !== '' ? $friendlyName : null;
 
         if ($rec['is_internal_transfer']) {
@@ -256,7 +264,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             $rec['rule_auto_id'] = null;
             $rec['auto_reason'] = null;
         } else {
-            if ($categoryAutoId !== null || $categoryId !== null) {
+            if ($hasAutoCategoryColumn || $hasCategoryColumn) {
                 $rec['category_auto_id'] = $categoryAutoId;
                 $rec['category_id'] = $categoryId ?? $categoryAutoId;
                 $rec['rule_auto_id'] = null;
