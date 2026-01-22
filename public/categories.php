@@ -272,7 +272,7 @@ render_header('Categories', 'categories');
       <?php $uncategorizedRowColor = rgba_from_hex($uncategorizedColor, 0.12); ?>
       <tr<?= $uncategorizedRowColor ? ' style="--row-color: ' . h($uncategorizedRowColor) . ';" data-row-color="1"' : '' ?>>
         <td style="height:44px;">
-          <span >Uncategorized</span>
+          <a href="/transactions.php?category_id=0&all_time=1">Uncategorized</a>
         </td>
         <td><span class="small muted">None</span></td>
         <td>
@@ -288,7 +288,9 @@ render_header('Categories', 'categories');
         <?php $catRowColor = !empty($cat['color']) ? rgba_from_hex($cat['color'], 0.12) : null; ?>
         <?php $formId = $editId === $catId ? 'category-edit-' . $catId : null; ?>
         <tr<?= $catRowColor ? ' style="--row-color: ' . h((string)$catRowColor) . ';" data-row-color="1"' : '' ?>>
-          <td><?= h($cat['name']) ?></td>
+          <td>
+            <a href="/transactions.php?category_id=<?= h((string)$cat['id']) ?>&all_time=1"><?= h($cat['name']) ?></a>
+          </td>
           <td>
             <?php if ($editId === $catId): ?>
               <select class="input" name="savings_id" form="<?= h((string)$formId) ?>">

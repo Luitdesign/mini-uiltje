@@ -11,11 +11,30 @@ $q = trim((string)($_GET['q'] ?? ''));
 $categoryFilter = (string)($_GET['category_id'] ?? '');
 $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
 $showInternal = (string)($_GET['show_internal'] ?? '') === '1';
+$startDate = trim((string)($_GET['start_date'] ?? ''));
+$endDate = trim((string)($_GET['end_date'] ?? ''));
+$allTime = (string)($_GET['all_time'] ?? '') === '1';
 $saved = isset($_GET['saved']);
 $autoUpdated = (int)($_GET['auto_updated'] ?? 0);
-$isYearView = $month === 0;
-$periodLabel = $isYearView ? 'Year' : 'Month';
-$periodValue = $isYearView ? sprintf('%04d (all months)', $year) : sprintf('%04d-%02d', $year, $month);
+$hasDateRange = $startDate !== '' || $endDate !== '';
+if ($allTime) {
+    $year = 0;
+    $month = 0;
+    $hasDateRange = false;
+    $startDate = '';
+    $endDate = '';
+}
+$isYearView = !$hasDateRange && $month === 0;
+$periodLabel = $allTime ? 'All time' : ($hasDateRange ? 'Date range' : ($isYearView ? 'Year' : 'Month'));
+$periodValue = $allTime
+    ? 'All transactions'
+    : ($hasDateRange
+        ? sprintf(
+            '%s → %s',
+            $startDate !== '' ? $startDate : 'Any',
+            $endDate !== '' ? $endDate : 'Any'
+        )
+        : ($isYearView ? sprintf('%04d (all months)', $year) : sprintf('%04d-%02d', $year, $month)));
 
 $error = '';
 
@@ -48,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     if ($action === 'rerun_auto') {
-        if ($isYearView) {
+        if ($isYearView || $hasDateRange) {
             $error = 'Auto categorie opnieuw toepassen kan alleen voor een enkele maand.';
         } else {
             $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
@@ -62,6 +81,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'month' => $month,
             'q' => $q,
         ];
+        if ($allTime) {
+            $qsParams['all_time'] = 1;
+        }
+        if ($startDate !== '') {
+            $qsParams['start_date'] = $startDate;
+        }
+        if ($endDate !== '') {
+            $qsParams['end_date'] = $endDate;
+        }
         if ($categoryFilter !== '') {
             $qsParams['category_id'] = $categoryFilter;
         }
@@ -84,7 +112,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $categories = repo_list_assignable_categories($db);
 $uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
-$txns = repo_list_transactions($db, $userId, $year, $month, $q, $categoryFilter, $autoCategoryFilter, $showInternal);
+$rangeStart = $startDate !== '' ? $startDate : null;
+$rangeEnd = $endDate !== '' ? $endDate : null;
+$txns = repo_list_transactions(
+    $db,
+    $userId,
+    $year,
+    $month,
+    $q,
+    $categoryFilter,
+    $autoCategoryFilter,
+    $showInternal,
+    $rangeStart,
+    $rangeEnd
+);
 $incomeTxns = [];
 $expenseTxns = [];
 
@@ -104,9 +145,22 @@ $actionQueryParams = [
     'category_id' => $categoryFilter,
     'auto_category_id' => $autoCategoryFilter,
 ];
+if ($allTime) {
+    $actionQueryParams['all_time'] = 1;
+}
+if ($startDate !== '') {
+    $actionQueryParams['start_date'] = $startDate;
+}
+if ($endDate !== '') {
+    $actionQueryParams['end_date'] = $endDate;
+}
 if ($showInternal) {
     $actionQueryParams['show_internal'] = '1';
 }
+
+$yearInputValue = $year > 0 ? (string)$year : '';
+$disableYearMonth = $hasDateRange || $allTime;
+$disableDateRange = $allTime;
 
 render_header('Transactions', 'transactions');
 ?>
@@ -124,16 +178,31 @@ render_header('Transactions', 'transactions');
   <form method="get" action="/transactions.php" class="row" style="align-items: flex-end;">
     <div style="min-width: 160px;">
       <label>Year</label>
-      <input class="input" type="number" name="year" value="<?= $year ?>" min="2000" max="2100">
+      <input class="input" type="number" name="year" value="<?= h($yearInputValue) ?>" min="2000" max="2100" <?= $disableYearMonth ? 'disabled' : '' ?>>
     </div>
     <div style="min-width: 180px;">
       <label>Month</label>
-      <select class="input" name="month">
+      <select class="input" name="month" <?= $disableYearMonth ? 'disabled' : '' ?>>
         <option value="0" <?= $isYearView ? 'selected' : '' ?>>All year</option>
         <?php for ($m = 1; $m <= 12; $m++): ?>
           <option value="<?= $m ?>" <?= $month === $m ? 'selected' : '' ?>><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
         <?php endfor; ?>
       </select>
+    </div>
+    <div style="min-width: 180px;">
+      <label>Start date</label>
+      <input class="input" type="date" name="start_date" value="<?= h($startDate) ?>" <?= $disableDateRange ? 'disabled' : '' ?>>
+    </div>
+    <div style="min-width: 180px;">
+      <label>End date</label>
+      <input class="input" type="date" name="end_date" value="<?= h($endDate) ?>" <?= $disableDateRange ? 'disabled' : '' ?>>
+    </div>
+    <div style="min-width: 140px;">
+      <label>&nbsp;</label>
+      <label style="display: flex; gap: 8px; align-items: center; color: var(--text); font-size: 14px;">
+        <input type="checkbox" name="all_time" value="1" <?= $allTime ? 'checked' : '' ?>>
+        All time
+      </label>
     </div>
     <div style="flex: 1; min-width: 220px;">
       <label>Search (description/notes)</label>
@@ -178,7 +247,7 @@ render_header('Transactions', 'transactions');
   <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>" style="margin-top: 12px;">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="action" value="rerun_auto">
-    <button class="btn" type="submit" <?= $isYearView ? 'disabled' : '' ?>>Auto categorie opnieuw toepassen</button>
+    <button class="btn" type="submit" <?= ($isYearView || $hasDateRange) ? 'disabled' : '' ?>>Auto categorie opnieuw toepassen</button>
   </form>
 
   <?php if ($saved): ?>
