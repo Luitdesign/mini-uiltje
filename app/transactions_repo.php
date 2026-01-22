@@ -222,9 +222,11 @@ function repo_list_transactions(
     string $q = '',
     string $categoryFilter = '',
     string $autoCategoryFilter = '',
-    bool $showInternalTransfers = false
+    bool $showInternalTransfers = false,
+    ?string $startDate = null,
+    ?string $endDate = null
 ): array {
-    $params = [':uid' => $userId, ':y' => $year];
+    $params = [':uid' => $userId];
     $whereQ = '';
     if ($q !== '') {
         $whereQ = " AND (description LIKE :q OR notes LIKE :q)";
@@ -249,10 +251,22 @@ function repo_list_transactions(
         }
     }
     $whereInternalTransfer = $showInternalTransfers ? '' : ' AND t.is_internal_transfer = 0';
-    $whereMonth = '';
-    if ($month > 0) {
-        $whereMonth = ' AND MONTH(t.txn_date) = :m';
-        $params[':m'] = $month;
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
     }
 
     $sql = "
@@ -264,8 +278,7 @@ function repo_list_transactions(
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
         LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
         WHERE t.user_id = :uid
-          AND YEAR(t.txn_date) = :y
-          {$whereMonth}
+          {$whereDate}
           {$whereQ}
           {$whereCategory}
           {$whereAutoCategory}
