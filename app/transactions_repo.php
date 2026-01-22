@@ -383,7 +383,33 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     return $updated;
 }
 
-function repo_month_summary(PDO $db, int $userId, int $year, int $month): array {
+function repo_period_summary(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
     $sql = "
         SELECT
             SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
@@ -391,12 +417,11 @@ function repo_month_summary(PDO $db, int $userId, int $year, int $month): array 
             SUM(amount_signed) AS net
         FROM transactions
         WHERE user_id = :uid
-          AND YEAR(txn_date) = :y
-          AND MONTH(txn_date) = :m
+          {$whereDate}
           AND is_internal_transfer = 0
     ";
     $stmt = $db->prepare($sql);
-    $stmt->execute([':uid' => $userId, ':y' => $year, ':m' => $month]);
+    $stmt->execute($params);
     $row = $stmt->fetch() ?: [];
     return [
         'income' => (float)($row['income'] ?? 0),
@@ -405,7 +430,33 @@ function repo_month_summary(PDO $db, int $userId, int $year, int $month): array 
     ];
 }
 
-function repo_month_breakdown_by_category(PDO $db, int $userId, int $year, int $month): array {
+function repo_period_breakdown_by_category(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
     $sql = "
         SELECT
             COALESCE(c.name, 'Niet ingedeeld') AS category,
@@ -415,13 +466,12 @@ function repo_month_breakdown_by_category(PDO $db, int $userId, int $year, int $
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         WHERE t.user_id = :uid
-          AND YEAR(t.txn_date) = :y
-          AND MONTH(t.txn_date) = :m
+          {$whereDate}
           AND t.is_internal_transfer = 0
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
     ";
     $stmt = $db->prepare($sql);
-    $stmt->execute([':uid' => $userId, ':y' => $year, ':m' => $month]);
+    $stmt->execute($params);
     return $stmt->fetchAll();
 }
