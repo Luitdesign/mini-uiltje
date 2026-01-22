@@ -35,6 +35,7 @@ $periodValue = $allTime
             $endDate !== '' ? $endDate : 'Any'
         )
         : ($isYearView ? sprintf('%04d (all months)', $year) : sprintf('%04d-%02d', $year, $month)));
+$canExportMonth = !$allTime && !$hasDateRange && !$isYearView;
 
 $error = '';
 
@@ -172,6 +173,10 @@ render_header('Transactions', 'transactions');
     <?php if (!$isYearView): ?>
       &nbsp;|&nbsp;
       <a href="/summary.php?year=<?= $year ?>&month=<?= $month ?>">View summary</a>
+    <?php endif; ?>
+    <?php if ($canExportMonth): ?>
+      &nbsp;|&nbsp;
+      <a href="/month.php?year=<?= $year ?>&month=<?= $month ?>&export=csv">Export CSV</a>
     <?php endif; ?>
   </p>
 

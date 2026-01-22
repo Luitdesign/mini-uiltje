@@ -291,6 +291,23 @@ function repo_list_transactions(
     return $stmt->fetchAll();
 }
 
+function repo_list_transactions_for_month(PDO $db, int $userId, int $year, int $month): array {
+    $stmt = $db->prepare(
+        'SELECT *
+         FROM transactions
+         WHERE user_id = :uid
+           AND YEAR(txn_date) = :y
+           AND MONTH(txn_date) = :m
+         ORDER BY txn_date DESC, id DESC'
+    );
+    $stmt->execute([
+        ':uid' => $userId,
+        ':y' => $year,
+        ':m' => $month,
+    ]);
+    return $stmt->fetchAll();
+}
+
 function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int $categoryId): void {
     $stmt = $db->prepare("UPDATE transactions SET category_id = :cid WHERE id = :id AND user_id = :uid");
     $stmt->execute([
