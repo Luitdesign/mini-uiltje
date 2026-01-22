@@ -224,7 +224,7 @@ function repo_list_transactions(
     string $autoCategoryFilter = '',
     bool $showInternalTransfers = false
 ): array {
-    $params = [':uid' => $userId, ':y' => $year, ':m' => $month];
+    $params = [':uid' => $userId, ':y' => $year];
     $whereQ = '';
     if ($q !== '') {
         $whereQ = " AND (description LIKE :q OR notes LIKE :q)";
@@ -249,6 +249,11 @@ function repo_list_transactions(
         }
     }
     $whereInternalTransfer = $showInternalTransfers ? '' : ' AND t.is_internal_transfer = 0';
+    $whereMonth = '';
+    if ($month > 0) {
+        $whereMonth = ' AND MONTH(t.txn_date) = :m';
+        $params[':m'] = $month;
+    }
 
     $sql = "
         SELECT t.*, c.name AS category_name, c.color AS category_color,
@@ -260,7 +265,7 @@ function repo_list_transactions(
         LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
         WHERE t.user_id = :uid
           AND YEAR(t.txn_date) = :y
-          AND MONTH(t.txn_date) = :m
+          {$whereMonth}
           {$whereQ}
           {$whereCategory}
           {$whereAutoCategory}
