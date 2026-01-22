@@ -13,6 +13,9 @@ $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
 $showInternal = (string)($_GET['show_internal'] ?? '') === '1';
 $saved = isset($_GET['saved']);
 $autoUpdated = (int)($_GET['auto_updated'] ?? 0);
+$isYearView = $month === 0;
+$periodLabel = $isYearView ? 'Year' : 'Month';
+$periodValue = $isYearView ? sprintf('%04d (all months)', $year) : sprintf('%04d-%02d', $year, $month);
 
 $error = '';
 
@@ -45,7 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     if ($action === 'rerun_auto') {
-        $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
+        if ($isYearView) {
+            $error = 'Auto categorie opnieuw toepassen kan alleen voor een enkele maand.';
+        } else {
+            $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
+        }
     }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
@@ -107,14 +114,27 @@ render_header('Transactions', 'transactions');
 <div class="card">
   <h1>Transactions</h1>
   <p class="small">
-    Month: <strong><?= h(sprintf('%04d-%02d', $year, $month)) ?></strong>
-    &nbsp;|&nbsp;
-    <a href="/summary.php?year=<?= $year ?>&month=<?= $month ?>">View summary</a>
+    <?= h($periodLabel) ?>: <strong><?= h($periodValue) ?></strong>
+    <?php if (!$isYearView): ?>
+      &nbsp;|&nbsp;
+      <a href="/summary.php?year=<?= $year ?>&month=<?= $month ?>">View summary</a>
+    <?php endif; ?>
   </p>
 
   <form method="get" action="/transactions.php" class="row" style="align-items: flex-end;">
-    <input type="hidden" name="year" value="<?= $year ?>">
-    <input type="hidden" name="month" value="<?= $month ?>">
+    <div style="min-width: 160px;">
+      <label>Year</label>
+      <input class="input" type="number" name="year" value="<?= $year ?>" min="2000" max="2100">
+    </div>
+    <div style="min-width: 180px;">
+      <label>Month</label>
+      <select class="input" name="month">
+        <option value="0" <?= $isYearView ? 'selected' : '' ?>>All year</option>
+        <?php for ($m = 1; $m <= 12; $m++): ?>
+          <option value="<?= $m ?>" <?= $month === $m ? 'selected' : '' ?>><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
+        <?php endfor; ?>
+      </select>
+    </div>
     <div style="flex: 1; min-width: 220px;">
       <label>Search (description/notes)</label>
       <input class="input" name="q" value="<?= h($q) ?>" placeholder="e.g. Albert Heijn">
@@ -158,7 +178,7 @@ render_header('Transactions', 'transactions');
   <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>" style="margin-top: 12px;">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="action" value="rerun_auto">
-    <button class="btn" type="submit">Auto categorie opnieuw toepassen</button>
+    <button class="btn" type="submit" <?= $isYearView ? 'disabled' : '' ?>>Auto categorie opnieuw toepassen</button>
   </form>
 
   <?php if ($saved): ?>
@@ -208,7 +228,7 @@ render_header('Transactions', 'transactions');
       </thead>
       <tbody>
         <?php if (empty($incomeTxns)): ?>
-          <tr><td colspan="8" class="small">No income transactions found for this month.</td></tr>
+          <tr><td colspan="8" class="small">No income transactions found for this period.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($incomeTxns as $t):
@@ -316,7 +336,7 @@ render_header('Transactions', 'transactions');
       </thead>
       <tbody>
         <?php if (empty($expenseTxns)): ?>
-          <tr><td colspan="8" class="small">No expense transactions found for this month.</td></tr>
+          <tr><td colspan="8" class="small">No expense transactions found for this period.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($expenseTxns as $t):
