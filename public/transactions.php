@@ -185,6 +185,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="description" checked> Description</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="amount" checked> Amount</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-category" checked> Auto Category</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="auto-rule"> Auto Rule</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
@@ -199,6 +200,7 @@ render_header('Transactions', 'transactions');
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
           <th data-col="auto-category">Auto Category</th>
+          <th data-col="auto-rule">Auto Rule</th>
           <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
@@ -206,7 +208,7 @@ render_header('Transactions', 'transactions');
       </thead>
       <tbody>
         <?php if (empty($incomeTxns)): ?>
-          <tr><td colspan="7" class="small">No income transactions found for this month.</td></tr>
+          <tr><td colspan="8" class="small">No income transactions found for this month.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($incomeTxns as $t):
@@ -276,6 +278,9 @@ render_header('Transactions', 'transactions');
             <td data-col="auto-category">
               <?= h((string)($t['auto_category_name'] ?? '—')) ?>
             </td>
+            <td data-col="auto-rule">
+              <?= h((string)($t['auto_rule_name'] ?? '—')) ?>
+            </td>
             <td data-col="category">
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Niet ingedeeld</option>
@@ -303,6 +308,7 @@ render_header('Transactions', 'transactions');
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
           <th data-col="auto-category">Auto Category</th>
+          <th data-col="auto-rule">Auto Rule</th>
           <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
@@ -310,7 +316,7 @@ render_header('Transactions', 'transactions');
       </thead>
       <tbody>
         <?php if (empty($expenseTxns)): ?>
-          <tr><td colspan="7" class="small">No expense transactions found for this month.</td></tr>
+          <tr><td colspan="8" class="small">No expense transactions found for this month.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($expenseTxns as $t):
@@ -379,6 +385,9 @@ render_header('Transactions', 'transactions');
             <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
             <td data-col="auto-category">
               <?= h((string)($t['auto_category_name'] ?? '—')) ?>
+            </td>
+            <td data-col="auto-rule">
+              <?= h((string)($t['auto_rule_name'] ?? '—')) ?>
             </td>
             <td data-col="category">
               <select name="category_ids[<?= (int)$t['id'] ?>]" style="min-width: 200px;">

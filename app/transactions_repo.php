@@ -252,10 +252,12 @@ function repo_list_transactions(
 
     $sql = "
         SELECT t.*, c.name AS category_name, c.color AS category_color,
-               ac.name AS auto_category_name, ac.color AS auto_category_color
+               ac.name AS auto_category_name, ac.color AS auto_category_color,
+               r.name AS auto_rule_name
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
+        LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
         WHERE t.user_id = :uid
           AND YEAR(t.txn_date) = :y
           AND MONTH(t.txn_date) = :m
