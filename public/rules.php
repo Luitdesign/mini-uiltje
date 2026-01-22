@@ -67,8 +67,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$statusOptions = [
+    'all' => 'All',
+    'active' => 'Active',
+    'inactive' => 'Inactive',
+];
+$status = (string)($_GET['status'] ?? 'all');
+if (!array_key_exists($status, $statusOptions)) {
+    $status = 'all';
+}
+
 $userId = current_user_id();
-$rules = repo_list_rules($db, $userId);
+$rules = repo_list_rules($db, $userId, $status === 'all' ? null : $status);
 
 function rule_match_label(?string $match): string {
     return match ($match) {
@@ -167,6 +177,16 @@ render_header('Rules', 'rules');
   <?php endif; ?>
 
   <?php if (!empty($rules)): ?>
+    <div class="row small" style="align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+      <span><strong>Status:</strong></span>
+      <?php foreach ($statusOptions as $value => $label): ?>
+        <?php
+          $query = $value === 'all' ? '' : ('?' . http_build_query(['status' => $value]));
+          $isActive = $status === $value;
+        ?>
+        <a class="btn <?= $isActive ? 'primary' : '' ?>" href="/rules.php<?= h($query) ?>"><?= h($label) ?></a>
+      <?php endforeach; ?>
+    </div>
     <div class="row small" style="align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
       <span><strong>Visible columns:</strong></span>
       <label><input class="js-column-toggle" type="checkbox" data-column="name" checked> Name</label>
