@@ -48,12 +48,15 @@ function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null):
                        WHEN t.savings_entry_type = "topup" THEN ABS(t.amount_signed)
                        ELSE t.amount_signed
                    END AS amount,
-                   t.savings_entry_type AS entry_type,
+                   CASE
+                       WHEN t.savings_entry_type IS NOT NULL THEN t.savings_entry_type
+                       WHEN t.amount_signed >= 0 THEN "income"
+                       ELSE "spend"
+                   END AS entry_type,
                    t.notes AS note,
                    t.description AS transaction_description
             FROM transactions t
             WHERE t.savings_id = :sid
-              AND t.savings_entry_type IS NOT NULL
             ORDER BY t.txn_date DESC, t.id DESC';
     if ($limit !== null) {
         $sql .= ' LIMIT :limit';
