@@ -9,26 +9,25 @@ ALTER TABLE transactions
 ALTER TABLE transactions
   ADD COLUMN IF NOT EXISTS created_source VARCHAR(10) NOT NULL DEFAULT 'import' AFTER ignored;
 
+ALTER TABLE transactions
+  ADD COLUMN IF NOT EXISTS savings_id INT UNSIGNED NULL AFTER auto_reason;
+
+ALTER TABLE transactions
+  ADD COLUMN IF NOT EXISTS savings_entry_type VARCHAR(10) NULL AFTER savings_id;
+
 CREATE INDEX IF NOT EXISTS idx_transactions_date_overview ON transactions (txn_date, include_in_overview);
 CREATE INDEX IF NOT EXISTS idx_transactions_date_ignored ON transactions (txn_date, ignored);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions (category_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_savings ON transactions (savings_id);
 
-CREATE TABLE IF NOT EXISTS savings_entries (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  savings_id INT UNSIGNED NOT NULL,
-  `date` DATE NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  entry_type VARCHAR(10) NOT NULL,
-  source_transaction_id BIGINT UNSIGNED NULL,
-  note VARCHAR(255) NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_savings_entries_source_txn (source_transaction_id),
-  KEY idx_savings_entries_savings_date (savings_id, `date`),
-  KEY idx_savings_entries_source_txn (source_transaction_id),
-  CONSTRAINT fk_savings_entries_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE CASCADE,
-  CONSTRAINT fk_savings_entries_txn FOREIGN KEY (source_transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ALTER TABLE transactions
+  ADD CONSTRAINT fk_transactions_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL;
+
+UPDATE transactions t
+JOIN savings_entries se ON se.source_transaction_id = t.id
+SET t.savings_id = se.savings_id,
+    t.savings_entry_type = se.entry_type
+WHERE t.savings_id IS NULL;
 
 INSERT INTO categories (name)
 VALUES ('Savings top-ups')

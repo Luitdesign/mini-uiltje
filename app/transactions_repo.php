@@ -275,14 +275,13 @@ function repo_list_transactions(
         SELECT t.*, c.name AS category_name, c.color AS category_color, c.savings_id AS category_savings_id,
                ac.name AS auto_category_name, ac.color AS auto_category_color,
                r.name AS auto_rule_name,
-               se.savings_id AS savings_paid_id,
+               t.savings_id AS savings_paid_id,
                s.name AS savings_paid_name
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
         LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
-        LEFT JOIN savings_entries se ON se.source_transaction_id = t.id AND se.entry_type IN ('spend', 'income')
-        LEFT JOIN savings s ON s.id = se.savings_id
+        LEFT JOIN savings s ON s.id = t.savings_id
         WHERE t.user_id = :uid
           {$whereDate}
           {$whereQ}
@@ -633,8 +632,7 @@ function repo_period_paid_from_savings_transactions(
             s.name AS savings_name
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
-        LEFT JOIN savings_entries se ON se.source_transaction_id = t.id AND se.entry_type = 'spend'
-        LEFT JOIN savings s ON s.id = se.savings_id
+        LEFT JOIN savings s ON s.id = t.savings_id
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.amount_signed < 0
