@@ -64,6 +64,27 @@ function repo_list_savings_entries(PDO $db, int $savingsId, int $limit = 5): arr
     return $stmt->fetchAll();
 }
 
+function repo_list_savings_entries_all(PDO $db, int $savingsId): array {
+    $stmt = $db->prepare(
+        'SELECT t.id,
+                t.txn_date AS `date`,
+                CASE
+                    WHEN t.savings_entry_type = "topup" THEN ABS(t.amount_signed)
+                    ELSE t.amount_signed
+                END AS amount,
+                t.savings_entry_type AS entry_type,
+                t.notes AS note,
+                t.description AS transaction_description
+         FROM transactions t
+         WHERE t.savings_id = :sid
+           AND t.savings_entry_type IS NOT NULL
+         ORDER BY t.txn_date DESC, t.id DESC'
+    );
+    $stmt->bindValue(':sid', $savingsId, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll();
+}
+
 function repo_create_saving(
     PDO $db,
     string $name,
