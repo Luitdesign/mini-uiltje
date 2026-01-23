@@ -195,7 +195,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             account_iban, counter_iban, code,
             direction, amount_signed, currency,
             mutation_type, notes, balance_after, tag
-            , is_internal_transfer
+            , is_internal_transfer, include_in_overview, ignored, created_source
             , category_id, category_auto_id, rule_auto_id, auto_reason
         ) VALUES(
             :uid, :import_id, :import_batch_id, :txn_hash,
@@ -203,7 +203,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             :account_iban, :counter_iban, :code,
             :direction, :amount_signed, :currency,
             :mutation_type, :notes, :balance_after, :tag
-            , :is_internal_transfer
+            , :is_internal_transfer, :include_in_overview, :ignored, :created_source
             , :category_id, :category_auto_id, :rule_auto_id, :auto_reason
         )'
     );
@@ -231,6 +231,9 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             'txn_date' => $txnDate,
             'description' => $desc,
             'is_internal_transfer' => is_internal_transfer_description($desc) ? 1 : 0,
+            'include_in_overview' => 1,
+            'ignored' => is_savings_transfer_description($desc) ? 1 : 0,
+            'created_source' => 'import',
             'account_iban' => isset($idx['Rekening']) ? trim((string)($row[$idx['Rekening']] ?? '')) : null,
             'counter_iban' => isset($idx['Tegenrekening']) ? trim((string)($row[$idx['Tegenrekening']] ?? '')) : null,
             'code' => isset($idx['Code']) ? trim((string)($row[$idx['Code']] ?? '')) : null,
@@ -312,6 +315,9 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':balance_after' => $rec['balance_after'],
                 ':tag' => $rec['tag'] ?: null,
                 ':is_internal_transfer' => $rec['is_internal_transfer'],
+                ':include_in_overview' => $rec['include_in_overview'],
+                ':ignored' => $rec['ignored'],
+                ':created_source' => $rec['created_source'],
                 ':category_id' => $rec['category_id'],
                 ':category_auto_id' => $rec['category_auto_id'],
                 ':rule_auto_id' => $rec['rule_auto_id'],

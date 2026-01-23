@@ -45,9 +45,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'topup') {
+        $savingId = (int)($_POST['saving_id'] ?? 0);
+        $date = trim((string)($_POST['date'] ?? ''));
+        $amountRaw = trim((string)($_POST['amount'] ?? ''));
+
+        if ($savingId <= 0) {
+            $error = 'Select a valid saving.';
+        } elseif ($date === '') {
+            $error = 'Top-up date is required.';
+        } elseif ($amountRaw === '' || !is_numeric($amountRaw)) {
+            $error = 'Top-up amount must be numeric.';
+        } else {
+            $amount = (float)$amountRaw;
+            try {
+                repo_add_savings_topup($db, current_user_id(), $savingId, $date, $amount);
+                redirect('/savings.php?saved=updated');
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
+        }
+    }
 }
 
-$savings = repo_list_savings($db);
+$savings = repo_list_savings_with_balance($db);
 $defaultSortOrder = repo_next_savings_sort_order($db);
 
 render_header('Savings', 'savings');
@@ -105,36 +126,85 @@ render_header('Savings', 'savings');
     <div class="small muted">No savings goals yet.</div>
   <?php endif; ?>
 
-  <?php if (!empty($savings)): ?>
-    <table class="table" style="margin-top: 12px;">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th style="width: 90px;">Active</th>
-          <th style="width: 110px;">Sort order</th>
-          <th style="width: 160px;">Start amount</th>
-          <th style="width: 200px;">Default monthly amount</th>
-          <th style="width: 160px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php foreach ($savings as $saving): ?>
-          <tr>
-            <td><?= h((string)$saving['name']) ?></td>
-            <td><?= !empty($saving['active']) ? 'Yes' : 'No' ?></td>
-            <td><?= h((string)$saving['sort_order']) ?></td>
-            <td class="money"><?= number_format((float)$saving['start_amount'], 2, ',', '.') ?></td>
-            <td class="money"><?= number_format((float)$saving['monthly_amount'], 2, ',', '.') ?></td>
-            <td>
-              <div class="row" style="gap: 6px; flex-wrap: wrap;">
-                <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
-              </div>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-  <?php endif; ?>
+  <?php foreach ($savings as $saving): ?>
+    <?php $entries = repo_list_savings_entries($db, (int)$saving['id'], 5); ?>
+    <div class="card" style="margin-top: 12px;">
+      <div class="row" style="justify-content: space-between; align-items: center;">
+        <div>
+          <h2 style="margin: 0;"><?= h((string)$saving['name']) ?></h2>
+          <div class="small">
+            Status: <?= !empty($saving['active']) ? 'Active' : 'Inactive' ?> · Sort order: <?= h((string)$saving['sort_order']) ?>
+          </div>
+        </div>
+        <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
+      </div>
+
+      <div class="grid-2" style="margin-top: 12px;">
+        <div class="card">
+          <div class="small">Current balance</div>
+          <div class="money" style="font-size: 22px; font-weight: 700; margin-top: 6px;">
+            <?= number_format((float)$saving['balance'], 2, ',', '.') ?>
+          </div>
+          <div class="small" style="margin-top: 6px;">
+            Start amount: <?= number_format((float)$saving['start_amount'], 2, ',', '.') ?>
+          </div>
+        </div>
+        <div class="card">
+          <div class="small">Default monthly amount</div>
+          <div class="money" style="font-size: 22px; font-weight: 700; margin-top: 6px;">
+            <?= number_format((float)$saving['monthly_amount'], 2, ',', '.') ?>
+          </div>
+        </div>
+      </div>
+
+      <form method="post" action="/savings.php" class="row" style="align-items: flex-end; margin-top: 12px;">
+        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+        <input type="hidden" name="action" value="topup">
+        <input type="hidden" name="saving_id" value="<?= (int)$saving['id'] ?>">
+        <div style="min-width: 180px;">
+          <label>Date</label>
+          <input class="input" name="date" type="date" value="<?= h(date('Y-m-d')) ?>">
+        </div>
+        <div style="min-width: 180px;">
+          <label>Amount</label>
+          <input class="input" name="amount" type="number" step="0.01" value="<?= h((string)$saving['monthly_amount']) ?>">
+        </div>
+        <div>
+          <button class="btn" type="submit">Add top-up</button>
+        </div>
+      </form>
+
+      <div style="margin-top: 12px;">
+        <div class="small">Latest ledger entries</div>
+        <table class="table" style="margin-top: 8px;">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if (empty($entries)): ?>
+              <tr><td colspan="4" class="small">No ledger entries yet.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($entries as $entry): ?>
+              <?php $entryAmount = (float)$entry['amount']; ?>
+              <tr>
+                <td><?= h((string)$entry['date']) ?></td>
+                <td><span class="badge"><?= h((string)$entry['entry_type']) ?></span></td>
+                <td><?= h((string)($entry['transaction_description'] ?? $entry['note'] ?? '—')) ?></td>
+                <td class="money <?= $entryAmount >= 0 ? 'money-pos' : 'money-neg' ?>">
+                  <?= number_format($entryAmount, 2, ',', '.') ?>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <?php endforeach; ?>
 </div>
 
 <?php render_footer(); ?>

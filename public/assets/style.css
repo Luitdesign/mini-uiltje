@@ -191,6 +191,16 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   background: rgba(154, 164, 175, 0.08);
 }
 
+.badge-savings {
+  border-color: rgba(110, 231, 183, 0.5);
+  color: var(--accent);
+  background: rgba(110, 231, 183, 0.12);
+}
+
+.txn-paid-from-savings {
+  opacity: 0.8;
+}
+
 .txn-toggle {
   padding: 0;
   border: none;
