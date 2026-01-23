@@ -10,7 +10,6 @@ $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
 $categoryFilter = (string)($_GET['category_id'] ?? '');
 $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
-$showInternal = (string)($_GET['show_internal'] ?? '') === '1';
 $startDate = trim((string)($_GET['start_date'] ?? ''));
 $endDate = trim((string)($_GET['end_date'] ?? ''));
 $allTime = (string)($_GET['all_time'] ?? '') === '1';
@@ -125,9 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($autoCategoryFilter !== '') {
             $qsParams['auto_category_id'] = $autoCategoryFilter;
         }
-        if ($showInternal) {
-            $qsParams['show_internal'] = 1;
-        }
         if ($savedFlag) {
             $qsParams['saved'] = 1;
         }
@@ -144,6 +140,7 @@ $savingsList = repo_list_savings($db);
 $uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
+$showInternalSection = true;
 $txns = repo_list_transactions(
     $db,
     $userId,
@@ -152,19 +149,30 @@ $txns = repo_list_transactions(
     $q,
     $categoryFilter,
     $autoCategoryFilter,
-    $showInternal,
+    false,
     $rangeStart,
     $rangeEnd
 );
+$internalTxns = repo_list_transactions(
+    $db,
+    $userId,
+    $year,
+    $month,
+    $q,
+    $categoryFilter,
+    $autoCategoryFilter,
+    true,
+    $rangeStart,
+    $rangeEnd
+);
+$internalTxns = array_values(array_filter(
+    $internalTxns,
+    static fn(array $txn): bool => !empty($txn['is_internal_transfer'])
+));
 $incomeTxns = [];
 $expenseTxns = [];
-$internalTxns = [];
 
 foreach ($txns as $txn) {
-    if (!empty($txn['is_internal_transfer'])) {
-        $internalTxns[] = $txn;
-        continue;
-    }
     $amt = (float)$txn['amount_signed'];
     if ($amt >= 0) {
         $incomeTxns[] = $txn;
@@ -338,9 +346,6 @@ if ($startDate !== '') {
 if ($endDate !== '') {
     $actionQueryParams['end_date'] = $endDate;
 }
-if ($showInternal) {
-    $actionQueryParams['show_internal'] = '1';
-}
 
 $yearInputValue = $year > 0 ? (string)$year : '';
 $disableYearMonth = $hasDateRange || $allTime;
@@ -420,13 +425,6 @@ render_header('Transactions', 'transactions');
         <?php endforeach; ?>
       </select>
     </div>
-    <div style="min-width: 200px;">
-      <label>&nbsp;</label>
-      <label style="display: flex; gap: 8px; align-items: center; color: var(--text); font-size: 14px;">
-        <input type="checkbox" name="show_internal" value="1" <?= $showInternal ? 'checked' : '' ?>>
-        Show internal transfers
-      </label>
-    </div>
     <div>
       <button class="btn" type="submit">Apply</button>
     </div>
@@ -495,7 +493,7 @@ render_header('Transactions', 'transactions');
         'No expense transactions found for this period.'
     ); ?>
 
-    <?php if ($showInternal || !empty($internalTxns)): ?>
+    <?php if ($showInternalSection): ?>
       <h2>Internal transfers</h2>
       <?php render_transactions_table(
           $internalTxns,
