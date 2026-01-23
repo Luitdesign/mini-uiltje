@@ -127,7 +127,7 @@ render_header('Savings', 'savings');
   <?php endif; ?>
 
   <?php foreach ($savings as $saving): ?>
-    <?php $entries = repo_list_savings_entries($db, (int)$saving['id'], 5); ?>
+    <?php $entries = repo_list_savings_entries($db, (int)$saving['id']); ?>
     <div class="card" style="margin-top: 12px;">
       <div class="row" style="justify-content: space-between; align-items: center;">
         <div>
@@ -175,7 +175,7 @@ render_header('Savings', 'savings');
       </form>
 
       <div style="margin-top: 12px;">
-        <div class="small">Latest ledger entries</div>
+        <div class="small">Ledger entries</div>
         <table class="table" style="margin-top: 8px;">
           <thead>
             <tr>

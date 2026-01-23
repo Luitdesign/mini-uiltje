@@ -41,25 +41,28 @@ function repo_next_savings_sort_order(PDO $db): int {
     return $value !== false ? (int)$value : 1;
 }
 
-function repo_list_savings_entries(PDO $db, int $savingsId, int $limit = 5): array {
-    $stmt = $db->prepare(
-        'SELECT t.id,
-                t.txn_date AS `date`,
-                CASE
-                    WHEN t.savings_entry_type = "topup" THEN ABS(t.amount_signed)
-                    ELSE t.amount_signed
-                END AS amount,
-                t.savings_entry_type AS entry_type,
-                t.notes AS note,
-                t.description AS transaction_description
-         FROM transactions t
-         WHERE t.savings_id = :sid
-           AND t.savings_entry_type IS NOT NULL
-         ORDER BY t.txn_date DESC, t.id DESC
-         LIMIT :limit'
-    );
+function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null): array {
+    $sql = 'SELECT t.id,
+                   t.txn_date AS `date`,
+                   CASE
+                       WHEN t.savings_entry_type = "topup" THEN ABS(t.amount_signed)
+                       ELSE t.amount_signed
+                   END AS amount,
+                   t.savings_entry_type AS entry_type,
+                   t.notes AS note,
+                   t.description AS transaction_description
+            FROM transactions t
+            WHERE t.savings_id = :sid
+              AND t.savings_entry_type IS NOT NULL
+            ORDER BY t.txn_date DESC, t.id DESC';
+    if ($limit !== null) {
+        $sql .= ' LIMIT :limit';
+    }
+    $stmt = $db->prepare($sql);
     $stmt->bindValue(':sid', $savingsId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    if ($limit !== null) {
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    }
     $stmt->execute();
     return $stmt->fetchAll();
 }
