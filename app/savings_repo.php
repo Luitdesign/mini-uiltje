@@ -14,13 +14,21 @@ function repo_list_savings(PDO $db): array {
 function repo_list_savings_with_balance(PDO $db): array {
     $sql = "
         SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount,
-               (s.start_amount + COALESCE(se.total_amount, 0)) AS balance
+               (s.start_amount + COALESCE(st.total_amount, 0)) AS balance
         FROM savings s
         LEFT JOIN (
-            SELECT savings_id, SUM(amount) AS total_amount
-            FROM savings_entries
+            SELECT savings_id,
+                   SUM(
+                       CASE
+                           WHEN savings_entry_type = 'topup' THEN ABS(amount_signed)
+                           ELSE amount_signed
+                       END
+                   ) AS total_amount
+            FROM transactions
+            WHERE savings_id IS NOT NULL
+              AND ignored = 0
             GROUP BY savings_id
-        ) se ON se.savings_id = s.id
+        ) st ON st.savings_id = s.id
         ORDER BY s.active DESC, s.sort_order ASC, s.name ASC, s.id ASC
     ";
     $stmt = $db->query($sql);
@@ -35,12 +43,19 @@ function repo_next_savings_sort_order(PDO $db): int {
 
 function repo_list_savings_entries(PDO $db, int $savingsId, int $limit = 5): array {
     $stmt = $db->prepare(
-        'SELECT se.id, se.`date`, se.amount, se.entry_type, se.note,
+        'SELECT t.id,
+                t.txn_date AS `date`,
+                CASE
+                    WHEN t.savings_entry_type = "topup" THEN ABS(t.amount_signed)
+                    ELSE t.amount_signed
+                END AS amount,
+                t.savings_entry_type AS entry_type,
+                t.notes AS note,
                 t.description AS transaction_description
-         FROM savings_entries se
-         LEFT JOIN transactions t ON t.id = se.source_transaction_id
-         WHERE se.savings_id = :sid
-         ORDER BY se.`date` DESC, se.id DESC
+         FROM transactions t
+         WHERE t.savings_id = :sid
+           AND t.savings_entry_type IS NOT NULL
+         ORDER BY t.txn_date DESC, t.id DESC
          LIMIT :limit'
     );
     $stmt->bindValue(':sid', $savingsId, PDO::PARAM_INT);
@@ -119,7 +134,8 @@ function repo_add_savings_topup(
                 direction, amount_signed, currency,
                 mutation_type, notes, balance_after, tag,
                 is_internal_transfer, include_in_overview, ignored, created_source,
-                category_id, category_auto_id, rule_auto_id, auto_reason
+                category_id, category_auto_id, rule_auto_id, auto_reason,
+                savings_id, savings_entry_type
             ) VALUES(
                 :uid, NULL, NULL, :txn_hash,
                 :txn_date, :description, NULL,
@@ -127,7 +143,8 @@ function repo_add_savings_topup(
                 :direction, :amount_signed, :currency,
                 NULL, NULL, NULL, NULL,
                 0, 1, 0, :created_source,
-                :category_id, NULL, NULL, NULL
+                :category_id, NULL, NULL, NULL,
+                :savings_id, :savings_entry_type
             )'
         );
         $stmtTxn->execute([
@@ -140,23 +157,8 @@ function repo_add_savings_topup(
             ':currency' => 'EUR',
             ':created_source' => 'internal',
             ':category_id' => $categoryId,
-        ]);
-        $transactionId = (int)$db->lastInsertId();
-
-        $stmtEntry = $db->prepare(
-            'INSERT INTO savings_entries(
-                savings_id, `date`, amount, entry_type, source_transaction_id, note
-            ) VALUES(
-                :savings_id, :entry_date, :amount, :entry_type, :source_transaction_id, :note
-            )'
-        );
-        $stmtEntry->execute([
             ':savings_id' => $savingsId,
-            ':entry_date' => $date,
-            ':amount' => $absAmount,
-            ':entry_type' => 'topup',
-            ':source_transaction_id' => $transactionId,
-            ':note' => null,
+            ':savings_entry_type' => 'topup',
         ]);
 
         $db->commit();
@@ -205,21 +207,14 @@ function repo_set_transaction_ledger(
         try {
             $stmtUpdate = $db->prepare(
                 'UPDATE transactions
-                 SET include_in_overview = 1
+                 SET include_in_overview = 1,
+                     savings_id = NULL,
+                     savings_entry_type = NULL
                  WHERE id = :id AND user_id = :uid'
             );
             $stmtUpdate->execute([
                 ':id' => $transactionId,
                 ':uid' => $userId,
-            ]);
-
-            $stmtDelete = $db->prepare(
-                "DELETE FROM savings_entries
-                 WHERE source_transaction_id = :id
-                   AND entry_type IN ('spend', 'income')"
-            );
-            $stmtDelete->execute([
-                ':id' => $transactionId,
             ]);
 
             $db->commit();
@@ -241,42 +236,23 @@ function repo_set_transaction_ledger(
     }
 
     $entryType = $amount >= 0 ? 'income' : 'spend';
-    $entryAmount = $amount >= 0 ? abs($amount) : -abs($amount);
     $includeInOverview = $amount >= 0 ? 1 : 0;
 
     $db->beginTransaction();
     try {
         $stmtUpdate = $db->prepare(
             'UPDATE transactions
-             SET include_in_overview = :include
+             SET include_in_overview = :include,
+                 savings_id = :savings_id,
+                 savings_entry_type = :entry_type
              WHERE id = :id AND user_id = :uid'
         );
         $stmtUpdate->execute([
             ':include' => $includeInOverview,
             ':id' => $transactionId,
             ':uid' => $userId,
-        ]);
-
-        $stmtEntry = $db->prepare(
-            'INSERT INTO savings_entries(
-                savings_id, `date`, amount, entry_type, source_transaction_id, note
-            ) VALUES(
-                :savings_id, :entry_date, :amount, :entry_type, :source_transaction_id, :note
-            )
-            ON DUPLICATE KEY UPDATE
-                savings_id = VALUES(savings_id),
-                `date` = VALUES(`date`),
-                amount = VALUES(amount),
-                entry_type = VALUES(entry_type),
-                note = VALUES(note)'
-        );
-        $stmtEntry->execute([
             ':savings_id' => $savingsId,
-            ':entry_date' => $txn['txn_date'],
-            ':amount' => $entryAmount,
             ':entry_type' => $entryType,
-            ':source_transaction_id' => $transactionId,
-            ':note' => null,
         ]);
 
         $db->commit();

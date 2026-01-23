@@ -60,6 +60,8 @@ $expectedSchema = [
         'category_auto_id',
         'rule_auto_id',
         'auto_reason',
+        'savings_id',
+        'savings_entry_type',
         'created_at',
     ],
     'savings' => [
@@ -69,16 +71,6 @@ $expectedSchema = [
         'sort_order',
         'start_amount',
         'monthly_amount',
-    ],
-    'savings_entries' => [
-        'id',
-        'savings_id',
-        'date',
-        'amount',
-        'entry_type',
-        'source_transaction_id',
-        'note',
-        'created_at',
     ],
 ];
 
