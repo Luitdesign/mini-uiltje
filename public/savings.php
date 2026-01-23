@@ -70,6 +70,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $savings = repo_list_savings_with_balance($db);
 $defaultSortOrder = repo_next_savings_sort_order($db);
+$ledgerView = (string)($_GET['ledger_view'] ?? 'all');
+$ledgerView = $ledgerView === 'latest' ? 'latest' : 'all';
+$ledgerLimit = $ledgerView === 'latest' ? 5 : null;
+$ledgerToggleParams = $_GET;
+$ledgerToggleParams['ledger_view'] = $ledgerView === 'latest' ? 'all' : 'latest';
+$ledgerToggleUrl = '/savings.php' . ($ledgerToggleParams ? '?' . http_build_query($ledgerToggleParams) : '');
+$ledgerToggleLabel = $ledgerView === 'latest' ? 'Show all ledger entries' : 'Show latest 5 entries';
 
 render_header('Savings', 'savings');
 ?>
@@ -127,7 +134,7 @@ render_header('Savings', 'savings');
   <?php endif; ?>
 
   <?php foreach ($savings as $saving): ?>
-    <?php $entries = repo_list_savings_entries($db, (int)$saving['id']); ?>
+    <?php $entries = repo_list_savings_entries($db, (int)$saving['id'], $ledgerLimit); ?>
     <div class="card" style="margin-top: 12px;">
       <div class="row" style="justify-content: space-between; align-items: center;">
         <div>
@@ -175,7 +182,10 @@ render_header('Savings', 'savings');
       </form>
 
       <div style="margin-top: 12px;">
-        <div class="small">Ledger entries</div>
+        <div class="row" style="justify-content: space-between; align-items: center;">
+          <div class="small">Ledger entries</div>
+          <a class="small" href="<?= h($ledgerToggleUrl) ?>"><?= h($ledgerToggleLabel) ?></a>
+        </div>
         <table class="table" style="margin-top: 8px;">
           <thead>
             <tr>
