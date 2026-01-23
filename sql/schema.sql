@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   auto_reason VARCHAR(255) NULL,
   savings_id INT UNSIGNED NULL,
   savings_entry_type VARCHAR(10) NULL,
+  is_topup TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
