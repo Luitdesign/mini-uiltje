@@ -80,9 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $category = repo_get_category($db, $categoryId);
         if (!$category) {
             $error = 'Category not found.';
-        } else {
-            $name = (string)$category['name'];
         }
+        $name = trim((string)($_POST['name'] ?? ''));
         $useColor = isset($_POST['use_color']);
         $color = $useColor ? (string)($_POST['color'] ?? '') : null;
         $savingsIdRaw = trim((string)($_POST['savings_id'] ?? ''));
@@ -90,15 +89,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($savingsId !== null && $savingsId <= 0) {
             $savingsId = null;
         }
+        if ($error === '' && $name === '') {
+            $error = 'Category name cannot be empty.';
+        }
         if ($error === '' && $savingsId !== null) {
             $saving = repo_find_saving($db, $savingsId);
             if (!$saving) {
-                $error = 'Selected savings account not found.';
+                $error = 'Selected ledger not found.';
             }
         }
         if ($error === '') {
             try {
                 repo_update_category($db, $categoryId, $name, $color, $savingsId);
+                repo_apply_category_ledger($db, current_user_id(), $categoryId, $savingsId);
                 redirect('/categories.php?saved=updated');
             } catch (Throwable $e) {
                 $error = $e->getMessage();
@@ -149,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name === '') {
             $error = 'Category name cannot be empty.';
         } elseif ($savingsId !== null && !repo_find_saving($db, $savingsId)) {
-            $error = 'Selected savings account not found.';
+            $error = 'Selected ledger not found.';
         } else {
             $id = repo_create_category($db, $name, $color, $savingsId);
             if ($id) {
@@ -215,14 +218,14 @@ render_header('Categories', 'categories');
       <input class="input" name="name" placeholder="e.g. Boodschappen" required>
     </div>
     <div style="min-width: 220px;">
-      <label>Linked savings account</label>
+      <label>Ledger</label>
       <select class="input" name="savings_id">
         <option value="">None</option>
         <?php foreach ($savings as $saving): ?>
           <option value="<?= h((string)$saving['id']) ?>"><?= h((string)$saving['name']) ?></option>
         <?php endforeach; ?>
       </select>
-      <div class="small">Optional. Used for savings tracking.</div>
+      <div class="small">Optional. Applies a ledger to every expense and income in this category.</div>
     </div>
     <div style="min-width: 200px;">
       <label>Category color</label>
@@ -263,7 +266,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
-        <th style="width: 220px;">Savings</th>
+        <th style="width: 220px;">Ledger</th>
         <th style="width: 200px;">Color</th>
         <th style="width: 200px;">Actions</th>
       </tr>
@@ -289,7 +292,11 @@ render_header('Categories', 'categories');
         <?php $formId = $editId === $catId ? 'category-edit-' . $catId : null; ?>
         <tr<?= $catRowColor ? ' style="--row-color: ' . h((string)$catRowColor) . ';" data-row-color="1"' : '' ?>>
           <td>
-            <a href="/transactions.php?category_id=<?= h((string)$cat['id']) ?>&all_time=1"><?= h($cat['name']) ?></a>
+            <?php if ($editId === $catId): ?>
+              <input class="input" name="name" value="<?= h((string)$cat['name']) ?>" form="<?= h((string)$formId) ?>" required>
+            <?php else: ?>
+              <a href="/transactions.php?category_id=<?= h((string)$cat['id']) ?>&all_time=1"><?= h($cat['name']) ?></a>
+            <?php endif; ?>
           </td>
           <td>
             <?php if ($editId === $catId): ?>

@@ -172,6 +172,19 @@ function repo_mark_transaction_paid_from_savings(
     int $transactionId,
     int $savingsId
 ): bool {
+    return repo_set_transaction_ledger($db, $userId, $transactionId, $savingsId);
+}
+
+function repo_unmark_transaction_paid_from_savings(PDO $db, int $userId, int $transactionId): void {
+    repo_set_transaction_ledger($db, $userId, $transactionId, null);
+}
+
+function repo_set_transaction_ledger(
+    PDO $db,
+    int $userId,
+    int $transactionId,
+    ?int $savingsId
+): bool {
     $stmt = $db->prepare(
         'SELECT id, amount_signed, ignored, txn_date
          FROM transactions
@@ -186,19 +199,60 @@ function repo_mark_transaction_paid_from_savings(
     if (!$txn) {
         return false;
     }
+
+    if ($savingsId === null || $savingsId <= 0) {
+        $db->beginTransaction();
+        try {
+            $stmtUpdate = $db->prepare(
+                'UPDATE transactions
+                 SET include_in_overview = 1
+                 WHERE id = :id AND user_id = :uid'
+            );
+            $stmtUpdate->execute([
+                ':id' => $transactionId,
+                ':uid' => $userId,
+            ]);
+
+            $stmtDelete = $db->prepare(
+                "DELETE FROM savings_entries
+                 WHERE source_transaction_id = :id
+                   AND entry_type IN ('spend', 'income')"
+            );
+            $stmtDelete->execute([
+                ':id' => $transactionId,
+            ]);
+
+            $db->commit();
+        } catch (Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+        return true;
+    }
+
+    $saving = repo_find_saving($db, $savingsId);
+    if (!$saving) {
+        throw new RuntimeException('Saving not found.');
+    }
+
     $amount = (float)($txn['amount_signed'] ?? 0);
-    if ($amount >= 0 || !empty($txn['ignored'])) {
+    if (!empty($txn['ignored'])) {
         return false;
     }
+
+    $entryType = $amount >= 0 ? 'income' : 'spend';
+    $entryAmount = $amount >= 0 ? abs($amount) : -abs($amount);
+    $includeInOverview = $amount >= 0 ? 1 : 0;
 
     $db->beginTransaction();
     try {
         $stmtUpdate = $db->prepare(
             'UPDATE transactions
-             SET include_in_overview = 0
+             SET include_in_overview = :include
              WHERE id = :id AND user_id = :uid'
         );
         $stmtUpdate->execute([
+            ':include' => $includeInOverview,
             ':id' => $transactionId,
             ':uid' => $userId,
         ]);
@@ -219,8 +273,8 @@ function repo_mark_transaction_paid_from_savings(
         $stmtEntry->execute([
             ':savings_id' => $savingsId,
             ':entry_date' => $txn['txn_date'],
-            ':amount' => -abs($amount),
-            ':entry_type' => 'spend',
+            ':amount' => $entryAmount,
+            ':entry_type' => $entryType,
             ':source_transaction_id' => $transactionId,
             ':note' => null,
         ]);
@@ -234,32 +288,33 @@ function repo_mark_transaction_paid_from_savings(
     return true;
 }
 
-function repo_unmark_transaction_paid_from_savings(PDO $db, int $userId, int $transactionId): void {
-    $db->beginTransaction();
-    try {
-        $stmtUpdate = $db->prepare(
-            'UPDATE transactions
-             SET include_in_overview = 1
-             WHERE id = :id AND user_id = :uid'
-        );
-        $stmtUpdate->execute([
-            ':id' => $transactionId,
-            ':uid' => $userId,
-        ]);
-
-        $stmtDelete = $db->prepare(
-            'DELETE FROM savings_entries WHERE source_transaction_id = :id AND entry_type = :entry_type'
-        );
-        $stmtDelete->execute([
-            ':id' => $transactionId,
-            ':entry_type' => 'spend',
-        ]);
-
-        $db->commit();
-    } catch (Throwable $e) {
-        $db->rollBack();
-        throw $e;
+function repo_apply_category_ledger(
+    PDO $db,
+    int $userId,
+    int $categoryId,
+    ?int $savingsId
+): int {
+    if ($categoryId <= 0) {
+        return 0;
     }
+    $stmt = $db->prepare(
+        'SELECT id
+         FROM transactions
+         WHERE user_id = :uid
+           AND category_id = :cid'
+    );
+    $stmt->execute([
+        ':uid' => $userId,
+        ':cid' => $categoryId,
+    ]);
+    $txnIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $updated = 0;
+    foreach ($txnIds as $txnId) {
+        if (repo_set_transaction_ledger($db, $userId, (int)$txnId, $savingsId)) {
+            $updated++;
+        }
+    }
+    return $updated;
 }
 
 function repo_find_saving(PDO $db, int $id): ?array {
