@@ -54,6 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
                 if ($txnId > 0) {
                     repo_update_transaction_category($db, $userId, $txnId, $categoryId);
+                    $ledgerSavingsId = null;
+                    if ($categoryId !== null) {
+                        $category = repo_get_category($db, $categoryId);
+                        $ledgerSavingsId = $category ? (int)($category['savings_id'] ?? 0) : null;
+                    }
+                    if ($ledgerSavingsId !== null && $ledgerSavingsId > 0) {
+                        repo_set_transaction_ledger($db, $userId, $txnId, $ledgerSavingsId);
+                    } else {
+                        repo_set_transaction_ledger($db, $userId, $txnId, null);
+                    }
                 }
             }
         }
@@ -80,13 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $savingsIdRaw = (string)($_POST['savings_id'] ?? '');
         if ($txnId > 0) {
             if ($savingsIdRaw === '' || $savingsIdRaw === '0') {
-                repo_unmark_transaction_paid_from_savings($db, $userId, $txnId);
+                repo_set_transaction_ledger($db, $userId, $txnId, null);
             } else {
                 $savingsId = (int)$savingsIdRaw;
                 if ($savingsId > 0) {
-                    $ok = repo_mark_transaction_paid_from_savings($db, $userId, $txnId, $savingsId);
+                    $ok = repo_set_transaction_ledger($db, $userId, $txnId, $savingsId);
                     if (!$ok) {
-                        $error = 'Only expense transactions can be marked as paid from savings.';
+                        $error = 'Unable to update the ledger for this transaction.';
                     }
                 }
             }
@@ -307,7 +317,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-category" checked> Auto Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-rule"> Auto Rule</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
-      <label><input class="js-column-toggle" type="checkbox" data-column="savings" checked> Paid from savings</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="savings" checked> Ledger</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
@@ -323,7 +333,7 @@ render_header('Transactions', 'transactions');
           <th data-col="auto-category">Auto Category</th>
           <th data-col="auto-rule">Auto Rule</th>
           <th data-col="category">Category</th>
-          <th data-col="savings">Paid from savings</th>
+          <th data-col="savings">Ledger</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
@@ -338,6 +348,9 @@ render_header('Transactions', 'transactions');
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
           $isInternal = !empty($t['is_internal_transfer']);
           $isPaidFromSavings = ((int)($t['include_in_overview'] ?? 1) === 0 && $amt < 0 && empty($t['ignored']));
+          $categoryLedgerId = (int)($t['category_savings_id'] ?? 0);
+          $ledgerLocked = $categoryLedgerId > 0;
+          $ledgerId = $ledgerLocked ? $categoryLedgerId : (int)($t['savings_paid_id'] ?? 0);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
@@ -366,7 +379,7 @@ render_header('Transactions', 'transactions');
                     <span class="badge badge-transfer">Transfer</span>
                   <?php endif; ?>
                   <?php if ($isPaidFromSavings): ?>
-                    <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                    <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                   <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
@@ -379,7 +392,7 @@ render_header('Transactions', 'transactions');
                           <span class="badge badge-transfer">Transfer</span>
                         <?php endif; ?>
                         <?php if ($isPaidFromSavings): ?>
-                          <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                          <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                         <?php endif; ?>
                       </div>
                       <?php if (!empty($t['notes'])): ?>
@@ -394,7 +407,7 @@ render_header('Transactions', 'transactions');
                         <span class="badge badge-transfer">Transfer</span>
                       <?php endif; ?>
                       <?php if ($isPaidFromSavings): ?>
-                        <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                        <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                       <?php endif; ?>
                     </div>
                     <?php if (!empty($t['notes'])): ?>
@@ -429,10 +442,11 @@ render_header('Transactions', 'transactions');
               </select>
             </td>
             <td data-col="savings">
-              <select class="js-savings-select" data-transaction-id="<?= (int)$t['id'] ?>" <?= $amt >= 0 ? 'disabled' : '' ?>>
+              <?php $savingsDisabled = $ledgerLocked || !empty($t['ignored']); ?>
+              <select class="js-savings-select" data-transaction-id="<?= (int)$t['id'] ?>" <?= $savingsDisabled ? 'disabled' : '' ?>>
                 <option value="0">None</option>
                 <?php foreach ($savingsList as $saving): ?>
-                  <option value="<?= (int)$saving['id'] ?>" <?= ((int)($t['savings_paid_id'] ?? 0) === (int)$saving['id']) ? 'selected' : '' ?>>
+                  <option value="<?= (int)$saving['id'] ?>" <?= ($ledgerId === (int)$saving['id']) ? 'selected' : '' ?>>
                     <?= h((string)$saving['name']) ?>
                   </option>
                 <?php endforeach; ?>
@@ -459,7 +473,7 @@ render_header('Transactions', 'transactions');
           <th data-col="auto-category">Auto Category</th>
           <th data-col="auto-rule">Auto Rule</th>
           <th data-col="category">Category</th>
-          <th data-col="savings">Paid from savings</th>
+          <th data-col="savings">Ledger</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
@@ -474,6 +488,9 @@ render_header('Transactions', 'transactions');
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
           $isInternal = !empty($t['is_internal_transfer']);
           $isPaidFromSavings = ((int)($t['include_in_overview'] ?? 1) === 0 && $amt < 0 && empty($t['ignored']));
+          $categoryLedgerId = (int)($t['category_savings_id'] ?? 0);
+          $ledgerLocked = $categoryLedgerId > 0;
+          $ledgerId = $ledgerLocked ? $categoryLedgerId : (int)($t['savings_paid_id'] ?? 0);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
@@ -502,7 +519,7 @@ render_header('Transactions', 'transactions');
                     <span class="badge badge-transfer">Transfer</span>
                   <?php endif; ?>
                   <?php if ($isPaidFromSavings): ?>
-                    <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                    <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                   <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
@@ -515,7 +532,7 @@ render_header('Transactions', 'transactions');
                           <span class="badge badge-transfer">Transfer</span>
                         <?php endif; ?>
                         <?php if ($isPaidFromSavings): ?>
-                          <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                          <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                         <?php endif; ?>
                       </div>
                       <?php if (!empty($t['notes'])): ?>
@@ -530,7 +547,7 @@ render_header('Transactions', 'transactions');
                         <span class="badge badge-transfer">Transfer</span>
                       <?php endif; ?>
                       <?php if ($isPaidFromSavings): ?>
-                        <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                        <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                       <?php endif; ?>
                     </div>
                     <?php if (!empty($t['notes'])): ?>
@@ -565,11 +582,11 @@ render_header('Transactions', 'transactions');
               </select>
             </td>
             <td data-col="savings">
-              <?php $savingsDisabled = $amt >= 0 || !empty($t['ignored']); ?>
+              <?php $savingsDisabled = $ledgerLocked || !empty($t['ignored']); ?>
               <select class="js-savings-select" data-transaction-id="<?= (int)$t['id'] ?>" <?= $savingsDisabled ? 'disabled' : '' ?>>
                 <option value="0">None</option>
                 <?php foreach ($savingsList as $saving): ?>
-                  <option value="<?= (int)$saving['id'] ?>" <?= ((int)($t['savings_paid_id'] ?? 0) === (int)$saving['id']) ? 'selected' : '' ?>>
+                  <option value="<?= (int)$saving['id'] ?>" <?= ($ledgerId === (int)$saving['id']) ? 'selected' : '' ?>>
                     <?= h((string)$saving['name']) ?>
                   </option>
                 <?php endforeach; ?>
