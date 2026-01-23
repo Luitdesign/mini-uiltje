@@ -224,15 +224,20 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
         }
 
         $signed = ($dir === 'Af') ? -abs($amt) : abs($amt);
+        $notes = isset($idx['Mededelingen']) ? trim((string)($row[$idx['Mededelingen']] ?? '')) : '';
+        $isInternalTransfer = is_internal_transfer_description($desc)
+            || ($notes !== '' && is_internal_transfer_description($notes));
+        $isSavingsTransfer = is_savings_transfer_description($desc)
+            || ($notes !== '' && is_savings_transfer_description($notes));
 
         $rec = [
             'user_id' => $userId,
             'import_id' => $importId,
             'txn_date' => $txnDate,
             'description' => $desc,
-            'is_internal_transfer' => is_internal_transfer_description($desc) ? 1 : 0,
+            'is_internal_transfer' => $isInternalTransfer ? 1 : 0,
             'include_in_overview' => 1,
-            'ignored' => is_savings_transfer_description($desc) ? 1 : 0,
+            'ignored' => $isSavingsTransfer ? 1 : 0,
             'created_source' => 'import',
             'account_iban' => isset($idx['Rekening']) ? trim((string)($row[$idx['Rekening']] ?? '')) : null,
             'counter_iban' => isset($idx['Tegenrekening']) ? trim((string)($row[$idx['Tegenrekening']] ?? '')) : null,
@@ -241,7 +246,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             'amount_signed' => $signed,
             'currency' => 'EUR',
             'mutation_type' => isset($idx['Mutatiesoort']) ? trim((string)($row[$idx['Mutatiesoort']] ?? '')) : null,
-            'notes' => isset($idx['Mededelingen']) ? trim((string)($row[$idx['Mededelingen']] ?? '')) : null,
+            'notes' => $notes !== '' ? $notes : null,
             'balance_after' => isset($idx['Saldo na mutatie']) ? ing_parse_decimal((string)($row[$idx['Saldo na mutatie']] ?? '')) : null,
             'tag' => isset($idx['Tag']) ? trim((string)($row[$idx['Tag']] ?? '')) : null,
         ];
