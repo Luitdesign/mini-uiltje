@@ -141,7 +141,7 @@ function repo_add_savings_topup(
                 mutation_type, notes, balance_after, tag,
                 is_internal_transfer, include_in_overview, ignored, created_source,
                 category_id, category_auto_id, rule_auto_id, auto_reason,
-                savings_id, savings_entry_type
+                savings_id, savings_entry_type, is_topup
             ) VALUES(
                 :uid, NULL, NULL, :txn_hash,
                 :txn_date, :description, NULL,
@@ -150,7 +150,7 @@ function repo_add_savings_topup(
                 NULL, NULL, NULL, NULL,
                 0, 1, 0, :created_source,
                 :category_id, NULL, NULL, NULL,
-                :savings_id, :savings_entry_type
+                :savings_id, :savings_entry_type, :is_topup
             )'
         );
         $stmtTxn->execute([
@@ -165,6 +165,7 @@ function repo_add_savings_topup(
             ':category_id' => $categoryId,
             ':savings_id' => $savingsId,
             ':savings_entry_type' => 'topup',
+            ':is_topup' => 1,
         ]);
 
         $db->commit();
