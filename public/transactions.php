@@ -74,6 +74,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
         }
     }
+    if ($action === 'update_paid_from_savings') {
+        $savedFlag = true;
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        $savingsIdRaw = (string)($_POST['savings_id'] ?? '');
+        if ($txnId > 0) {
+            if ($savingsIdRaw === '' || $savingsIdRaw === '0') {
+                repo_unmark_transaction_paid_from_savings($db, $userId, $txnId);
+            } else {
+                $savingsId = (int)$savingsIdRaw;
+                if ($savingsId > 0) {
+                    $ok = repo_mark_transaction_paid_from_savings($db, $userId, $txnId, $savingsId);
+                    if (!$ok) {
+                        $error = 'Only expense transactions can be marked as paid from savings.';
+                    }
+                }
+            }
+        }
+    }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
     if ($error === '') {
@@ -112,6 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = repo_list_assignable_categories($db);
+$savingsList = repo_list_savings($db);
 $uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
@@ -255,6 +274,13 @@ render_header('Transactions', 'transactions');
     <button class="btn" type="submit" <?= ($isYearView || $hasDateRange) ? 'disabled' : '' ?>>Auto categorie opnieuw toepassen</button>
   </form>
 
+  <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>" id="js-savings-form" hidden>
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="action" value="update_paid_from_savings">
+    <input type="hidden" name="transaction_id" id="js-savings-transaction-id" value="">
+    <input type="hidden" name="savings_id" id="js-savings-id" value="">
+  </form>
+
   <?php if ($saved): ?>
     <div class="small" style="margin-top: 10px; color: var(--accent);">Saved.</div>
   <?php endif; ?>
@@ -281,6 +307,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-category" checked> Auto Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-rule"> Auto Rule</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="savings" checked> Paid from savings</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
@@ -296,26 +323,35 @@ render_header('Transactions', 'transactions');
           <th data-col="auto-category">Auto Category</th>
           <th data-col="auto-rule">Auto Rule</th>
           <th data-col="category">Category</th>
+          <th data-col="savings">Paid from savings</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($incomeTxns)): ?>
-          <tr><td colspan="8" class="small">No income transactions found for this period.</td></tr>
+          <tr><td colspan="9" class="small">No income transactions found for this period.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($incomeTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
           $isInternal = !empty($t['is_internal_transfer']);
+          $isPaidFromSavings = ((int)($t['include_in_overview'] ?? 1) === 0 && $amt < 0 && empty($t['ignored']));
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
           }
           $rowColor = rgba_from_hex($rowBaseColor, 0.12);
           $rowStyle = $rowColor ? ' style="--row-color: ' . h($rowColor) . ';" data-row-color="1"' : '';
-          $rowClass = $isInternal ? ' class="txn-internal"' : '';
+          $rowClasses = [];
+          if ($isInternal) {
+              $rowClasses[] = 'txn-internal';
+          }
+          if ($isPaidFromSavings) {
+              $rowClasses[] = 'txn-paid-from-savings';
+          }
+          $rowClass = $rowClasses ? ' class="' . implode(' ', $rowClasses) . '"' : '';
         ?>
           <tr<?= $rowClass ?><?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
@@ -329,6 +365,9 @@ render_header('Transactions', 'transactions');
                   <?php if ($isInternal): ?>
                     <span class="badge badge-transfer">Transfer</span>
                   <?php endif; ?>
+                  <?php if ($isPaidFromSavings): ?>
+                    <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                  <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
@@ -338,6 +377,9 @@ render_header('Transactions', 'transactions');
                         <strong><?= h($t['description']) ?></strong>
                         <?php if ($isInternal): ?>
                           <span class="badge badge-transfer">Transfer</span>
+                        <?php endif; ?>
+                        <?php if ($isPaidFromSavings): ?>
+                          <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                         <?php endif; ?>
                       </div>
                       <?php if (!empty($t['notes'])): ?>
@@ -350,6 +392,9 @@ render_header('Transactions', 'transactions');
                       <strong><?= h($t['description']) ?></strong>
                       <?php if ($isInternal): ?>
                         <span class="badge badge-transfer">Transfer</span>
+                      <?php endif; ?>
+                      <?php if ($isPaidFromSavings): ?>
+                        <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                       <?php endif; ?>
                     </div>
                     <?php if (!empty($t['notes'])): ?>
@@ -383,6 +428,16 @@ render_header('Transactions', 'transactions');
                 <?php endforeach; ?>
               </select>
             </td>
+            <td data-col="savings">
+              <select class="js-savings-select" data-transaction-id="<?= (int)$t['id'] ?>" <?= $amt >= 0 ? 'disabled' : '' ?>>
+                <option value="0">None</option>
+                <?php foreach ($savingsList as $saving): ?>
+                  <option value="<?= (int)$saving['id'] ?>" <?= ((int)($t['savings_paid_id'] ?? 0) === (int)$saving['id']) ? 'selected' : '' ?>>
+                    <?= h((string)$saving['name']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </td>
             <td data-col="type">
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
             </td>
@@ -404,26 +459,35 @@ render_header('Transactions', 'transactions');
           <th data-col="auto-category">Auto Category</th>
           <th data-col="auto-rule">Auto Rule</th>
           <th data-col="category">Category</th>
+          <th data-col="savings">Paid from savings</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($expenseTxns)): ?>
-          <tr><td colspan="8" class="small">No expense transactions found for this period.</td></tr>
+          <tr><td colspan="9" class="small">No expense transactions found for this period.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($expenseTxns as $t):
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
           $isInternal = !empty($t['is_internal_transfer']);
+          $isPaidFromSavings = ((int)($t['include_in_overview'] ?? 1) === 0 && $amt < 0 && empty($t['ignored']));
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
           }
           $rowColor = rgba_from_hex($rowBaseColor, 0.12);
           $rowStyle = $rowColor ? ' style="--row-color: ' . h($rowColor) . ';" data-row-color="1"' : '';
-          $rowClass = $isInternal ? ' class="txn-internal"' : '';
+          $rowClasses = [];
+          if ($isInternal) {
+              $rowClasses[] = 'txn-internal';
+          }
+          if ($isPaidFromSavings) {
+              $rowClasses[] = 'txn-paid-from-savings';
+          }
+          $rowClass = $rowClasses ? ' class="' . implode(' ', $rowClasses) . '"' : '';
         ?>
           <tr<?= $rowClass ?><?= $rowStyle ?>>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
@@ -437,6 +501,9 @@ render_header('Transactions', 'transactions');
                   <?php if ($isInternal): ?>
                     <span class="badge badge-transfer">Transfer</span>
                   <?php endif; ?>
+                  <?php if ($isPaidFromSavings): ?>
+                    <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                  <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
@@ -446,6 +513,9 @@ render_header('Transactions', 'transactions');
                         <strong><?= h($t['description']) ?></strong>
                         <?php if ($isInternal): ?>
                           <span class="badge badge-transfer">Transfer</span>
+                        <?php endif; ?>
+                        <?php if ($isPaidFromSavings): ?>
+                          <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                         <?php endif; ?>
                       </div>
                       <?php if (!empty($t['notes'])): ?>
@@ -458,6 +528,9 @@ render_header('Transactions', 'transactions');
                       <strong><?= h($t['description']) ?></strong>
                       <?php if ($isInternal): ?>
                         <span class="badge badge-transfer">Transfer</span>
+                      <?php endif; ?>
+                      <?php if ($isPaidFromSavings): ?>
+                        <span class="badge badge-savings">Paid from savings<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                       <?php endif; ?>
                     </div>
                     <?php if (!empty($t['notes'])): ?>
@@ -488,6 +561,17 @@ render_header('Transactions', 'transactions');
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Niet ingedeeld</option>
                 <?php foreach ($categories as $c): ?>
                   <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['label']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </td>
+            <td data-col="savings">
+              <?php $savingsDisabled = $amt >= 0 || !empty($t['ignored']); ?>
+              <select class="js-savings-select" data-transaction-id="<?= (int)$t['id'] ?>" <?= $savingsDisabled ? 'disabled' : '' ?>>
+                <option value="0">None</option>
+                <?php foreach ($savingsList as $saving): ?>
+                  <option value="<?= (int)$saving['id'] ?>" <?= ((int)($t['savings_paid_id'] ?? 0) === (int)$saving['id']) ? 'selected' : '' ?>>
+                    <?= h((string)$saving['name']) ?>
+                  </option>
                 <?php endforeach; ?>
               </select>
             </td>
@@ -670,6 +754,32 @@ render_header('Transactions', 'transactions');
           }
         });
       }
+    });
+  })();
+</script>
+
+<script>
+  (function () {
+    const form = document.getElementById('js-savings-form');
+    const txnInput = document.getElementById('js-savings-transaction-id');
+    const savingsInput = document.getElementById('js-savings-id');
+    if (!form || !txnInput || !savingsInput) {
+      return;
+    }
+
+    document.querySelectorAll('.js-savings-select').forEach((select) => {
+      select.addEventListener('change', () => {
+        if (select.disabled) {
+          return;
+        }
+        const txnId = select.dataset.transactionId;
+        if (!txnId) {
+          return;
+        }
+        txnInput.value = txnId;
+        savingsInput.value = select.value;
+        form.submit();
+      });
     });
   })();
 </script>

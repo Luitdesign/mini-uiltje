@@ -13,7 +13,7 @@ try {
 
 $expectedSchema = [
     'users' => ['id', 'username', 'password_hash', 'created_at'],
-    'categories' => ['id', 'name', 'color', 'parent_id', 'created_at'],
+    'categories' => ['id', 'name', 'color', 'parent_id', 'savings_id', 'created_at'],
     'app_settings' => ['setting_key', 'setting_value'],
     'imports' => ['id', 'user_id', 'filename', 'imported_at'],
     'rules' => [
@@ -53,6 +53,9 @@ $expectedSchema = [
         'balance_after',
         'tag',
         'is_internal_transfer',
+        'include_in_overview',
+        'ignored',
+        'created_source',
         'category_id',
         'category_auto_id',
         'rule_auto_id',
@@ -66,6 +69,16 @@ $expectedSchema = [
         'sort_order',
         'start_amount',
         'monthly_amount',
+    ],
+    'savings_entries' => [
+        'id',
+        'savings_id',
+        'date',
+        'amount',
+        'entry_type',
+        'source_transaction_id',
+        'note',
+        'created_at',
     ],
 ];
 

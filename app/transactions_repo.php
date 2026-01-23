@@ -14,6 +14,8 @@ function repo_list_months(PDO $db, int $userId): array {
         FROM transactions
         WHERE user_id = :uid
           AND is_internal_transfer = 0
+          AND include_in_overview = 1
+          AND ignored = 0
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
     ";
@@ -272,11 +274,15 @@ function repo_list_transactions(
     $sql = "
         SELECT t.*, c.name AS category_name, c.color AS category_color,
                ac.name AS auto_category_name, ac.color AS auto_category_color,
-               r.name AS auto_rule_name
+               r.name AS auto_rule_name,
+               se.savings_id AS savings_paid_id,
+               s.name AS savings_paid_name
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
         LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
+        LEFT JOIN savings_entries se ON se.source_transaction_id = t.id AND se.entry_type = 'spend'
+        LEFT JOIN savings s ON s.id = se.savings_id
         WHERE t.user_id = :uid
           {$whereDate}
           {$whereQ}
@@ -345,7 +351,7 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     $rules = $stmtRules->fetchAll();
 
     $stmtTxns = $db->prepare(
-        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer
+        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer, ignored
          FROM transactions
          WHERE user_id = :uid
            AND YEAR(txn_date) = :y
@@ -372,6 +378,9 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     try {
         foreach ($transactions as $txn) {
             if (!empty($txn['is_internal_transfer'])) {
+                continue;
+            }
+            if (!empty($txn['ignored'])) {
                 continue;
             }
             $auto = ing_apply_rules($txn, $rules);
@@ -436,6 +445,8 @@ function repo_period_summary(
         WHERE user_id = :uid
           {$whereDate}
           AND is_internal_transfer = 0
+          AND include_in_overview = 1
+          AND ignored = 0
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -485,8 +496,152 @@ function repo_period_breakdown_by_category(
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.is_internal_transfer = 0
+          AND t.include_in_overview = 1
+          AND t.ignored = 0
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function repo_period_paid_from_savings_total(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): float {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $sql = "
+        SELECT ABS(SUM(t.amount_signed)) AS total
+        FROM transactions t
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND t.amount_signed < 0
+          AND t.include_in_overview = 0
+          AND t.ignored = 0
+          AND t.is_internal_transfer = 0
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $value = $stmt->fetchColumn();
+    return $value !== false ? (float)$value : 0.0;
+}
+
+function repo_period_paid_from_savings_breakdown(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $sql = "
+        SELECT
+            COALESCE(c.name, 'Niet ingedeeld') AS category,
+            ABS(SUM(t.amount_signed)) AS spending
+        FROM transactions t
+        LEFT JOIN categories c ON c.id = t.category_id
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND t.amount_signed < 0
+          AND t.include_in_overview = 0
+          AND t.ignored = 0
+          AND t.is_internal_transfer = 0
+        GROUP BY category
+        ORDER BY spending DESC, category ASC
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function repo_period_paid_from_savings_transactions(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $sql = "
+        SELECT
+            t.id,
+            t.txn_date,
+            t.description,
+            t.amount_signed,
+            COALESCE(c.name, 'Niet ingedeeld') AS category_name,
+            s.name AS savings_name
+        FROM transactions t
+        LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN savings_entries se ON se.source_transaction_id = t.id AND se.entry_type = 'spend'
+        LEFT JOIN savings s ON s.id = se.savings_id
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND t.amount_signed < 0
+          AND t.include_in_overview = 0
+          AND t.ignored = 0
+          AND t.is_internal_transfer = 0
+        ORDER BY t.txn_date DESC, t.id DESC
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);

@@ -55,6 +55,15 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!column_exists($db, 'transactions', 'is_internal_transfer')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0 AFTER tag');
     }
+    if (!column_exists($db, 'transactions', 'include_in_overview')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN include_in_overview TINYINT(1) NOT NULL DEFAULT 1 AFTER is_internal_transfer');
+    }
+    if (!column_exists($db, 'transactions', 'ignored')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN ignored TINYINT(1) NOT NULL DEFAULT 0 AFTER include_in_overview');
+    }
+    if (!column_exists($db, 'transactions', 'created_source')) {
+        $db->exec("ALTER TABLE transactions ADD COLUMN created_source VARCHAR(10) NOT NULL DEFAULT 'import' AFTER ignored");
+    }
 
     if (!index_exists($db, 'transactions', 'idx_transactions_import_batch')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_import_batch (import_batch_id)');
@@ -65,11 +74,75 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!index_exists($db, 'transactions', 'idx_transactions_internal_transfer')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_internal_transfer (is_internal_transfer)');
     }
+    if (!index_exists($db, 'transactions', 'idx_transactions_date_overview')) {
+        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_date_overview (txn_date, include_in_overview)');
+    }
+    if (!index_exists($db, 'transactions', 'idx_transactions_date_ignored')) {
+        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_date_ignored (txn_date, ignored)');
+    }
 
     if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {
         $db->exec(
             'ALTER TABLE transactions ADD CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL'
         );
+    }
+}
+
+function ensure_savings_ledger_schema(PDO $db): void {
+    if (!table_exists($db, 'savings_entries')) {
+        $db->exec(
+            'CREATE TABLE savings_entries (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                savings_id INT UNSIGNED NOT NULL,
+                `date` DATE NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                entry_type VARCHAR(10) NOT NULL,
+                source_transaction_id BIGINT UNSIGNED NULL,
+                note VARCHAR(255) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_savings_entries_source_txn (source_transaction_id),
+                KEY idx_savings_entries_savings_date (savings_id, `date`),
+                KEY idx_savings_entries_source_txn (source_transaction_id),
+                CONSTRAINT fk_savings_entries_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE CASCADE,
+                CONSTRAINT fk_savings_entries_txn FOREIGN KEY (source_transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+        );
+    }
+
+    if (table_exists($db, 'savings_entries')) {
+        if (!index_exists($db, 'savings_entries', 'idx_savings_entries_savings_date')) {
+            $db->exec('ALTER TABLE savings_entries ADD KEY idx_savings_entries_savings_date (savings_id, `date`)');
+        }
+        if (!index_exists($db, 'savings_entries', 'idx_savings_entries_source_txn')) {
+            $db->exec('ALTER TABLE savings_entries ADD KEY idx_savings_entries_source_txn (source_transaction_id)');
+        }
+        if (!index_exists($db, 'savings_entries', 'uq_savings_entries_source_txn')) {
+            $db->exec('ALTER TABLE savings_entries ADD UNIQUE KEY uq_savings_entries_source_txn (source_transaction_id)');
+        }
+        if (!constraint_exists($db, 'savings_entries', 'fk_savings_entries_savings')) {
+            $db->exec(
+                'ALTER TABLE savings_entries ADD CONSTRAINT fk_savings_entries_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE CASCADE'
+            );
+        }
+        if (!constraint_exists($db, 'savings_entries', 'fk_savings_entries_txn')) {
+            $db->exec(
+                'ALTER TABLE savings_entries ADD CONSTRAINT fk_savings_entries_txn FOREIGN KEY (source_transaction_id) REFERENCES transactions(id) ON DELETE SET NULL'
+            );
+        }
+    }
+}
+
+function ensure_savings_topup_category(PDO $db): void {
+    if (!table_exists($db, 'categories')) {
+        return;
+    }
+    $stmt = $db->prepare('SELECT id FROM categories WHERE name = :name LIMIT 1');
+    $stmt->execute([':name' => 'Savings top-ups']);
+    $id = $stmt->fetchColumn();
+    if ($id === false) {
+        $stmt = $db->prepare('INSERT INTO categories(name) VALUES(:name)');
+        $stmt->execute([':name' => 'Savings top-ups']);
     }
 }
 
@@ -117,6 +190,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             ensure_transaction_extensions($db);
+            ensure_savings_ledger_schema($db);
+            ensure_savings_topup_category($db);
 
             if (!has_any_users($db)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
