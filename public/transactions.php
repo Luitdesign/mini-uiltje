@@ -10,7 +10,7 @@ $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
 $categoryFilter = (string)($_GET['category_id'] ?? '');
 $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
-$showInternal = (string)($_GET['show_internal'] ?? '') === '1';
+$showInternal = (string)($_GET['show_internal'] ?? '1') === '1';
 $startDate = trim((string)($_GET['start_date'] ?? ''));
 $endDate = trim((string)($_GET['end_date'] ?? ''));
 $allTime = (string)($_GET['all_time'] ?? '') === '1';
