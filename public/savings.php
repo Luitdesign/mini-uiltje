@@ -48,6 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $savings = repo_list_savings_with_balance($db);
+$totalBalance = 0.0;
+foreach ($savings as $saving) {
+    $totalBalance += (float)$saving['balance'];
+}
 $defaultSortOrder = repo_next_savings_sort_order($db);
 
 render_header('Savings', 'savings');
@@ -104,6 +108,12 @@ render_header('Savings', 'savings');
   <?php if (empty($savings)): ?>
     <div class="small muted">No savings goals yet.</div>
   <?php else: ?>
+    <div class="row" style="justify-content: flex-end; margin-top: 12px;">
+      <div class="card" style="padding: 8px 12px;">
+        <div class="small muted">Total balance</div>
+        <div class="money"><?= number_format($totalBalance, 2, ',', '.') ?></div>
+      </div>
+    </div>
     <table class="table" style="margin-top: 12px;">
       <thead>
         <tr>
