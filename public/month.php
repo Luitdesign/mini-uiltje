@@ -60,7 +60,6 @@ if ($export === 'csv') {
         'balance_after',
         'tag',
         'is_internal_transfer',
-        'include_in_overview',
         'ignored',
         'created_source',
         'category_id',

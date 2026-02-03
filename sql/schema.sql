@@ -96,7 +96,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   balance_after DECIMAL(12,2) NULL,
   tag VARCHAR(255) NULL,
   is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0,
-  include_in_overview TINYINT(1) NOT NULL DEFAULT 1,
   ignored TINYINT(1) NOT NULL DEFAULT 0,
   created_source VARCHAR(10) NOT NULL DEFAULT 'import',
 
@@ -105,7 +104,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   rule_auto_id INT UNSIGNED NULL,
   auto_reason VARCHAR(255) NULL,
   savings_id INT UNSIGNED NULL,
-  savings_entry_type VARCHAR(10) NULL,
   is_topup TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -119,7 +117,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   KEY idx_transactions_rule_auto (rule_auto_id),
   KEY idx_transactions_savings (savings_id),
   KEY idx_transactions_internal_transfer (is_internal_transfer),
-  KEY idx_transactions_date_overview (txn_date, include_in_overview),
   KEY idx_transactions_date_ignored (txn_date, ignored),
 
   CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
