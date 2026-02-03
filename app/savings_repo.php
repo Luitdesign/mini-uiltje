@@ -26,7 +26,6 @@ function repo_list_savings_with_balance(PDO $db): array {
                    ) AS total_amount
             FROM transactions
             WHERE savings_id IS NOT NULL
-              AND ignored = 0
             GROUP BY savings_id
         ) st ON st.savings_id = s.id
         ORDER BY s.active DESC, s.sort_order ASC, s.name ASC, s.id ASC
@@ -50,7 +49,6 @@ function repo_find_saving_with_balance(PDO $db, int $id): ?array {
                    ) AS total_amount
             FROM transactions
             WHERE savings_id IS NOT NULL
-              AND ignored = 0
             GROUP BY savings_id
         ) st ON st.savings_id = s.id
         WHERE s.id = :id
@@ -156,7 +154,7 @@ function repo_add_savings_topup(
                 account_iban, counter_iban, code,
                 direction, amount_signed, currency,
                 mutation_type, notes, balance_after, tag,
-                is_internal_transfer, ignored, created_source,
+                is_internal_transfer, created_source,
                 category_id, category_auto_id, rule_auto_id, auto_reason,
                 savings_id, is_topup
             ) VALUES(
@@ -165,7 +163,7 @@ function repo_add_savings_topup(
                 NULL, NULL, NULL,
                 :direction, :amount_signed, :currency,
                 NULL, NULL, NULL, NULL,
-                0, 0, :created_source,
+                0, :created_source,
                 :category_id, NULL, NULL, NULL,
                 :savings_id, :is_topup
             )'
@@ -211,7 +209,7 @@ function repo_set_transaction_ledger(
     ?int $savingsId
 ): bool {
     $stmt = $db->prepare(
-        'SELECT id, amount_signed, ignored, txn_date, is_topup
+        'SELECT id, amount_signed, txn_date, is_topup
          FROM transactions
          WHERE id = :id AND user_id = :uid
          LIMIT 1'
@@ -253,10 +251,6 @@ function repo_set_transaction_ledger(
     }
 
     $amount = (float)($txn['amount_signed'] ?? 0);
-    if (!empty($txn['ignored'])) {
-        return false;
-    }
-
     $db->beginTransaction();
     try {
         $stmtUpdate = $db->prepare(

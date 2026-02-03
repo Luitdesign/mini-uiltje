@@ -55,11 +55,8 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!column_exists($db, 'transactions', 'is_internal_transfer')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0 AFTER tag');
     }
-    if (!column_exists($db, 'transactions', 'ignored')) {
-        $db->exec('ALTER TABLE transactions ADD COLUMN ignored TINYINT(1) NOT NULL DEFAULT 0 AFTER is_internal_transfer');
-    }
     if (!column_exists($db, 'transactions', 'created_source')) {
-        $db->exec("ALTER TABLE transactions ADD COLUMN created_source VARCHAR(10) NOT NULL DEFAULT 'import' AFTER ignored");
+        $db->exec("ALTER TABLE transactions ADD COLUMN created_source VARCHAR(10) NOT NULL DEFAULT 'import' AFTER is_internal_transfer");
     }
     if (!column_exists($db, 'transactions', 'savings_id')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN savings_id INT UNSIGNED NULL AFTER auto_reason');
@@ -76,9 +73,6 @@ function ensure_transaction_extensions(PDO $db): void {
     }
     if (!index_exists($db, 'transactions', 'idx_transactions_internal_transfer')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_internal_transfer (is_internal_transfer)');
-    }
-    if (!index_exists($db, 'transactions', 'idx_transactions_date_ignored')) {
-        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_date_ignored (txn_date, ignored)');
     }
 
     if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {

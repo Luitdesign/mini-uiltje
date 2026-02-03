@@ -209,7 +209,7 @@ function render_transactions_table(
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
           $isInternal = !empty($t['is_internal_transfer']);
-          $hasSavingsLedger = !empty($t['savings_paid_id']) && empty($t['ignored']);
+          $hasSavingsLedger = !empty($t['savings_paid_id']);
           $isPaidFromSavings = $hasSavingsLedger && empty($t['is_topup']);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {

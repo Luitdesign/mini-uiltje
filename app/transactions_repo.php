@@ -15,7 +15,6 @@ function repo_list_months(PDO $db, int $userId): array {
         WHERE user_id = :uid
           AND is_internal_transfer = 0
           AND (savings_id IS NULL OR amount_signed >= 0)
-          AND ignored = 0
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
     ";
@@ -350,7 +349,7 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     $rules = $stmtRules->fetchAll();
 
     $stmtTxns = $db->prepare(
-        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer, ignored
+        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer
          FROM transactions
          WHERE user_id = :uid
            AND YEAR(txn_date) = :y
@@ -377,9 +376,6 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     try {
         foreach ($transactions as $txn) {
             if (!empty($txn['is_internal_transfer'])) {
-                continue;
-            }
-            if (!empty($txn['ignored'])) {
                 continue;
             }
             $auto = ing_apply_rules($txn, $rules);
@@ -445,7 +441,6 @@ function repo_period_summary(
           {$whereDate}
           AND is_internal_transfer = 0
           AND (savings_id IS NULL OR amount_signed >= 0)
-          AND ignored = 0
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -496,7 +491,6 @@ function repo_period_breakdown_by_category(
           {$whereDate}
           AND t.is_internal_transfer = 0
           AND (t.savings_id IS NULL OR t.amount_signed >= 0)
-          AND t.ignored = 0
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
     ";
@@ -540,7 +534,6 @@ function repo_period_paid_from_savings_total(
           AND t.amount_signed < 0
           AND t.savings_id IS NOT NULL
           AND t.is_topup = 0
-          AND t.ignored = 0
           AND t.is_internal_transfer = 0
     ";
     $stmt = $db->prepare($sql);
@@ -587,7 +580,6 @@ function repo_period_paid_from_savings_breakdown(
           AND t.amount_signed < 0
           AND t.savings_id IS NOT NULL
           AND t.is_topup = 0
-          AND t.ignored = 0
           AND t.is_internal_transfer = 0
         GROUP BY category
         ORDER BY spending DESC, category ASC
@@ -640,7 +632,6 @@ function repo_period_paid_from_savings_transactions(
           AND t.amount_signed < 0
           AND t.savings_id IS NOT NULL
           AND t.is_topup = 0
-          AND t.ignored = 0
           AND t.is_internal_transfer = 0
         ORDER BY t.txn_date DESC, t.id DESC
     ";
