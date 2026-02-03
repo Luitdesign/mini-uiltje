@@ -35,6 +35,33 @@ function repo_list_savings_with_balance(PDO $db): array {
     return $stmt->fetchAll();
 }
 
+function repo_find_saving_with_balance(PDO $db, int $id): ?array {
+    $sql = "
+        SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount,
+               (s.start_amount + COALESCE(st.total_amount, 0)) AS balance
+        FROM savings s
+        LEFT JOIN (
+            SELECT savings_id,
+                   SUM(
+                       CASE
+                           WHEN savings_entry_type = 'topup' THEN ABS(amount_signed)
+                           ELSE amount_signed
+                       END
+                   ) AS total_amount
+            FROM transactions
+            WHERE savings_id IS NOT NULL
+              AND ignored = 0
+            GROUP BY savings_id
+        ) st ON st.savings_id = s.id
+        WHERE s.id = :id
+        LIMIT 1
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute(['id' => $id]);
+    $saving = $stmt->fetch();
+    return $saving === false ? null : $saving;
+}
+
 function repo_next_savings_sort_order(PDO $db): int {
     $stmt = $db->query('SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_sort_order FROM savings');
     $value = $stmt->fetchColumn();
