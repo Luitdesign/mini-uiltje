@@ -14,8 +14,10 @@ function repo_list_savings(PDO $db): array {
 function repo_list_savings_with_balance(PDO $db): array {
     $sql = "
         SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount, s.topup_category_id,
+               c.name AS topup_category_name,
                (s.start_amount + COALESCE(st.total_amount, 0)) AS balance
         FROM savings s
+        LEFT JOIN categories c ON c.id = s.topup_category_id
         LEFT JOIN (
             SELECT savings_id,
                    SUM(
