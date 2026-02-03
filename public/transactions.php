@@ -136,7 +136,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = repo_list_assignable_categories($db);
-$savingsList = repo_list_savings($db);
 $uncategorizedColor = repo_get_setting($db, 'uncategorized_color');
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
@@ -184,7 +183,6 @@ foreach ($txns as $txn) {
 function render_transactions_table(
     array $txns,
     array $categories,
-    array $savingsList,
     ?string $uncategorizedColor,
     string $emptyMessage
 ): void {
@@ -198,14 +196,13 @@ function render_transactions_table(
           <th data-col="auto-category">Auto Category</th>
           <th data-col="auto-rule">Auto Rule</th>
           <th data-col="category">Category</th>
-          <th data-col="savings">Ledger</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($txns)): ?>
-          <tr><td colspan="9" class="small"><?= h($emptyMessage) ?></td></tr>
+          <tr><td colspan="8" class="small"><?= h($emptyMessage) ?></td></tr>
         <?php endif; ?>
 
         <?php foreach ($txns as $t):
@@ -213,9 +210,6 @@ function render_transactions_table(
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
           $isInternal = !empty($t['is_internal_transfer']);
           $isPaidFromSavings = ((int)($t['include_in_overview'] ?? 1) === 0 && $amt < 0 && empty($t['ignored']));
-          $categoryLedgerId = (int)($t['category_savings_id'] ?? 0);
-          $ledgerLocked = $categoryLedgerId > 0;
-          $ledgerId = $ledgerLocked ? $categoryLedgerId : (int)($t['savings_paid_id'] ?? 0);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
@@ -303,17 +297,6 @@ function render_transactions_table(
                 <option value="" <?= empty($t['category_id']) ? 'selected' : '' ?>>Niet ingedeeld</option>
                 <?php foreach ($categories as $c): ?>
                   <option value="<?= (int)$c['id'] ?>" <?= ((int)$t['category_id'] === (int)$c['id']) ? 'selected' : '' ?>><?= h($c['label']) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </td>
-            <td data-col="savings">
-              <?php $savingsDisabled = $ledgerLocked || !empty($t['ignored']); ?>
-              <select class="js-savings-select" data-transaction-id="<?= (int)$t['id'] ?>" <?= $savingsDisabled ? 'disabled' : '' ?>>
-                <option value="0">None</option>
-                <?php foreach ($savingsList as $saving): ?>
-                  <option value="<?= (int)$saving['id'] ?>" <?= ($ledgerId === (int)$saving['id']) ? 'selected' : '' ?>>
-                    <?= h((string)$saving['name']) ?>
-                  </option>
                 <?php endforeach; ?>
               </select>
             </td>
@@ -436,13 +419,6 @@ render_header('Transactions', 'transactions');
     <button class="btn" type="submit" <?= ($isYearView || $hasDateRange) ? 'disabled' : '' ?>>Auto categorie opnieuw toepassen</button>
   </form>
 
-  <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>" id="js-savings-form" hidden>
-    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-    <input type="hidden" name="action" value="update_paid_from_savings">
-    <input type="hidden" name="transaction_id" id="js-savings-transaction-id" value="">
-    <input type="hidden" name="savings_id" id="js-savings-id" value="">
-  </form>
-
   <?php if ($saved): ?>
     <div class="small" style="margin-top: 10px; color: var(--accent);">Saved.</div>
   <?php endif; ?>
@@ -469,7 +445,6 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-category" checked> Auto Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="auto-rule"> Auto Rule</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
-      <label><input class="js-column-toggle" type="checkbox" data-column="savings" checked> Ledger</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
@@ -479,7 +454,6 @@ render_header('Transactions', 'transactions');
     <?php render_transactions_table(
         $incomeTxns,
         $categories,
-        $savingsList,
         $uncategorizedColor,
         'No income transactions found for this period.'
     ); ?>
@@ -488,7 +462,6 @@ render_header('Transactions', 'transactions');
     <?php render_transactions_table(
         $expenseTxns,
         $categories,
-        $savingsList,
         $uncategorizedColor,
         'No expense transactions found for this period.'
     ); ?>
@@ -498,7 +471,6 @@ render_header('Transactions', 'transactions');
       <?php render_transactions_table(
           $internalTxns,
           $categories,
-          $savingsList,
           $uncategorizedColor,
           'No internal transfers found for this period.'
       ); ?>
@@ -672,32 +644,6 @@ render_header('Transactions', 'transactions');
           }
         });
       }
-    });
-  })();
-</script>
-
-<script>
-  (function () {
-    const form = document.getElementById('js-savings-form');
-    const txnInput = document.getElementById('js-savings-transaction-id');
-    const savingsInput = document.getElementById('js-savings-id');
-    if (!form || !txnInput || !savingsInput) {
-      return;
-    }
-
-    document.querySelectorAll('.js-savings-select').forEach((select) => {
-      select.addEventListener('change', () => {
-        if (select.disabled) {
-          return;
-        }
-        const txnId = select.dataset.transactionId;
-        if (!txnId) {
-          return;
-        }
-        txnInput.value = txnId;
-        savingsInput.value = select.value;
-        form.submit();
-      });
     });
   })();
 </script>
