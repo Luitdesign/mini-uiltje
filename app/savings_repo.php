@@ -204,7 +204,7 @@ function repo_set_transaction_ledger(
     ?int $savingsId
 ): bool {
     $stmt = $db->prepare(
-        'SELECT id, amount_signed, ignored, txn_date
+        'SELECT id, amount_signed, ignored, txn_date, is_topup
          FROM transactions
          WHERE id = :id AND user_id = :uid
          LIMIT 1'
@@ -255,13 +255,14 @@ function repo_set_transaction_ledger(
         $stmtUpdate = $db->prepare(
             'UPDATE transactions
              SET savings_id = :savings_id,
-                 is_topup = 0
+                 is_topup = :is_topup
              WHERE id = :id AND user_id = :uid'
         );
         $stmtUpdate->execute([
             ':id' => $transactionId,
             ':uid' => $userId,
             ':savings_id' => $savingsId,
+            ':is_topup' => (int)($txn['is_topup'] ?? 0),
         ]);
 
         $db->commit();
