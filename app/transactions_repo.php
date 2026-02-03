@@ -8,13 +8,9 @@ function repo_list_months(PDO $db, int $userId): array {
             MONTH(txn_date) AS m,
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
-            SUM(CASE WHEN is_topup = 1 THEN ABS(amount_signed) ELSE amount_signed END) AS net,
-            SUM(CASE
-                    WHEN amount_signed > 0 THEN amount_signed
-                    WHEN is_topup = 1 THEN ABS(amount_signed)
-                    ELSE 0
-                END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 AND is_topup = 0 THEN amount_signed ELSE 0 END)) AS spending
+            SUM(amount_signed) AS net,
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
         FROM transactions
         WHERE user_id = :uid
           AND is_internal_transfer = 0
@@ -441,13 +437,9 @@ function repo_period_summary(
 
     $sql = "
         SELECT
-            SUM(CASE
-                    WHEN amount_signed > 0 THEN amount_signed
-                    WHEN is_topup = 1 THEN ABS(amount_signed)
-                    ELSE 0
-                END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 AND is_topup = 0 THEN amount_signed ELSE 0 END)) AS spending,
-            SUM(CASE WHEN is_topup = 1 THEN ABS(amount_signed) ELSE amount_signed END) AS net
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending,
+            SUM(amount_signed) AS net
         FROM transactions
         WHERE user_id = :uid
           {$whereDate}
@@ -495,13 +487,9 @@ function repo_period_breakdown_by_category(
     $sql = "
         SELECT
             COALESCE(c.name, 'Niet ingedeeld') AS category,
-            SUM(CASE
-                    WHEN t.amount_signed > 0 THEN t.amount_signed
-                    WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
-                    ELSE 0
-                END) AS income,
-            ABS(SUM(CASE WHEN t.amount_signed < 0 AND t.is_topup = 0 THEN t.amount_signed ELSE 0 END)) AS spending,
-            SUM(CASE WHEN t.is_topup = 1 THEN ABS(t.amount_signed) ELSE t.amount_signed END) AS net
+            SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
+            SUM(t.amount_signed) AS net
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         WHERE t.user_id = :uid
