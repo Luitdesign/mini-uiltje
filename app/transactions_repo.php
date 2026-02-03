@@ -14,7 +14,7 @@ function repo_list_months(PDO $db, int $userId): array {
         FROM transactions
         WHERE user_id = :uid
           AND is_internal_transfer = 0
-          AND (savings_id IS NULL OR amount_signed >= 0)
+          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
     ";
@@ -440,7 +440,7 @@ function repo_period_summary(
         WHERE user_id = :uid
           {$whereDate}
           AND is_internal_transfer = 0
-          AND (savings_id IS NULL OR amount_signed >= 0)
+          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -490,7 +490,7 @@ function repo_period_breakdown_by_category(
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.is_internal_transfer = 0
-          AND (t.savings_id IS NULL OR t.amount_signed >= 0)
+          AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
     ";
