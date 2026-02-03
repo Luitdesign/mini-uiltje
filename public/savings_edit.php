@@ -8,7 +8,7 @@ $error = '';
 
 $saving = null;
 if ($savingId > 0) {
-    $saving = repo_find_saving($db, $savingId);
+    $saving = repo_find_saving_with_balance($db, $savingId);
     if (!$saving) {
         $error = 'Saving not found.';
         $savingId = 0;
@@ -28,12 +28,18 @@ if (!$saving) {
 }
 
 $categories = repo_list_categories($db);
+$currentAmountRaw = '';
+$ledgerTotal = 0.0;
+if ($saving && array_key_exists('balance', $saving)) {
+    $ledgerTotal = (float)$saving['balance'] - (float)$saving['start_amount'];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
 
     $name = trim((string)($_POST['name'] ?? ''));
     $startAmountRaw = trim((string)($_POST['start_amount'] ?? '0'));
+    $currentAmountRaw = trim((string)($_POST['current_amount'] ?? ''));
     $monthlyAmountRaw = trim((string)($_POST['monthly_amount'] ?? '0'));
     $sortOrderRaw = trim((string)($_POST['sort_order'] ?? ''));
     $topupCategoryRaw = trim((string)($_POST['topup_category_id'] ?? ''));
@@ -56,7 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Select a saving to edit.';
     } elseif ($name === '') {
         $error = 'Saving name cannot be empty.';
-    } elseif ($startAmountRaw !== '' && !is_numeric($startAmountRaw)) {
+    } elseif ($currentAmountRaw !== '' && !is_numeric($currentAmountRaw)) {
+        $error = 'Current amount must be numeric.';
+    } elseif ($currentAmountRaw === '' && $startAmountRaw !== '' && !is_numeric($startAmountRaw)) {
         $error = 'Start amount must be numeric.';
     } elseif ($monthlyAmountRaw !== '' && !is_numeric($monthlyAmountRaw)) {
         $error = 'Default monthly amount must be numeric.';
@@ -67,7 +75,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($topupCategoryId !== null && !repo_get_category($db, $topupCategoryId)) {
         $error = 'Select a valid top-up category.';
     } else {
-        $startAmount = $startAmountRaw === '' ? 0.0 : (float)$startAmountRaw;
+        if ($currentAmountRaw !== '') {
+            $currentAmount = (float)$currentAmountRaw;
+            $startAmount = $currentAmount - $ledgerTotal;
+            $startAmountRaw = (string)$startAmount;
+        } else {
+            $startAmount = $startAmountRaw === '' ? 0.0 : (float)$startAmountRaw;
+        }
         $monthlyAmount = $monthlyAmountRaw === '' ? 0.0 : (float)$monthlyAmountRaw;
         $sortOrder = $sortOrderRaw === '' ? repo_next_savings_sort_order($db) : (int)$sortOrderRaw;
 
@@ -126,25 +140,32 @@ render_header('Edit Saving', 'savings');
       <div>
         <label>Start amount</label>
         <input class="input" name="start_amount" type="number" step="0.01" value="<?= h((string)$saving['start_amount']) ?>">
+        <div class="small muted">Used when no current amount is provided.</div>
       </div>
       <div>
-        <label>Default monthly amount</label>
-        <input class="input" name="monthly_amount" type="number" step="0.01" value="<?= h((string)$saving['monthly_amount']) ?>">
+        <label>Current amount</label>
+        <input class="input" name="current_amount" type="number" step="0.01" value="<?= h((string)$currentAmountRaw) ?>">
+        <div class="small muted">Calculates start amount using existing ledger entries.</div>
       </div>
     </div>
 
     <div class="grid-2" style="margin-top: 12px;">
       <div>
+        <label>Default monthly amount</label>
+        <input class="input" name="monthly_amount" type="number" step="0.01" value="<?= h((string)$saving['monthly_amount']) ?>">
+      </div>
+      <div>
         <label>Sort order</label>
         <input class="input" name="sort_order" type="number" step="1" value="<?= h((string)$saving['sort_order']) ?>">
       </div>
-      <div>
-        <label>Active</label>
-        <label class="row small" style="gap: 8px; margin: 0;">
-          <input type="checkbox" name="active" <?= !empty($saving['active']) ? 'checked' : '' ?>>
-          Enabled
-        </label>
-      </div>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label>Active</label>
+      <label class="row small" style="gap: 8px; margin: 0;">
+        <input type="checkbox" name="active" <?= !empty($saving['active']) ? 'checked' : '' ?>>
+        Enabled
+      </label>
     </div>
 
     <div style="margin-top: 12px;">
