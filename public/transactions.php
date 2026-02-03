@@ -502,8 +502,7 @@ render_header('Transactions', 'transactions');
   <?php endif; ?>
 
   </div>
- <div class="card">
-
+  <details class="card">
     <summary><strong>Savings</strong></summary>
     <div style="margin-top: 12px;">
       <?php if (empty($savings)): ?>
@@ -550,7 +549,6 @@ render_header('Transactions', 'transactions');
       <?php endif; ?>
     </div>
   </details>
-</div>
 
 <div class="card">
   <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>">
