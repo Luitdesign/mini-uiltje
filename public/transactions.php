@@ -451,9 +451,17 @@ render_header('Transactions', 'transactions');
     </div>
     <div style="min-width: 220px;">
       <label>Auto Category</label>
-      <select class="input" name="auto_category_id">
-        <option value="" <?= $autoCategoryFilter === '' ? 'selected' : '' ?>>All</option>
-        <option value="0" <?= $autoCategoryFilter === '0' ? 'selected' : '' ?>>Not set</option>
+      <input
+        class="input js-select-filter"
+        type="text"
+        placeholder="Filter categories"
+        data-filter-target="auto-category-select"
+        aria-label="Filter auto categories"
+        style="margin-bottom: 6px;"
+      >
+      <select class="input" id="auto-category-select" name="auto_category_id">
+        <option value="" data-static="1" <?= $autoCategoryFilter === '' ? 'selected' : '' ?>>All</option>
+        <option value="0" data-static="1" <?= $autoCategoryFilter === '0' ? 'selected' : '' ?>>Not set</option>
         <?php foreach ($categories as $c): ?>
           <option value="<?= (int)$c['id'] ?>" <?= $autoCategoryFilter === (string)$c['id'] ? 'selected' : '' ?>>
             <?= h($c['label']) ?>
@@ -463,9 +471,17 @@ render_header('Transactions', 'transactions');
     </div>
     <div style="min-width: 220px;">
       <label>Category</label>
-      <select class="input" name="category_id">
-        <option value="" <?= $categoryFilter === '' ? 'selected' : '' ?>>All</option>
-        <option value="0" <?= $categoryFilter === '0' ? 'selected' : '' ?>>Not set</option>
+      <input
+        class="input js-select-filter"
+        type="text"
+        placeholder="Filter categories"
+        data-filter-target="category-select"
+        aria-label="Filter categories"
+        style="margin-bottom: 6px;"
+      >
+      <select class="input" id="category-select" name="category_id">
+        <option value="" data-static="1" <?= $categoryFilter === '' ? 'selected' : '' ?>>All</option>
+        <option value="0" data-static="1" <?= $categoryFilter === '0' ? 'selected' : '' ?>>Not set</option>
         <?php foreach ($categories as $c): ?>
           <option value="<?= (int)$c['id'] ?>" <?= $categoryFilter === (string)$c['id'] ? 'selected' : '' ?>>
             <?= h($c['label']) ?>
@@ -605,6 +621,7 @@ render_header('Transactions', 'transactions');
     const toggles = Array.from(document.querySelectorAll('.js-column-toggle'));
     const tables = Array.from(document.querySelectorAll('.txn-table'));
     const rowColorToggle = document.getElementById('js-row-color-toggle');
+    const selectFilters = Array.from(document.querySelectorAll('.js-select-filter'));
 
     if (!toggles.length || !tables.length) {
       return;
@@ -669,6 +686,57 @@ render_header('Transactions', 'transactions');
         applyVisibility(toggle.dataset.column, toggle.checked);
         persist();
       });
+    });
+
+    const setupSelectFilter = (input) => {
+      const targetId = input.dataset.filterTarget;
+      if (!targetId) {
+        return;
+      }
+      const select = document.getElementById(targetId);
+      if (!select) {
+        return;
+      }
+      const originalOptions = Array.from(select.options).map((option) => ({
+        value: option.value,
+        text: option.text,
+        selected: option.selected,
+        isStatic: option.dataset.static === '1',
+      }));
+
+      const applyFilter = () => {
+        const query = input.value.trim().toLowerCase();
+        const filtered = originalOptions.filter((option) => {
+          if (option.isStatic) {
+            return true;
+          }
+          if (!query) {
+            return true;
+          }
+          return option.text.toLowerCase().includes(query);
+        });
+
+        select.innerHTML = '';
+        filtered.forEach((option) => {
+          const opt = document.createElement('option');
+          opt.value = option.value;
+          opt.textContent = option.text;
+          if (option.isStatic) {
+            opt.dataset.static = '1';
+          }
+          if (option.selected) {
+            opt.selected = true;
+          }
+          select.appendChild(opt);
+        });
+      };
+
+      input.addEventListener('input', applyFilter);
+      applyFilter();
+    };
+
+    selectFilters.forEach((input) => {
+      setupSelectFilter(input);
     });
 
     const friendlyRows = Array.from(document.querySelectorAll('.js-friendly-row'));
