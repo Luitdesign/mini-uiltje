@@ -70,6 +70,7 @@ $expectedSchema = [
         'sort_order',
         'start_amount',
         'monthly_amount',
+        'topup_category_id',
     ],
 ];
 
