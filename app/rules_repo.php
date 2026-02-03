@@ -1,28 +1,16 @@
 <?php
 declare(strict_types=1);
 
-function repo_list_rules(PDO $db, int $userId, ?string $status = null): array {
-    $statusFilter = [
-        'active' => 1,
-        'inactive' => 0,
-    ];
-    $statusValue = $status !== null ? ($statusFilter[$status] ?? null) : null;
-    $where = 'WHERE r.user_id = :uid';
-    $params = [':uid' => $userId];
-    if ($statusValue !== null) {
-        $where .= ' AND r.active = :active';
-        $params[':active'] = $statusValue;
-    }
-
+function repo_list_rules(PDO $db, int $userId): array {
     $sql = "
         SELECT r.*, c.name AS category_name
         FROM rules r
         LEFT JOIN categories c ON c.id = r.target_category_id
-        {$where}
+        WHERE r.user_id = :uid
         ORDER BY r.priority ASC, r.id ASC
     ";
     $stmt = $db->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute([':uid' => $userId]);
     return $stmt->fetchAll();
 }
 

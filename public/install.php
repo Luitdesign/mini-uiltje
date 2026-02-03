@@ -52,24 +52,6 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!column_exists($db, 'transactions', 'auto_reason')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN auto_reason VARCHAR(255) NULL AFTER rule_auto_id');
     }
-    if (!column_exists($db, 'transactions', 'is_internal_transfer')) {
-        $db->exec('ALTER TABLE transactions ADD COLUMN is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0 AFTER tag');
-    }
-    if (!column_exists($db, 'transactions', 'include_in_overview')) {
-        $db->exec('ALTER TABLE transactions ADD COLUMN include_in_overview TINYINT(1) NOT NULL DEFAULT 1 AFTER is_internal_transfer');
-    }
-    if (!column_exists($db, 'transactions', 'ignored')) {
-        $db->exec('ALTER TABLE transactions ADD COLUMN ignored TINYINT(1) NOT NULL DEFAULT 0 AFTER include_in_overview');
-    }
-    if (!column_exists($db, 'transactions', 'created_source')) {
-        $db->exec("ALTER TABLE transactions ADD COLUMN created_source VARCHAR(10) NOT NULL DEFAULT 'import' AFTER ignored");
-    }
-    if (!column_exists($db, 'transactions', 'savings_id')) {
-        $db->exec('ALTER TABLE transactions ADD COLUMN savings_id INT UNSIGNED NULL AFTER auto_reason');
-    }
-    if (!column_exists($db, 'transactions', 'savings_entry_type')) {
-        $db->exec('ALTER TABLE transactions ADD COLUMN savings_entry_type VARCHAR(10) NULL AFTER savings_id');
-    }
 
     if (!index_exists($db, 'transactions', 'idx_transactions_import_batch')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_import_batch (import_batch_id)');
@@ -77,41 +59,11 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!index_exists($db, 'transactions', 'idx_transactions_rule_auto')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_rule_auto (rule_auto_id)');
     }
-    if (!index_exists($db, 'transactions', 'idx_transactions_savings')) {
-        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_savings (savings_id)');
-    }
-    if (!index_exists($db, 'transactions', 'idx_transactions_internal_transfer')) {
-        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_internal_transfer (is_internal_transfer)');
-    }
-    if (!index_exists($db, 'transactions', 'idx_transactions_date_overview')) {
-        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_date_overview (txn_date, include_in_overview)');
-    }
-    if (!index_exists($db, 'transactions', 'idx_transactions_date_ignored')) {
-        $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_date_ignored (txn_date, ignored)');
-    }
 
     if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {
         $db->exec(
             'ALTER TABLE transactions ADD CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL'
         );
-    }
-    if (!constraint_exists($db, 'transactions', 'fk_transactions_savings')) {
-        $db->exec(
-            'ALTER TABLE transactions ADD CONSTRAINT fk_transactions_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL'
-        );
-    }
-}
-
-function ensure_savings_topup_category(PDO $db): void {
-    if (!table_exists($db, 'categories')) {
-        return;
-    }
-    $stmt = $db->prepare('SELECT id FROM categories WHERE name = :name LIMIT 1');
-    $stmt->execute([':name' => 'Savings top-ups']);
-    $id = $stmt->fetchColumn();
-    if ($id === false) {
-        $stmt = $db->prepare('INSERT INTO categories(name) VALUES(:name)');
-        $stmt->execute([':name' => 'Savings top-ups']);
     }
 }
 
@@ -159,7 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             ensure_transaction_extensions($db);
-            ensure_savings_topup_category($db);
 
             if (!has_any_users($db)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);

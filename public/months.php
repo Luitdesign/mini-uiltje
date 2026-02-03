@@ -36,7 +36,7 @@ render_header('Months', 'months');
         <th>Income</th>
         <th>Spending</th>
         <th>Net</th>
-        
+        <th>Niet ingedeeld</th>
         <th>Links</th>
       </tr>
     </thead>
@@ -52,13 +52,15 @@ render_header('Months', 'months');
       ?>
         <tr>
           <td><span class="badge"><?= h($label) ?></span></td>
-          <td><?= (int)$m['cnt'] ?>&nbsp;/<a style="color:var(--danger); " href="/transactions.php?year=<?= $y ?>&month=<?= $mo ?>&category_id=0">
-              <?= (int)$m['uncategorized'] ?>
-            </a></td>
+          <td><?= (int)$m['cnt'] ?></td>
           <td class="money money-pos"><?= number_format((float)$m['income'], 2, ',', '.') ?></td>
           <td class="money money-neg"><?= number_format((float)$m['spending'], 2, ',', '.') ?></td>
           <td class="money"><?= number_format((float)$m['net'], 2, ',', '.') ?></td>
-          
+          <td>
+            <a href="/transactions.php?year=<?= $y ?>&month=<?= $mo ?>&category_id=0">
+              <?= (int)$m['uncategorized'] ?>
+            </a>
+          </td>
           <td>
             <a href="/transactions.php?year=<?= $y ?>&month=<?= $mo ?>">Transactions</a>
             &nbsp;|&nbsp;

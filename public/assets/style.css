@@ -84,12 +84,6 @@ h1 { font-size: 22px; margin: 0 0 12px; }
 h2 { font-size: 18px; margin: 14px 0 10px; }
 
 .row { display: flex; gap: 12px; flex-wrap: wrap; }
-.inline-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 
 .input, select {
   width: 100%;
@@ -107,7 +101,7 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: rgba(110,231,183,0.12);
@@ -143,19 +137,15 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 }
 
 .table th, .table td {
-  padding: 5px 10px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border);
-  vertical-align: middle;
+  vertical-align: top;
   font-size: 14px;
 }
 
 .table th { text-align: left; color: var(--muted); font-weight: 600; }
 
 .show-row-colors .txn-table tr[data-row-color="1"] {
-  background: var(--row-color);
-}
-
-.show-row-colors .category-table tr[data-row-color="1"] {
   background: var(--row-color);
 }
 
@@ -166,66 +156,6 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   border-radius: 999px;
   font-size: 12px;
   color: var(--muted);
-}
-
-.txn-description {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.txn-flags {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.txn-internal {
-  opacity: 0.65;
-}
-
-.badge-transfer {
-  border-color: rgba(154, 164, 175, 0.5);
-  color: var(--muted);
-  background: rgba(154, 164, 175, 0.08);
-}
-
-.badge-savings {
-  border-color: rgba(110, 231, 183, 0.5);
-  color: var(--accent);
-  background: rgba(110, 231, 183, 0.12);
-}
-
-.txn-paid-from-savings {
-  opacity: 0.8;
-}
-
-.txn-toggle {
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.txn-toggle:hover {
-  text-decoration: underline;
-}
-
-.txn-edit-link {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--accent);
-  font-size: 12px;
-  cursor: pointer;
-  align-self: flex-start;
-}
-
-.txn-friendly-editor {
-  margin-top: 6px;
 }
 
 .money-pos { color: var(--accent); font-variant-numeric: tabular-nums; }
