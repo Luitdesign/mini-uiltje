@@ -79,23 +79,6 @@ function is_internal_transfer_description(string $description): bool {
     return false;
 }
 
-function is_savings_transfer_description(string $description): bool {
-    $value = trim(mb_strtolower($description));
-    if ($value === '') {
-        return false;
-    }
-    $needles = [
-        'van oranje spaarrekening',
-        'naar oranje spaarrekening',
-    ];
-    foreach ($needles as $needle) {
-        if (str_contains($value, $needle)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 function app_version(): string {
     $versionFile = __DIR__ . '/../VERSION';
     $v = file_exists($versionFile) ? trim((string)file_get_contents($versionFile)) : 'dev';

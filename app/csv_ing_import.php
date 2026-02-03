@@ -195,7 +195,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             account_iban, counter_iban, code,
             direction, amount_signed, currency,
             mutation_type, notes, balance_after, tag
-            , is_internal_transfer, ignored, created_source
+            , is_internal_transfer, created_source
             , category_id, category_auto_id, rule_auto_id, auto_reason
         ) VALUES(
             :uid, :import_id, :import_batch_id, :txn_hash,
@@ -203,7 +203,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             :account_iban, :counter_iban, :code,
             :direction, :amount_signed, :currency,
             :mutation_type, :notes, :balance_after, :tag
-            , :is_internal_transfer, :ignored, :created_source
+            , :is_internal_transfer, :created_source
             , :category_id, :category_auto_id, :rule_auto_id, :auto_reason
         )'
     );
@@ -227,16 +227,12 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
         $notes = isset($idx['Mededelingen']) ? trim((string)($row[$idx['Mededelingen']] ?? '')) : '';
         $isInternalTransfer = is_internal_transfer_description($desc)
             || ($notes !== '' && is_internal_transfer_description($notes));
-        $isSavingsTransfer = is_savings_transfer_description($desc)
-            || ($notes !== '' && is_savings_transfer_description($notes));
-
         $rec = [
             'user_id' => $userId,
             'import_id' => $importId,
             'txn_date' => $txnDate,
             'description' => $desc,
             'is_internal_transfer' => $isInternalTransfer ? 1 : 0,
-            'ignored' => $isSavingsTransfer ? 1 : 0,
             'created_source' => 'import',
             'account_iban' => isset($idx['Rekening']) ? trim((string)($row[$idx['Rekening']] ?? '')) : null,
             'counter_iban' => isset($idx['Tegenrekening']) ? trim((string)($row[$idx['Tegenrekening']] ?? '')) : null,
@@ -319,7 +315,6 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':balance_after' => $rec['balance_after'],
                 ':tag' => $rec['tag'] ?: null,
                 ':is_internal_transfer' => $rec['is_internal_transfer'],
-                ':ignored' => $rec['ignored'],
                 ':created_source' => $rec['created_source'],
                 ':category_id' => $rec['category_id'],
                 ':category_auto_id' => $rec['category_auto_id'],
