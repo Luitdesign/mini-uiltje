@@ -34,10 +34,17 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
 
 function repo_list_categories(PDO $db): array {
     $stmt = $db->query("
-        SELECT c.id, c.name, c.color, c.savings_id, s.name AS savings_name
+        SELECT c.id,
+               c.name,
+               c.color,
+               c.savings_id,
+               s.name AS savings_name,
+               COUNT(t.id) AS usage_count
         FROM categories c
         LEFT JOIN savings s ON s.id = c.savings_id
-        ORDER BY c.name ASC
+        LEFT JOIN transactions t ON t.category_id = c.id
+        GROUP BY c.id, c.name, c.color, c.savings_id, s.name
+        ORDER BY usage_count DESC, c.name ASC
     ");
     $rows = $stmt->fetchAll();
     foreach ($rows as &$row) {
