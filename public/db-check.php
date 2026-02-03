@@ -53,7 +53,6 @@ $expectedSchema = [
         'balance_after',
         'tag',
         'is_internal_transfer',
-        'include_in_overview',
         'ignored',
         'created_source',
         'category_id',
@@ -61,7 +60,7 @@ $expectedSchema = [
         'rule_auto_id',
         'auto_reason',
         'savings_id',
-        'savings_entry_type',
+        'is_topup',
         'created_at',
     ],
     'savings' => [

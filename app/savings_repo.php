@@ -20,7 +20,7 @@ function repo_list_savings_with_balance(PDO $db): array {
             SELECT savings_id,
                    SUM(
                        CASE
-                           WHEN savings_entry_type = 'topup' THEN ABS(amount_signed)
+                           WHEN is_topup = 1 THEN ABS(amount_signed)
                            ELSE amount_signed
                        END
                    ) AS total_amount
@@ -44,7 +44,7 @@ function repo_find_saving_with_balance(PDO $db, int $id): ?array {
             SELECT savings_id,
                    SUM(
                        CASE
-                           WHEN savings_entry_type = 'topup' THEN ABS(amount_signed)
+                           WHEN is_topup = 1 THEN ABS(amount_signed)
                            ELSE amount_signed
                        END
                    ) AS total_amount
@@ -72,11 +72,11 @@ function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null):
     $sql = 'SELECT t.id,
                    t.txn_date AS `date`,
                    CASE
-                       WHEN t.savings_entry_type = "topup" THEN ABS(t.amount_signed)
+                       WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
                        ELSE t.amount_signed
                    END AS amount,
                    CASE
-                       WHEN t.savings_entry_type IS NOT NULL THEN t.savings_entry_type
+                       WHEN t.is_topup = 1 THEN "topup"
                        WHEN t.amount_signed >= 0 THEN "income"
                        ELSE "spend"
                    END AS entry_type,
@@ -166,18 +166,18 @@ function repo_add_savings_topup(
                 account_iban, counter_iban, code,
                 direction, amount_signed, currency,
                 mutation_type, notes, balance_after, tag,
-                is_internal_transfer, include_in_overview, ignored, created_source,
+                is_internal_transfer, ignored, created_source,
                 category_id, category_auto_id, rule_auto_id, auto_reason,
-                savings_id, savings_entry_type, is_topup
+                savings_id, is_topup
             ) VALUES(
                 :uid, NULL, NULL, :txn_hash,
                 :txn_date, :description, NULL,
                 NULL, NULL, NULL,
                 :direction, :amount_signed, :currency,
                 NULL, NULL, NULL, NULL,
-                0, 1, 0, :created_source,
+                0, 0, :created_source,
                 :category_id, NULL, NULL, NULL,
-                :savings_id, :savings_entry_type, :is_topup
+                :savings_id, :is_topup
             )'
         );
         $stmtTxn->execute([
@@ -191,7 +191,6 @@ function repo_add_savings_topup(
             ':created_source' => 'internal',
             ':category_id' => $categoryId,
             ':savings_id' => $savingsId,
-            ':savings_entry_type' => 'topup',
             ':is_topup' => 1,
         ]);
 
@@ -241,9 +240,8 @@ function repo_set_transaction_ledger(
         try {
             $stmtUpdate = $db->prepare(
                 'UPDATE transactions
-                 SET include_in_overview = 1,
-                     savings_id = NULL,
-                     savings_entry_type = NULL
+                 SET savings_id = NULL,
+                     is_topup = 0
                  WHERE id = :id AND user_id = :uid'
             );
             $stmtUpdate->execute([
@@ -269,24 +267,18 @@ function repo_set_transaction_ledger(
         return false;
     }
 
-    $entryType = $amount >= 0 ? 'income' : 'spend';
-    $includeInOverview = $amount >= 0 ? 1 : 0;
-
     $db->beginTransaction();
     try {
         $stmtUpdate = $db->prepare(
             'UPDATE transactions
-             SET include_in_overview = :include,
-                 savings_id = :savings_id,
-                 savings_entry_type = :entry_type
+             SET savings_id = :savings_id,
+                 is_topup = 0
              WHERE id = :id AND user_id = :uid'
         );
         $stmtUpdate->execute([
-            ':include' => $includeInOverview,
             ':id' => $transactionId,
             ':uid' => $userId,
             ':savings_id' => $savingsId,
-            ':entry_type' => $entryType,
         ]);
 
         $db->commit();

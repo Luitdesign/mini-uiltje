@@ -14,7 +14,7 @@ function repo_list_months(PDO $db, int $userId): array {
         FROM transactions
         WHERE user_id = :uid
           AND is_internal_transfer = 0
-          AND include_in_overview = 1
+          AND (savings_id IS NULL OR amount_signed >= 0)
           AND ignored = 0
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
@@ -444,7 +444,7 @@ function repo_period_summary(
         WHERE user_id = :uid
           {$whereDate}
           AND is_internal_transfer = 0
-          AND include_in_overview = 1
+          AND (savings_id IS NULL OR amount_signed >= 0)
           AND ignored = 0
     ";
     $stmt = $db->prepare($sql);
@@ -495,7 +495,7 @@ function repo_period_breakdown_by_category(
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.is_internal_transfer = 0
-          AND t.include_in_overview = 1
+          AND (t.savings_id IS NULL OR t.amount_signed >= 0)
           AND t.ignored = 0
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
@@ -538,7 +538,8 @@ function repo_period_paid_from_savings_total(
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.amount_signed < 0
-          AND t.include_in_overview = 0
+          AND t.savings_id IS NOT NULL
+          AND t.is_topup = 0
           AND t.ignored = 0
           AND t.is_internal_transfer = 0
     ";
@@ -584,7 +585,8 @@ function repo_period_paid_from_savings_breakdown(
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.amount_signed < 0
-          AND t.include_in_overview = 0
+          AND t.savings_id IS NOT NULL
+          AND t.is_topup = 0
           AND t.ignored = 0
           AND t.is_internal_transfer = 0
         GROUP BY category
@@ -636,7 +638,8 @@ function repo_period_paid_from_savings_transactions(
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.amount_signed < 0
-          AND t.include_in_overview = 0
+          AND t.savings_id IS NOT NULL
+          AND t.is_topup = 0
           AND t.ignored = 0
           AND t.is_internal_transfer = 0
         ORDER BY t.txn_date DESC, t.id DESC
