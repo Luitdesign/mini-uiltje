@@ -15,6 +15,7 @@ $endDate = trim((string)($_GET['end_date'] ?? ''));
 $allTime = (string)($_GET['all_time'] ?? '') === '1';
 $saved = isset($_GET['saved']);
 $autoUpdated = (int)($_GET['auto_updated'] ?? 0);
+$savingsAppliedCount = (int)($_GET['savings_applied'] ?? 0);
 $hasDateRange = $startDate !== '' || $endDate !== '';
 if ($allTime) {
     $year = 0;
@@ -37,6 +38,8 @@ $periodValue = $allTime
 $canExportMonth = !$allTime && !$hasDateRange && !$isYearView;
 
 $error = '';
+$savingsFormAmounts = [];
+$savingsTopupDate = date('Y-m-d');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
@@ -101,6 +104,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'apply_savings_topups') {
+        $savings = repo_list_savings($db);
+        $amounts = $_POST['savings_amounts'] ?? [];
+        $requestedDate = trim((string)($_POST['savings_date'] ?? ''));
+        $savingsTopupDate = $requestedDate !== '' ? $requestedDate : $savingsTopupDate;
+
+        if ($requestedDate === '') {
+            $error = 'Please choose a date for the savings top-ups.';
+        } else {
+            $dateValue = DateTime::createFromFormat('Y-m-d', $requestedDate);
+            if (!$dateValue || $dateValue->format('Y-m-d') !== $requestedDate) {
+                $error = 'Please enter a valid date (YYYY-MM-DD).';
+            }
+        }
+
+        if ($error === '' && !is_array($amounts)) {
+            $error = 'Savings amounts could not be read.';
+        }
+
+        if ($error === '') {
+            $topupCount = 0;
+            foreach ($savings as $saving) {
+                $savingsId = (int)$saving['id'];
+                $amountRaw = trim((string)($amounts[$savingsId] ?? ''));
+                $savingsFormAmounts[$savingsId] = $amountRaw;
+                if ($amountRaw === '') {
+                    continue;
+                }
+                if (!is_numeric($amountRaw)) {
+                    $error = 'Each savings amount must be numeric.';
+                    break;
+                }
+                $amount = (float)$amountRaw;
+                if ($amount <= 0) {
+                    continue;
+                }
+                try {
+                    repo_add_savings_topup($db, $userId, $savingsId, $requestedDate, $amount);
+                    $topupCount++;
+                } catch (Throwable $e) {
+                    $error = $e->getMessage();
+                    break;
+                }
+            }
+            if ($error === '' && $topupCount === 0) {
+                $error = 'Enter at least one savings amount to top up.';
+            }
+            if ($error === '') {
+                $savingsAppliedCount = $topupCount;
+            }
+        }
+    }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
     if ($error === '') {
@@ -129,6 +184,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($autoUpdated > 0) {
             $qsParams['auto_updated'] = $autoUpdated;
+        }
+        if ($savingsAppliedCount > 0) {
+            $qsParams['savings_applied'] = $savingsAppliedCount;
         }
         $qs = http_build_query($qsParams);
         redirect('/transactions.php?' . $qs);
@@ -168,6 +226,12 @@ $internalTxns = array_values(array_filter(
     $internalTxns,
     static fn(array $txn): bool => !empty($txn['is_internal_transfer'])
 ));
+$savings = repo_list_savings($db);
+if (empty($savingsFormAmounts)) {
+    foreach ($savings as $saving) {
+        $savingsFormAmounts[(int)$saving['id']] = (string)($saving['monthly_amount'] ?? '0');
+    }
+}
 $incomeTxns = [];
 $expenseTxns = [];
 
@@ -428,9 +492,62 @@ render_header('Transactions', 'transactions');
       Auto categorie bijgewerkt voor <?= (int)$autoUpdated ?> transacties.
     </div>
   <?php endif; ?>
+  <?php if ($savingsAppliedCount > 0): ?>
+    <div class="small" style="margin-top: 10px; color: var(--accent);">
+      Savings top-ups applied to <?= (int)$savingsAppliedCount ?> ledgers.
+    </div>
+  <?php endif; ?>
   <?php if ($error !== ''): ?>
     <div class="small" style="margin-top: 10px; color: var(--danger);"><?= h($error) ?></div>
   <?php endif; ?>
+
+  <details style="margin-top: 16px;">
+    <summary><strong>Savings</strong></summary>
+    <div style="margin-top: 12px;">
+      <?php if (empty($savings)): ?>
+        <div class="small muted">No savings ledgers available.</div>
+      <?php else: ?>
+        <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>">
+          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+          <input type="hidden" name="action" value="apply_savings_topups">
+          <table class="table" style="margin-top: 0;">
+            <thead>
+              <tr>
+                <th>Ledger</th>
+                <th style="width: 200px;">Default monthly amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($savings as $saving): ?>
+                <?php $savingId = (int)$saving['id']; ?>
+                <tr>
+                  <td><?= h((string)$saving['name']) ?></td>
+                  <td>
+                    <input
+                      class="input"
+                      type="number"
+                      step="0.01"
+                      name="savings_amounts[<?= $savingId ?>]"
+                      value="<?= h($savingsFormAmounts[$savingId] ?? '0') ?>"
+                    >
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+          <div class="row" style="align-items: flex-end; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+            <div style="min-width: 200px;">
+              <label>Date</label>
+              <input class="input" type="date" name="savings_date" value="<?= h($savingsTopupDate) ?>" required>
+            </div>
+            <div>
+              <button class="btn" type="submit">Accept savings</button>
+            </div>
+          </div>
+        </form>
+      <?php endif; ?>
+    </div>
+  </details>
 </div>
 
 <div class="card">
