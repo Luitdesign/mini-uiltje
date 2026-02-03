@@ -433,7 +433,7 @@ function repo_period_summary(
 
     $sql = "
         SELECT
-            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
+            SUM(CASE WHEN amount_signed >= 0 THEN amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending,
             SUM(amount_signed) AS net
         FROM transactions
@@ -482,7 +482,7 @@ function repo_period_breakdown_by_category(
     $sql = "
         SELECT
             COALESCE(c.name, 'Niet ingedeeld') AS category,
-            SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
+            SUM(CASE WHEN t.amount_signed >= 0 THEN t.amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
             SUM(t.amount_signed) AS net
         FROM transactions t
