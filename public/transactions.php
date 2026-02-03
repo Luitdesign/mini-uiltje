@@ -209,7 +209,8 @@ function render_transactions_table(
           $amt = (float)$t['amount_signed'];
           $amtCls = ($amt >= 0) ? 'money-pos' : 'money-neg';
           $isInternal = !empty($t['is_internal_transfer']);
-          $isPaidFromSavings = !empty($t['savings_paid_id']) && empty($t['ignored']) && empty($t['is_topup']);
+          $hasSavingsLedger = !empty($t['savings_paid_id']) && empty($t['ignored']);
+          $isPaidFromSavings = $hasSavingsLedger && empty($t['is_topup']);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
           if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
               $rowBaseColor = $uncategorizedColor;
@@ -237,7 +238,7 @@ function render_transactions_table(
                   <?php if ($isInternal): ?>
                     <span class="badge badge-transfer">Transfer</span>
                   <?php endif; ?>
-                  <?php if ($isPaidFromSavings): ?>
+                  <?php if ($hasSavingsLedger): ?>
                     <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                   <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
@@ -250,7 +251,7 @@ function render_transactions_table(
                         <?php if ($isInternal): ?>
                           <span class="badge badge-transfer">Transfer</span>
                         <?php endif; ?>
-                        <?php if ($isPaidFromSavings): ?>
+                        <?php if ($hasSavingsLedger): ?>
                           <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                         <?php endif; ?>
                       </div>
@@ -265,7 +266,7 @@ function render_transactions_table(
                       <?php if ($isInternal): ?>
                         <span class="badge badge-transfer">Transfer</span>
                       <?php endif; ?>
-                      <?php if ($isPaidFromSavings): ?>
+                      <?php if ($hasSavingsLedger): ?>
                         <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                       <?php endif; ?>
                     </div>
