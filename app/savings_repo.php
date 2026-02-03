@@ -120,22 +120,6 @@ function repo_create_saving(
     return (int)$db->lastInsertId();
 }
 
-function repo_ensure_savings_topup_category(PDO $db): int {
-    $existingId = repo_find_category_id($db, 'Savings top-ups');
-    if ($existingId !== null) {
-        return $existingId;
-    }
-    $createdId = repo_create_category($db, 'Savings top-ups', null);
-    if ($createdId === null) {
-        $fallbackId = repo_find_category_id($db, 'Savings top-ups');
-        if ($fallbackId !== null) {
-            return $fallbackId;
-        }
-        throw new RuntimeException('Could not create Savings top-ups category.');
-    }
-    return $createdId;
-}
-
 function repo_add_savings_topup(
     PDO $db,
     int $userId,
@@ -151,7 +135,6 @@ function repo_add_savings_topup(
         throw new RuntimeException('Saving not found.');
     }
 
-    $categoryId = repo_ensure_savings_topup_category($db);
     $absAmount = abs($amount);
     $description = 'Top-up: ' . (string)$saving['name'];
     $hashSeed = sprintf('internal-topup|%d|%s|%0.2f|%s', $savingsId, $date, $absAmount, uniqid('', true));
@@ -189,7 +172,7 @@ function repo_add_savings_topup(
             ':amount_signed' => -$absAmount,
             ':currency' => 'EUR',
             ':created_source' => 'internal',
-            ':category_id' => $categoryId,
+            ':category_id' => null,
             ':savings_id' => $savingsId,
             ':is_topup' => 1,
         ]);
