@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $startAmount = $startAmountRaw === '' ? 0.0 : (float)$startAmountRaw;
             $monthlyAmount = $monthlyAmountRaw === '' ? 0.0 : (float)$monthlyAmountRaw;
             $sortOrder = $sortOrderRaw === '' ? repo_next_savings_sort_order($db) : (int)$sortOrderRaw;
-            $id = repo_create_saving($db, $name, $startAmount, $monthlyAmount, $active, $sortOrder);
+            $id = repo_create_saving($db, $name, $startAmount, $monthlyAmount, $active, $sortOrder, null);
             if ($id) {
                 redirect('/savings.php?saved=added');
             } else {

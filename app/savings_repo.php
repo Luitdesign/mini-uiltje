@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function repo_list_savings(PDO $db): array {
     $sql = "
-        SELECT id, name, active, sort_order, start_amount, monthly_amount
+        SELECT id, name, active, sort_order, start_amount, monthly_amount, topup_category_id
         FROM savings
         ORDER BY active DESC, sort_order ASC, name ASC, id ASC
     ";
@@ -13,7 +13,7 @@ function repo_list_savings(PDO $db): array {
 
 function repo_list_savings_with_balance(PDO $db): array {
     $sql = "
-        SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount,
+        SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount, s.topup_category_id,
                (s.start_amount + COALESCE(st.total_amount, 0)) AS balance
         FROM savings s
         LEFT JOIN (
@@ -37,7 +37,7 @@ function repo_list_savings_with_balance(PDO $db): array {
 
 function repo_find_saving_with_balance(PDO $db, int $id): ?array {
     $sql = "
-        SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount,
+        SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount, s.topup_category_id,
                (s.start_amount + COALESCE(st.total_amount, 0)) AS balance
         FROM savings s
         LEFT JOIN (
@@ -103,19 +103,22 @@ function repo_create_saving(
     float $startAmount,
     float $monthlyAmount,
     int $active,
-    int $sortOrder
+    int $sortOrder,
+    ?int $topupCategoryId = null
 ): int {
     $sql = "
-        INSERT INTO savings (name, active, sort_order, start_amount, monthly_amount)
-        VALUES (:name, :active, :sort_order, :start_amount, :monthly_amount)
+        INSERT INTO savings (name, active, sort_order, start_amount, monthly_amount, topup_category_id)
+        VALUES (:name, :active, :sort_order, :start_amount, :monthly_amount, :topup_category_id)
     ";
     $stmt = $db->prepare($sql);
+    $topupCategoryId = $topupCategoryId !== null && $topupCategoryId > 0 ? $topupCategoryId : null;
     $stmt->execute([
         'name' => $name,
         'active' => $active,
         'sort_order' => $sortOrder,
         'start_amount' => $startAmount,
         'monthly_amount' => $monthlyAmount,
+        'topup_category_id' => $topupCategoryId,
     ]);
     return (int)$db->lastInsertId();
 }
@@ -139,6 +142,10 @@ function repo_add_savings_topup(
     $description = 'Top-up: ' . (string)$saving['name'];
     $hashSeed = sprintf('internal-topup|%d|%s|%0.2f|%s', $savingsId, $date, $absAmount, uniqid('', true));
     $txnHash = sha1($hashSeed);
+    $topupCategoryId = isset($saving['topup_category_id']) ? (int)$saving['topup_category_id'] : null;
+    if ($topupCategoryId !== null && $topupCategoryId <= 0) {
+        $topupCategoryId = null;
+    }
 
     $db->beginTransaction();
     try {
@@ -172,7 +179,7 @@ function repo_add_savings_topup(
             ':amount_signed' => -$absAmount,
             ':currency' => 'EUR',
             ':created_source' => 'internal',
-            ':category_id' => null,
+            ':category_id' => $topupCategoryId,
             ':savings_id' => $savingsId,
             ':is_topup' => 1,
         ]);
@@ -305,7 +312,7 @@ function repo_apply_category_ledger(
 
 function repo_find_saving(PDO $db, int $id): ?array {
     $sql = "
-        SELECT id, name, active, sort_order, start_amount, monthly_amount
+        SELECT id, name, active, sort_order, start_amount, monthly_amount, topup_category_id
         FROM savings
         WHERE id = :id
     ";
@@ -322,7 +329,8 @@ function repo_update_saving(
     float $startAmount,
     float $monthlyAmount,
     int $active,
-    int $sortOrder
+    int $sortOrder,
+    ?int $topupCategoryId = null
 ): void {
     $sql = "
         UPDATE savings
@@ -330,10 +338,12 @@ function repo_update_saving(
             active = :active,
             sort_order = :sort_order,
             start_amount = :start_amount,
-            monthly_amount = :monthly_amount
+            monthly_amount = :monthly_amount,
+            topup_category_id = :topup_category_id
         WHERE id = :id
     ";
     $stmt = $db->prepare($sql);
+    $topupCategoryId = $topupCategoryId !== null && $topupCategoryId > 0 ? $topupCategoryId : null;
     $stmt->execute([
         'id' => $id,
         'name' => $name,
@@ -341,5 +351,6 @@ function repo_update_saving(
         'sort_order' => $sortOrder,
         'start_amount' => $startAmount,
         'monthly_amount' => $monthlyAmount,
+        'topup_category_id' => $topupCategoryId,
     ]);
 }

@@ -93,6 +93,24 @@ function ensure_transaction_extensions(PDO $db): void {
     }
 }
 
+function ensure_savings_extensions(PDO $db): void {
+    if (!table_exists($db, 'savings')) {
+        return;
+    }
+
+    if (!column_exists($db, 'savings', 'topup_category_id')) {
+        $db->exec('ALTER TABLE savings ADD COLUMN topup_category_id INT UNSIGNED NULL AFTER monthly_amount');
+    }
+    if (!index_exists($db, 'savings', 'idx_savings_topup_category')) {
+        $db->exec('ALTER TABLE savings ADD KEY idx_savings_topup_category (topup_category_id)');
+    }
+    if (table_exists($db, 'categories') && !constraint_exists($db, 'savings', 'fk_savings_topup_category')) {
+        $db->exec(
+            'ALTER TABLE savings ADD CONSTRAINT fk_savings_topup_category FOREIGN KEY (topup_category_id) REFERENCES categories(id) ON DELETE SET NULL'
+        );
+    }
+}
+
 function ensure_savings_topup_category(PDO $db): void {
     if (!table_exists($db, 'categories')) {
         return;
@@ -150,6 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             ensure_transaction_extensions($db);
+            ensure_savings_extensions($db);
             ensure_savings_topup_category($db);
 
             if (!has_any_users($db)) {

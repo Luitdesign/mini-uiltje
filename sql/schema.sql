@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS savings (
   sort_order INT NOT NULL DEFAULT 0,
   start_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   monthly_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-  PRIMARY KEY (id)
+  topup_category_id INT UNSIGNED NULL,
+  PRIMARY KEY (id),
+  KEY idx_savings_topup_category (topup_category_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS categories (
