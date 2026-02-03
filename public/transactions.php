@@ -501,7 +501,9 @@ render_header('Transactions', 'transactions');
     <div class="small" style="margin-top: 10px; color: var(--danger);"><?= h($error) ?></div>
   <?php endif; ?>
 
-  <details style="margin-top: 16px;">
+  </div>
+ <div class="card">
+
     <summary><strong>Savings</strong></summary>
     <div style="margin-top: 12px;">
       <?php if (empty($savings)): ?>
