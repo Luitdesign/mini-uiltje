@@ -9,16 +9,30 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_users_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS savings (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  archived TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_savings_user (user_id),
+  CONSTRAINT fk_savings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS categories (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(80) NOT NULL,
   color VARCHAR(7) NULL,
   parent_id INT UNSIGNED NULL,
+  savings_id INT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_categories_name (name),
   KEY idx_categories_parent (parent_id),
-  CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
+  KEY idx_categories_savings (savings_id),
+  CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL,
+  CONSTRAINT fk_categories_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS pots (
@@ -134,6 +148,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
   direction ENUM('Af','Bij') NOT NULL,
   amount_signed DECIMAL(12,2) NOT NULL,
+  is_topup TINYINT(1) NOT NULL DEFAULT 0,
   currency CHAR(3) NOT NULL DEFAULT 'EUR',
 
   mutation_type VARCHAR(80) NULL,

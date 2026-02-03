@@ -52,6 +52,9 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!column_exists($db, 'transactions', 'auto_reason')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN auto_reason VARCHAR(255) NULL AFTER rule_auto_id');
     }
+    if (!column_exists($db, 'transactions', 'is_topup')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN is_topup TINYINT(1) NOT NULL DEFAULT 0 AFTER amount_signed');
+    }
 
     if (!index_exists($db, 'transactions', 'idx_transactions_import_batch')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_import_batch (import_batch_id)');
@@ -63,6 +66,46 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {
         $db->exec(
             'ALTER TABLE transactions ADD CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL'
+        );
+    }
+}
+
+function ensure_savings_table(PDO $db): void {
+    if (table_exists($db, 'savings')) {
+        return;
+    }
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS savings (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id INT UNSIGNED NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            archived TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_savings_user (user_id),
+            CONSTRAINT fk_savings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+}
+
+function ensure_category_extensions(PDO $db): void {
+    if (!table_exists($db, 'categories')) {
+        return;
+    }
+
+    ensure_savings_table($db);
+
+    if (!column_exists($db, 'categories', 'savings_id')) {
+        $db->exec('ALTER TABLE categories ADD COLUMN savings_id INT UNSIGNED NULL AFTER parent_id');
+    }
+
+    if (!index_exists($db, 'categories', 'idx_categories_savings')) {
+        $db->exec('ALTER TABLE categories ADD KEY idx_categories_savings (savings_id)');
+    }
+
+    if (table_exists($db, 'savings') && !constraint_exists($db, 'categories', 'fk_categories_savings')) {
+        $db->exec(
+            'ALTER TABLE categories ADD CONSTRAINT fk_categories_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL'
         );
     }
 }
@@ -110,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->exec($stmtSql);
             }
 
+            ensure_category_extensions($db);
             ensure_transaction_extensions($db);
 
             if (!has_any_users($db)) {
