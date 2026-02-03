@@ -120,6 +120,7 @@ render_header('Savings', 'savings');
           <th>Name</th>
           <th>Current balance</th>
           <th>Default monthly amount</th>
+          <th>Top-up category</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -134,6 +135,7 @@ render_header('Savings', 'savings');
             </td>
             <td class="money"><?= number_format((float)$saving['balance'], 2, ',', '.') ?></td>
             <td class="money"><?= number_format((float)$saving['monthly_amount'], 2, ',', '.') ?></td>
+            <td><?= !empty($saving['topup_category_name']) ? h((string)$saving['topup_category_name']) : '—' ?></td>
             <td>
               <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
               <a class="btn" href="/savings_view.php?id=<?= h((string)$saving['id']) ?>">View details</a>
