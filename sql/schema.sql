@@ -9,75 +9,29 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_users_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS savings (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  start_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  monthly_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS categories (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(80) NOT NULL,
   color VARCHAR(7) NULL,
   parent_id INT UNSIGNED NULL,
+  savings_id INT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_categories_name (name),
   KEY idx_categories_parent (parent_id),
-  CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS pots (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id INT UNSIGNED NOT NULL,
-  name VARCHAR(120) NOT NULL,
-  archived TINYINT(1) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_pots_user (user_id),
-  CONSTRAINT fk_pots_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS pot_category_map (
-  category_id INT UNSIGNED NOT NULL,
-  pot_id INT UNSIGNED NOT NULL,
-  PRIMARY KEY (category_id),
-  KEY idx_pot_category_map_pot (pot_id),
-  CONSTRAINT fk_pot_category_map_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
-  CONSTRAINT fk_pot_category_map_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS pot_allocation_rules (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id INT UNSIGNED NOT NULL,
-  pot_id INT UNSIGNED NOT NULL,
-  amount_monthly DECIMAL(12,2) NOT NULL,
-  start_year SMALLINT UNSIGNED NOT NULL,
-  start_month TINYINT UNSIGNED NOT NULL,
-  end_year SMALLINT UNSIGNED NULL,
-  end_month TINYINT UNSIGNED NULL,
-  name VARCHAR(120) NULL,
-  active TINYINT(1) NOT NULL DEFAULT 1,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_pot_allocation_rules_user (user_id),
-  KEY idx_pot_allocation_rules_pot (pot_id),
-  CONSTRAINT fk_pot_allocation_rules_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  CONSTRAINT fk_pot_allocation_rules_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS pot_allocations (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id INT UNSIGNED NOT NULL,
-  pot_id INT UNSIGNED NOT NULL,
-  year SMALLINT UNSIGNED NOT NULL,
-  month TINYINT UNSIGNED NOT NULL,
-  amount DECIMAL(12,2) NOT NULL,
-  rule_id INT UNSIGNED NULL,
-  import_id INT UNSIGNED NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_pot_allocations_period (user_id, pot_id, year, month),
-  KEY idx_pot_allocations_rule (rule_id),
-  KEY idx_pot_allocations_import (import_id),
-  CONSTRAINT fk_pot_allocations_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  CONSTRAINT fk_pot_allocations_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE,
-  CONSTRAINT fk_pot_allocations_rule FOREIGN KEY (rule_id) REFERENCES pot_allocation_rules(id) ON DELETE SET NULL,
-  CONSTRAINT fk_pot_allocations_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL
+  KEY idx_categories_savings (savings_id),
+  CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL,
+  CONSTRAINT fk_categories_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS imports (
@@ -127,6 +81,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
   txn_date DATE NOT NULL,
   description VARCHAR(255) NOT NULL,
+  friendly_name VARCHAR(255) NULL,
 
   account_iban VARCHAR(34) NULL,
   counter_iban VARCHAR(34) NULL,
@@ -140,11 +95,18 @@ CREATE TABLE IF NOT EXISTS transactions (
   notes TEXT NULL,
   balance_after DECIMAL(12,2) NULL,
   tag VARCHAR(255) NULL,
+  is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0,
+  include_in_overview TINYINT(1) NOT NULL DEFAULT 1,
+  ignored TINYINT(1) NOT NULL DEFAULT 0,
+  created_source VARCHAR(10) NOT NULL DEFAULT 'import',
 
   category_id INT UNSIGNED NULL,
   category_auto_id INT UNSIGNED NULL,
   rule_auto_id INT UNSIGNED NULL,
   auto_reason VARCHAR(255) NULL,
+  savings_id INT UNSIGNED NULL,
+  savings_entry_type VARCHAR(10) NULL,
+  is_topup TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
@@ -155,10 +117,15 @@ CREATE TABLE IF NOT EXISTS transactions (
   KEY idx_transactions_import (import_id),
   KEY idx_transactions_import_batch (import_batch_id),
   KEY idx_transactions_rule_auto (rule_auto_id),
+  KEY idx_transactions_savings (savings_id),
+  KEY idx_transactions_internal_transfer (is_internal_transfer),
+  KEY idx_transactions_date_overview (txn_date, include_in_overview),
+  KEY idx_transactions_date_ignored (txn_date, ignored),
 
   CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
-  CONSTRAINT fk_transactions_category_auto FOREIGN KEY (category_auto_id) REFERENCES categories(id) ON DELETE SET NULL
+  CONSTRAINT fk_transactions_category_auto FOREIGN KEY (category_auto_id) REFERENCES categories(id) ON DELETE SET NULL,
+  CONSTRAINT fk_transactions_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -8,11 +8,18 @@ function repo_list_months(PDO $db, int $userId): array {
             MONTH(txn_date) AS m,
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
-            SUM(amount_signed) AS net,
-            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
+            SUM(CASE WHEN is_topup = 1 THEN ABS(amount_signed) ELSE amount_signed END) AS net,
+            SUM(CASE
+                    WHEN amount_signed > 0 THEN amount_signed
+                    WHEN is_topup = 1 THEN ABS(amount_signed)
+                    ELSE 0
+                END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 AND is_topup = 0 THEN amount_signed ELSE 0 END)) AS spending
         FROM transactions
         WHERE user_id = :uid
+          AND is_internal_transfer = 0
+          AND include_in_overview = 1
+          AND ignored = 0
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
     ";
@@ -31,7 +38,12 @@ function repo_get_latest_month(PDO $db, int $userId): ?array {
 }
 
 function repo_list_categories(PDO $db): array {
-    $stmt = $db->query("SELECT id, name, color FROM categories ORDER BY name ASC");
+    $stmt = $db->query("
+        SELECT c.id, c.name, c.color, c.savings_id, s.name AS savings_name
+        FROM categories c
+        LEFT JOIN savings s ON s.id = c.savings_id
+        ORDER BY c.name ASC
+    ");
     $rows = $stmt->fetchAll();
     foreach ($rows as &$row) {
         $row['label'] = $row['name'];
@@ -48,7 +60,7 @@ function repo_get_category(PDO $db, int $categoryId): ?array {
     if ($categoryId <= 0) {
         return null;
     }
-    $stmt = $db->prepare("SELECT id, name, color FROM categories WHERE id = :id LIMIT 1");
+    $stmt = $db->prepare("SELECT id, name, color, savings_id FROM categories WHERE id = :id LIMIT 1");
     $stmt->execute([':id' => $categoryId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
@@ -93,14 +105,15 @@ function repo_find_category_id(PDO $db, string $name): ?int {
     return $row ? (int)$row['id'] : null;
 }
 
-function repo_create_category(PDO $db, string $name, ?string $color): ?int {
+function repo_create_category(PDO $db, string $name, ?string $color, ?int $savingsId = null): ?int {
     $name = trim($name);
     if ($name === '') return null;
     $color = normalize_hex_color($color);
+    $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
     // Insert ignore via try/catch for unique constraint
     try {
-        $stmt = $db->prepare("INSERT INTO categories(name, color) VALUES(:n, :color)");
-        $stmt->execute([':n' => $name, ':color' => $color]);
+        $stmt = $db->prepare("INSERT INTO categories(name, color, savings_id) VALUES(:n, :color, :savings_id)");
+        $stmt->execute([':n' => $name, ':color' => $color, ':savings_id' => $savingsId]);
         return (int)$db->lastInsertId();
     } catch (PDOException $e) {
         $existingId = repo_find_category_id($db, $name);
@@ -140,7 +153,7 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     return ['created_ids' => $createdIds, 'skipped' => $skipped];
 }
 
-function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color): void {
+function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color, ?int $savingsId = null): void {
     $name = trim($name);
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
@@ -149,12 +162,14 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?string $c
         throw new RuntimeException('Category name cannot be empty.');
     }
     $color = normalize_hex_color($color);
+    $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
 
     try {
-        $stmt = $db->prepare("UPDATE categories SET name = :name, color = :color WHERE id = :id");
+        $stmt = $db->prepare("UPDATE categories SET name = :name, color = :color, savings_id = :savings_id WHERE id = :id");
         $stmt->execute([
             ':name' => $name,
             ':color' => $color,
+            ':savings_id' => $savingsId,
             ':id' => $categoryId,
         ]);
     } catch (PDOException $e) {
@@ -212,9 +227,12 @@ function repo_list_transactions(
     int $month,
     string $q = '',
     string $categoryFilter = '',
-    string $autoCategoryFilter = ''
+    string $autoCategoryFilter = '',
+    bool $showInternalTransfers = false,
+    ?string $startDate = null,
+    ?string $endDate = null
 ): array {
-    $params = [':uid' => $userId, ':y' => $year, ':m' => $month];
+    $params = [':uid' => $userId];
     $whereQ = '';
     if ($q !== '') {
         $whereQ = " AND (description LIKE :q OR notes LIKE :q)";
@@ -238,19 +256,42 @@ function repo_list_transactions(
             $params[':auto_category_id'] = (int)$autoCategoryFilter;
         }
     }
+    $whereInternalTransfer = $showInternalTransfers ? '' : ' AND t.is_internal_transfer = 0';
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
 
     $sql = "
-        SELECT t.*, c.name AS category_name, c.color AS category_color,
-               ac.name AS auto_category_name, ac.color AS auto_category_color
+        SELECT t.*, c.name AS category_name, c.color AS category_color, c.savings_id AS category_savings_id,
+               ac.name AS auto_category_name, ac.color AS auto_category_color,
+               r.name AS auto_rule_name,
+               t.savings_id AS savings_paid_id,
+               s.name AS savings_paid_name
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
+        LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
+        LEFT JOIN savings s ON s.id = t.savings_id
         WHERE t.user_id = :uid
-          AND YEAR(t.txn_date) = :y
-          AND MONTH(t.txn_date) = :m
+          {$whereDate}
           {$whereQ}
           {$whereCategory}
           {$whereAutoCategory}
+          {$whereInternalTransfer}
         ORDER BY t.txn_date DESC, t.id DESC
     ";
 
@@ -259,10 +300,44 @@ function repo_list_transactions(
     return $stmt->fetchAll();
 }
 
+function repo_list_transactions_for_month(PDO $db, int $userId, int $year, int $month): array {
+    $stmt = $db->prepare(
+        'SELECT *
+         FROM transactions
+         WHERE user_id = :uid
+           AND YEAR(txn_date) = :y
+           AND MONTH(txn_date) = :m
+         ORDER BY txn_date DESC, id DESC'
+    );
+    $stmt->execute([
+        ':uid' => $userId,
+        ':y' => $year,
+        ':m' => $month,
+    ]);
+    return $stmt->fetchAll();
+}
+
 function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int $categoryId): void {
     $stmt = $db->prepare("UPDATE transactions SET category_id = :cid WHERE id = :id AND user_id = :uid");
     $stmt->execute([
         ':cid' => $categoryId,
+        ':id' => $txnId,
+        ':uid' => $userId,
+    ]);
+}
+
+function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId, ?string $friendlyName): void {
+    $friendlyName = $friendlyName !== null ? trim($friendlyName) : null;
+    if ($friendlyName === '') {
+        $friendlyName = null;
+    }
+    $stmt = $db->prepare(
+        "UPDATE transactions
+         SET friendly_name = :friendly_name
+         WHERE id = :id AND user_id = :uid"
+    );
+    $stmt->execute([
+        ':friendly_name' => $friendlyName,
         ':id' => $txnId,
         ':uid' => $userId,
     ]);
@@ -279,7 +354,7 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     $rules = $stmtRules->fetchAll();
 
     $stmtTxns = $db->prepare(
-        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id
+        'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer, ignored
          FROM transactions
          WHERE user_id = :uid
            AND YEAR(txn_date) = :y
@@ -305,6 +380,12 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     $db->beginTransaction();
     try {
         foreach ($transactions as $txn) {
+            if (!empty($txn['is_internal_transfer'])) {
+                continue;
+            }
+            if (!empty($txn['ignored'])) {
+                continue;
+            }
             $auto = ing_apply_rules($txn, $rules);
             $newAutoId = $auto['category_auto_id'];
             $currentCategoryId = $txn['category_id'] !== null ? (int)$txn['category_id'] : null;
@@ -331,19 +412,51 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
     return $updated;
 }
 
-function repo_month_summary(PDO $db, int $userId, int $year, int $month): array {
+function repo_period_summary(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
     $sql = "
         SELECT
-            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending,
-            SUM(amount_signed) AS net
+            SUM(CASE
+                    WHEN amount_signed > 0 THEN amount_signed
+                    WHEN is_topup = 1 THEN ABS(amount_signed)
+                    ELSE 0
+                END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 AND is_topup = 0 THEN amount_signed ELSE 0 END)) AS spending,
+            SUM(CASE WHEN is_topup = 1 THEN ABS(amount_signed) ELSE amount_signed END) AS net
         FROM transactions
         WHERE user_id = :uid
-          AND YEAR(txn_date) = :y
-          AND MONTH(txn_date) = :m
+          {$whereDate}
+          AND is_internal_transfer = 0
+          AND include_in_overview = 1
+          AND ignored = 0
     ";
     $stmt = $db->prepare($sql);
-    $stmt->execute([':uid' => $userId, ':y' => $year, ':m' => $month]);
+    $stmt->execute($params);
     $row = $stmt->fetch() ?: [];
     return [
         'income' => (float)($row['income'] ?? 0),
@@ -352,22 +465,195 @@ function repo_month_summary(PDO $db, int $userId, int $year, int $month): array 
     ];
 }
 
-function repo_month_breakdown_by_category(PDO $db, int $userId, int $year, int $month): array {
+function repo_period_breakdown_by_category(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
     $sql = "
         SELECT
             COALESCE(c.name, 'Niet ingedeeld') AS category,
-            SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
-            SUM(t.amount_signed) AS net
+            SUM(CASE
+                    WHEN t.amount_signed > 0 THEN t.amount_signed
+                    WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
+                    ELSE 0
+                END) AS income,
+            ABS(SUM(CASE WHEN t.amount_signed < 0 AND t.is_topup = 0 THEN t.amount_signed ELSE 0 END)) AS spending,
+            SUM(CASE WHEN t.is_topup = 1 THEN ABS(t.amount_signed) ELSE t.amount_signed END) AS net
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         WHERE t.user_id = :uid
-          AND YEAR(t.txn_date) = :y
-          AND MONTH(t.txn_date) = :m
+          {$whereDate}
+          AND t.is_internal_transfer = 0
+          AND t.include_in_overview = 1
+          AND t.ignored = 0
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
     ";
     $stmt = $db->prepare($sql);
-    $stmt->execute([':uid' => $userId, ':y' => $year, ':m' => $month]);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function repo_period_paid_from_savings_total(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): float {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $sql = "
+        SELECT ABS(SUM(t.amount_signed)) AS total
+        FROM transactions t
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND t.amount_signed < 0
+          AND t.include_in_overview = 0
+          AND t.ignored = 0
+          AND t.is_internal_transfer = 0
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $value = $stmt->fetchColumn();
+    return $value !== false ? (float)$value : 0.0;
+}
+
+function repo_period_paid_from_savings_breakdown(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $sql = "
+        SELECT
+            COALESCE(c.name, 'Niet ingedeeld') AS category,
+            ABS(SUM(t.amount_signed)) AS spending
+        FROM transactions t
+        LEFT JOIN categories c ON c.id = t.category_id
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND t.amount_signed < 0
+          AND t.include_in_overview = 0
+          AND t.ignored = 0
+          AND t.is_internal_transfer = 0
+        GROUP BY category
+        ORDER BY spending DESC, category ASC
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function repo_period_paid_from_savings_transactions(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $sql = "
+        SELECT
+            t.id,
+            t.txn_date,
+            t.description,
+            t.amount_signed,
+            COALESCE(c.name, 'Niet ingedeeld') AS category_name,
+            s.name AS savings_name
+        FROM transactions t
+        LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN savings s ON s.id = t.savings_id
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND t.amount_signed < 0
+          AND t.include_in_overview = 0
+          AND t.ignored = 0
+          AND t.is_internal_transfer = 0
+        ORDER BY t.txn_date DESC, t.id DESC
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
     return $stmt->fetchAll();
 }

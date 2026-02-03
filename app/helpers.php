@@ -32,6 +32,19 @@ function normalize_hex_color(?string $value): ?string {
     return strtolower($value);
 }
 
+function safe_strimwidth(string $value, int $start, int $width, string $trimMarker = '…'): string {
+    if (function_exists('mb_strimwidth')) {
+        return mb_strimwidth($value, $start, $width, $trimMarker);
+    }
+
+    $slice = substr($value, $start, $width);
+    if (strlen($value) > $width) {
+        return $slice . $trimMarker;
+    }
+
+    return $slice;
+}
+
 function rgba_from_hex(?string $value, float $alpha = 0.12): ?string {
     $value = trim((string)$value);
     if ($value === '') {
@@ -46,6 +59,41 @@ function rgba_from_hex(?string $value, float $alpha = 0.12): ?string {
     $b = hexdec(substr($hex, 4, 2));
     $alpha = max(0.0, min(1.0, $alpha));
     return sprintf('rgba(%d,%d,%d,%.2f)', $r, $g, $b, $alpha);
+}
+
+function is_internal_transfer_description(string $description): bool {
+    $value = trim(mb_strtolower($description));
+    if ($value === '') {
+        return false;
+    }
+    $needles = [
+        'van oranje spaarrekening',
+        'naar oranje spaarrekening',
+        'oranje spaarrekening',
+    ];
+    foreach ($needles as $needle) {
+        if (str_contains($value, $needle)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function is_savings_transfer_description(string $description): bool {
+    $value = trim(mb_strtolower($description));
+    if ($value === '') {
+        return false;
+    }
+    $needles = [
+        'van oranje spaarrekening',
+        'naar oranje spaarrekening',
+    ];
+    foreach ($needles as $needle) {
+        if (str_contains($value, $needle)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function app_version(): string {

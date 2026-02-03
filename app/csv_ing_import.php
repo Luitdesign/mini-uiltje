@@ -151,6 +151,9 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
         'Mededelingen' => 'Mededelingen',
         'Saldo na mutatie' => 'Saldo na mutatie',
         'Tag' => 'Tag',
+        'friendly_name' => 'friendly_name',
+        'category_id' => 'category_id',
+        'category_auto_id' => 'category_auto_id',
     ];
 
     $idx = [];
@@ -188,17 +191,19 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
     $stmtIns = $db->prepare(
         'INSERT INTO transactions(
             user_id, import_id, import_batch_id, txn_hash,
-            txn_date, description,
+            txn_date, description, friendly_name,
             account_iban, counter_iban, code,
             direction, amount_signed, currency,
             mutation_type, notes, balance_after, tag
+            , is_internal_transfer, include_in_overview, ignored, created_source
             , category_id, category_auto_id, rule_auto_id, auto_reason
         ) VALUES(
             :uid, :import_id, :import_batch_id, :txn_hash,
-            :txn_date, :description,
+            :txn_date, :description, :friendly_name,
             :account_iban, :counter_iban, :code,
             :direction, :amount_signed, :currency,
             :mutation_type, :notes, :balance_after, :tag
+            , :is_internal_transfer, :include_in_overview, :ignored, :created_source
             , :category_id, :category_auto_id, :rule_auto_id, :auto_reason
         )'
     );
@@ -219,12 +224,21 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
         }
 
         $signed = ($dir === 'Af') ? -abs($amt) : abs($amt);
+        $notes = isset($idx['Mededelingen']) ? trim((string)($row[$idx['Mededelingen']] ?? '')) : '';
+        $isInternalTransfer = is_internal_transfer_description($desc)
+            || ($notes !== '' && is_internal_transfer_description($notes));
+        $isSavingsTransfer = is_savings_transfer_description($desc)
+            || ($notes !== '' && is_savings_transfer_description($notes));
 
         $rec = [
             'user_id' => $userId,
             'import_id' => $importId,
             'txn_date' => $txnDate,
             'description' => $desc,
+            'is_internal_transfer' => $isInternalTransfer ? 1 : 0,
+            'include_in_overview' => 1,
+            'ignored' => $isSavingsTransfer ? 1 : 0,
+            'created_source' => 'import',
             'account_iban' => isset($idx['Rekening']) ? trim((string)($row[$idx['Rekening']] ?? '')) : null,
             'counter_iban' => isset($idx['Tegenrekening']) ? trim((string)($row[$idx['Tegenrekening']] ?? '')) : null,
             'code' => isset($idx['Code']) ? trim((string)($row[$idx['Code']] ?? '')) : null,
@@ -232,16 +246,45 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             'amount_signed' => $signed,
             'currency' => 'EUR',
             'mutation_type' => isset($idx['Mutatiesoort']) ? trim((string)($row[$idx['Mutatiesoort']] ?? '')) : null,
-            'notes' => isset($idx['Mededelingen']) ? trim((string)($row[$idx['Mededelingen']] ?? '')) : null,
+            'notes' => $notes !== '' ? $notes : null,
             'balance_after' => isset($idx['Saldo na mutatie']) ? ing_parse_decimal((string)($row[$idx['Saldo na mutatie']] ?? '')) : null,
             'tag' => isset($idx['Tag']) ? trim((string)($row[$idx['Tag']] ?? '')) : null,
         ];
 
-        $auto = ing_apply_rules($rec, $rules);
-        $rec['category_auto_id'] = $auto['category_auto_id'];
-        $rec['category_id'] = $auto['category_auto_id'];
-        $rec['rule_auto_id'] = $auto['rule_auto_id'];
-        $rec['auto_reason'] = $auto['auto_reason'];
+        $friendlyName = isset($idx['friendly_name']) ? trim((string)($row[$idx['friendly_name']] ?? '')) : '';
+        $hasCategoryColumn = isset($idx['category_id']);
+        $hasAutoCategoryColumn = isset($idx['category_auto_id']);
+        $categoryId = $hasCategoryColumn ? trim((string)($row[$idx['category_id']] ?? '')) : '';
+        $categoryAutoId = $hasAutoCategoryColumn ? trim((string)($row[$idx['category_auto_id']] ?? '')) : '';
+        $categoryId = $categoryId !== '' ? (int)$categoryId : null;
+        $categoryAutoId = $categoryAutoId !== '' ? (int)$categoryAutoId : null;
+        if ($categoryId === 0) {
+            $categoryId = null;
+        }
+        if ($categoryAutoId === 0) {
+            $categoryAutoId = null;
+        }
+        $rec['friendly_name'] = $friendlyName !== '' ? $friendlyName : null;
+
+        if ($rec['is_internal_transfer']) {
+            $rec['category_auto_id'] = null;
+            $rec['category_id'] = null;
+            $rec['rule_auto_id'] = null;
+            $rec['auto_reason'] = null;
+        } else {
+            if ($hasAutoCategoryColumn || $hasCategoryColumn) {
+                $rec['category_auto_id'] = $categoryAutoId;
+                $rec['category_id'] = $categoryId ?? $categoryAutoId;
+                $rec['rule_auto_id'] = null;
+                $rec['auto_reason'] = $categoryAutoId !== null ? 'Imported auto category' : null;
+            } else {
+                $auto = ing_apply_rules($rec, $rules);
+                $rec['category_auto_id'] = $auto['category_auto_id'];
+                $rec['category_id'] = $auto['category_auto_id'];
+                $rec['rule_auto_id'] = $auto['rule_auto_id'];
+                $rec['auto_reason'] = $auto['auto_reason'];
+            }
+        }
 
         $rec['txn_hash'] = ing_txn_hash([
             'txn_date' => $rec['txn_date'],
@@ -265,6 +308,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':txn_hash' => $rec['txn_hash'],
                 ':txn_date' => $rec['txn_date'],
                 ':description' => $rec['description'],
+                ':friendly_name' => $rec['friendly_name'],
                 ':account_iban' => $rec['account_iban'] ?: null,
                 ':counter_iban' => $rec['counter_iban'] ?: null,
                 ':code' => $rec['code'] ?: null,
@@ -275,6 +319,10 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':notes' => $rec['notes'] ?: null,
                 ':balance_after' => $rec['balance_after'],
                 ':tag' => $rec['tag'] ?: null,
+                ':is_internal_transfer' => $rec['is_internal_transfer'],
+                ':include_in_overview' => $rec['include_in_overview'],
+                ':ignored' => $rec['ignored'],
+                ':created_source' => $rec['created_source'],
                 ':category_id' => $rec['category_id'],
                 ':category_auto_id' => $rec['category_auto_id'],
                 ':rule_auto_id' => $rec['rule_auto_id'],

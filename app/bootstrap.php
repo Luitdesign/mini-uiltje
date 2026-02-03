@@ -23,7 +23,7 @@ require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/transactions_repo.php';
 require_once __DIR__ . '/rules_repo.php';
-require_once __DIR__ . '/pots_repo.php';
+require_once __DIR__ . '/savings_repo.php';
 require_once __DIR__ . '/csv_ing_import.php';
 
 header('X-App-Version: ' . app_version());
