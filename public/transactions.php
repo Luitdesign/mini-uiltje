@@ -282,7 +282,8 @@ function render_transactions_table(
           $hasSavingsLedger = !empty($t['savings_paid_id']);
           $isPaidFromSavings = $hasSavingsLedger && empty($t['is_topup']);
           $rowBaseColor = $t['category_color'] ?? $t['auto_category_color'] ?? null;
-          if ($rowBaseColor === null && $t['category_id'] === null && $t['category_auto_id'] === null) {
+          $isUncategorized = $t['category_id'] === null && $t['category_auto_id'] === null;
+          if ($rowBaseColor === null && $isUncategorized) {
               $rowBaseColor = $uncategorizedColor;
           }
           $rowColor = rgba_from_hex($rowBaseColor, 0.12);
@@ -293,6 +294,9 @@ function render_transactions_table(
           }
           if ($isPaidFromSavings) {
               $rowClasses[] = 'txn-paid-from-savings';
+          }
+          if ($isUncategorized) {
+              $rowClasses[] = 'txn-uncategorized';
           }
           $rowClass = $rowClasses ? ' class="' . implode(' ', $rowClasses) . '"' : '';
         ?>
@@ -613,7 +617,7 @@ render_header('Transactions', 'transactions');
 <script>
   (function () {
     const storageKey = 'transactions.visibleColumns';
-    const rowColorStorageKey = 'transactions.showRowColors';
+    const rowColorStorageKey = 'transactions.rowColorMode';
     const toggles = Array.from(document.querySelectorAll('.js-column-toggle'));
     const tables = Array.from(document.querySelectorAll('.txn-table'));
     const rowColorToggle = document.getElementById('js-row-color-toggle');
@@ -622,19 +626,26 @@ render_header('Transactions', 'transactions');
       return;
     }
 
-    const applyRowColors = (enabled) => {
-      document.body.classList.toggle('show-row-colors', enabled);
+    const rowColorModes = ['all', 'uncategorized', 'off'];
+    const rowColorLabels = {
+      all: 'Row colours: On',
+      uncategorized: 'Row colours: Only niet ingedeeld',
+      off: 'Row colours: Off',
+    };
+    const applyRowColorMode = (mode) => {
+      document.body.classList.toggle('show-row-colors-all', mode === 'all');
+      document.body.classList.toggle('show-row-colors-uncategorized', mode === 'uncategorized');
       if (rowColorToggle) {
-        rowColorToggle.textContent = enabled ? 'Row colours: On' : 'Row colours: Off';
+        rowColorToggle.textContent = rowColorLabels[mode] || rowColorLabels.all;
       }
     };
 
-    let rowColorsEnabled = true;
+    let rowColorMode = rowColorModes[0];
     const savedRowColors = window.localStorage.getItem(rowColorStorageKey);
-    if (savedRowColors !== null) {
-      rowColorsEnabled = savedRowColors === '1';
+    if (savedRowColors && rowColorModes.includes(savedRowColors)) {
+      rowColorMode = savedRowColors;
     }
-    applyRowColors(rowColorsEnabled);
+    applyRowColorMode(rowColorMode);
 
     const applyVisibility = (column, isVisible) => {
       tables.forEach((table) => {
@@ -669,9 +680,10 @@ render_header('Transactions', 'transactions');
 
     if (rowColorToggle) {
       rowColorToggle.addEventListener('click', () => {
-        rowColorsEnabled = !rowColorsEnabled;
-        applyRowColors(rowColorsEnabled);
-        window.localStorage.setItem(rowColorStorageKey, rowColorsEnabled ? '1' : '0');
+        const currentIndex = rowColorModes.indexOf(rowColorMode);
+        rowColorMode = rowColorModes[(currentIndex + 1) % rowColorModes.length];
+        applyRowColorMode(rowColorMode);
+        window.localStorage.setItem(rowColorStorageKey, rowColorMode);
       });
     }
 
