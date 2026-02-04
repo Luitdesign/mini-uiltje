@@ -38,3 +38,4 @@ If you later upload other bank formats, we can add importers.
 ## 4) Notes
 - Import uses a transaction hash to avoid duplicates.
 - Amounts are stored as a signed number: `Af` => negative, `Bij` => positive.
+- Split transactions use `split_group_id` to group related rows, `parent_transaction_id` to point at the source row, and `is_split_source`/`is_split_active` flags to mark the source and current split state.

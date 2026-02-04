@@ -99,6 +99,10 @@ CREATE TABLE IF NOT EXISTS transactions (
   tag VARCHAR(255) NULL,
   is_internal_transfer TINYINT(1) NOT NULL DEFAULT 0,
   created_source VARCHAR(10) NOT NULL DEFAULT 'import',
+  split_group_id BIGINT UNSIGNED NULL,
+  parent_transaction_id BIGINT UNSIGNED NULL,
+  is_split_source TINYINT(1) NOT NULL DEFAULT 0,
+  is_split_active TINYINT(1) NOT NULL DEFAULT 1,
 
   category_id INT UNSIGNED NULL,
   category_auto_id INT UNSIGNED NULL,
@@ -118,11 +122,14 @@ CREATE TABLE IF NOT EXISTS transactions (
   KEY idx_transactions_rule_auto (rule_auto_id),
   KEY idx_transactions_savings (savings_id),
   KEY idx_transactions_internal_transfer (is_internal_transfer),
+  KEY idx_transactions_split_group (split_group_id),
+  KEY idx_transactions_parent (parent_transaction_id),
 
   CONSTRAINT fk_transactions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_transactions_import FOREIGN KEY (import_id) REFERENCES imports(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_import_batch FOREIGN KEY (import_batch_id) REFERENCES imports(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   CONSTRAINT fk_transactions_category_auto FOREIGN KEY (category_auto_id) REFERENCES categories(id) ON DELETE SET NULL,
-  CONSTRAINT fk_transactions_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL
+  CONSTRAINT fk_transactions_savings FOREIGN KEY (savings_id) REFERENCES savings(id) ON DELETE SET NULL,
+  CONSTRAINT fk_transactions_parent FOREIGN KEY (parent_transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
