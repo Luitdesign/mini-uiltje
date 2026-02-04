@@ -375,3 +375,20 @@ function repo_swap_savings_sort_order(
         throw $e;
     }
 }
+
+function repo_reorder_savings(PDO $db, array $orderedIds): void {
+    $db->beginTransaction();
+    try {
+        $stmt = $db->prepare('UPDATE savings SET sort_order = :sort_order WHERE id = :id');
+        foreach ($orderedIds as $index => $savingId) {
+            $stmt->execute([
+                'sort_order' => $index + 1,
+                'id' => (int)$savingId,
+            ]);
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+}
