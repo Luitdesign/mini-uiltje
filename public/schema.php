@@ -41,15 +41,63 @@ if (file_exists($schemaFile)) {
     $schemaText = (string)file_get_contents($schemaFile);
 }
 
+$sqlDir = dirname($schemaFile);
+$serverSqlFiles = [];
+if (is_dir($sqlDir)) {
+    foreach (scandir($sqlDir) ?: [] as $file) {
+        if ($file[0] === '.') {
+            continue;
+        }
+        $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        if (in_array($extension, ['sql', 'mysql'], true)) {
+            $serverSqlFiles[] = $file;
+        }
+    }
+}
+sort($serverSqlFiles, SORT_NATURAL | SORT_FLAG_CASE);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
     $action = (string)($_POST['action'] ?? 'save');
     $postedText = (string)($_POST['schema_sql'] ?? '');
 
-    if ($postedText === '') {
-        $error = 'Schema SQL cannot be empty.';
-    } else {
-        try {
+    try {
+        if ($action === 'execute_server_file') {
+            $selectedFile = (string)($_POST['server_sql_file'] ?? '');
+            if ($selectedFile === '') {
+                throw new RuntimeException('Please choose a server SQL file to execute.');
+            }
+            if (!in_array($selectedFile, $serverSqlFiles, true)) {
+                throw new RuntimeException('Selected SQL file is not available on the server.');
+            }
+
+            $serverFilePath = $sqlDir . '/' . $selectedFile;
+            $serverSql = (string)file_get_contents($serverFilePath);
+            if ($serverSql === '') {
+                throw new RuntimeException('Selected SQL file is empty.');
+            }
+
+            execute_schema($db, $serverSql);
+            $info = 'Executed server file: ' . $selectedFile . '.';
+        } elseif ($action === 'execute_upload') {
+            $uploadedFile = $_FILES['update_file'] ?? null;
+            if (!$uploadedFile || !isset($uploadedFile['error']) || $uploadedFile['error'] !== UPLOAD_ERR_OK) {
+                throw new RuntimeException('Please select a MySQL update file to execute.');
+            }
+
+            $uploadedName = (string)($uploadedFile['name'] ?? 'uploaded.sql');
+            $uploadedSql = (string)file_get_contents($uploadedFile['tmp_name']);
+            if ($uploadedSql === '') {
+                throw new RuntimeException('Uploaded SQL file is empty.');
+            }
+
+            execute_schema($db, $uploadedSql);
+            $info = 'Executed uploaded file: ' . $uploadedName . '.';
+        } else {
+            if ($postedText === '') {
+                throw new RuntimeException('Schema SQL cannot be empty.');
+            }
+
             if ($action === 'save' || $action === 'save_execute') {
                 if (file_put_contents($schemaFile, $postedText) === false) {
                     throw new RuntimeException('Could not write to schema file.');
@@ -62,9 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 execute_schema($db, $postedText);
                 $info = ($info !== '') ? $info . ' Schema executed.' : 'Schema executed.';
             }
-        } catch (Throwable $e) {
-            $error = $e->getMessage();
         }
+    } catch (Throwable $e) {
+        $error = $e->getMessage();
     }
 }
 
@@ -90,7 +138,7 @@ render_header('Schema', 'schema');
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/schema.php">
+  <form method="post" action="/schema.php" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <label>schema.sql</label>
     <textarea class="input" name="schema_sql" rows="18" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"><?= h($schemaText) ?></textarea>
@@ -98,6 +146,29 @@ render_header('Schema', 'schema');
       <button class="btn" type="submit" name="action" value="save">Save</button>
       <button class="btn" type="submit" name="action" value="execute">Execute</button>
       <button class="btn primary" type="submit" name="action" value="save_execute">Save & Execute</button>
+    </div>
+    <div style="margin-top: 18px;">
+      <label>MySQL update file</label>
+      <input class="input" type="file" name="update_file" accept=".sql,.mysql">
+      <div class="row" style="margin-top: 10px;">
+        <button class="btn" type="submit" name="action" value="execute_upload">Execute uploaded file</button>
+      </div>
+    </div>
+    <div style="margin-top: 18px;">
+      <label>Server SQL files</label>
+      <?php if (count($serverSqlFiles) > 0): ?>
+        <select class="input" name="server_sql_file">
+          <option value="">Select a file</option>
+          <?php foreach ($serverSqlFiles as $serverSqlFile): ?>
+            <option value="<?= h($serverSqlFile) ?>"><?= h($serverSqlFile) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="row" style="margin-top: 10px;">
+          <button class="btn" type="submit" name="action" value="execute_server_file">Execute selected file</button>
+        </div>
+      <?php else: ?>
+        <div class="small muted">No .sql or .mysql files found in <code>sql/</code>.</div>
+      <?php endif; ?>
     </div>
   </form>
 </div>
