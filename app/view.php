@@ -10,11 +10,7 @@ function render_header(string $title, ?string $active = null): void {
         ['Summary', '/summary.php', 'summary'],
         ['Savings', '/savings.php', 'savings'],
         ['Categories', '/categories.php', 'categories'],
-        ['Rules', '/rules.php', 'rules'],
-        ['DB Check', '/db-check.php', 'db-check'],
-        ['Schema', '/schema.php', 'schema'],
-        ['Reset DB', '/reset.php', 'reset'],
-        ['Logout', '/logout.php', 'logout'],
+        ['Settings', '/settings.php', 'settings'],
     ] : [];
 
     echo "<!doctype html>\n";
