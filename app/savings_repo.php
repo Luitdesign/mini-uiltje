@@ -350,3 +350,28 @@ function repo_update_saving(
         'topup_category_id' => $topupCategoryId,
     ]);
 }
+
+function repo_swap_savings_sort_order(
+    PDO $db,
+    int $firstId,
+    int $firstSortOrder,
+    int $secondId,
+    int $secondSortOrder
+): void {
+    $db->beginTransaction();
+    try {
+        $stmt = $db->prepare('UPDATE savings SET sort_order = :sort_order WHERE id = :id');
+        $stmt->execute([
+            'sort_order' => $secondSortOrder,
+            'id' => $firstId,
+        ]);
+        $stmt->execute([
+            'sort_order' => $firstSortOrder,
+            'id' => $secondId,
+        ]);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+}

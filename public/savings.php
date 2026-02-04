@@ -44,6 +44,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Could not save saving.';
             }
         }
+    } elseif ($action === 'move') {
+        $savingId = (int)($_POST['saving_id'] ?? 0);
+        $direction = (string)($_POST['direction'] ?? '');
+
+        if ($savingId <= 0) {
+            $error = 'Select a saving to move.';
+        } elseif (!in_array($direction, ['up', 'down'], true)) {
+            $error = 'Invalid move direction.';
+        } else {
+            $orderedSavings = repo_list_savings($db);
+            $currentIndex = null;
+            foreach ($orderedSavings as $index => $saving) {
+                if ((int)$saving['id'] === $savingId) {
+                    $currentIndex = $index;
+                    break;
+                }
+            }
+
+            if ($currentIndex === null) {
+                $error = 'Saving not found.';
+            } else {
+                $targetIndex = $direction === 'up' ? $currentIndex - 1 : $currentIndex + 1;
+                if (isset($orderedSavings[$targetIndex])) {
+                    $currentSaving = $orderedSavings[$currentIndex];
+                    $targetSaving = $orderedSavings[$targetIndex];
+                    repo_swap_savings_sort_order(
+                        $db,
+                        (int)$currentSaving['id'],
+                        (int)$currentSaving['sort_order'],
+                        (int)$targetSaving['id'],
+                        (int)$targetSaving['sort_order']
+                    );
+                    redirect('/savings.php?saved=updated');
+                }
+            }
+        }
     }
 }
 
@@ -125,7 +161,12 @@ render_header('Savings', 'savings');
         </tr>
       </thead>
       <tbody>
-        <?php foreach ($savings as $saving): ?>
+        <?php $savingsCount = count($savings); ?>
+        <?php foreach ($savings as $index => $saving): ?>
+          <?php
+            $isFirst = $index === 0;
+            $isLast = $index === $savingsCount - 1;
+          ?>
           <tr>
             <td>
               <div><?= h((string)$saving['name']) ?></div>
@@ -137,8 +178,17 @@ render_header('Savings', 'savings');
             <td class="money"><?= number_format((float)$saving['monthly_amount'], 2, ',', '.') ?></td>
             <td><?= !empty($saving['topup_category_name']) ? h((string)$saving['topup_category_name']) : '—' ?></td>
             <td>
-              <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
-              <a class="btn" href="/savings_view.php?id=<?= h((string)$saving['id']) ?>">View details</a>
+              <div class="row" style="gap: 6px; flex-wrap: wrap;">
+                <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
+                <a class="btn" href="/savings_view.php?id=<?= h((string)$saving['id']) ?>">View details</a>
+                <form method="post" action="/savings.php" class="row" style="gap: 4px;">
+                  <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                  <input type="hidden" name="action" value="move">
+                  <input type="hidden" name="saving_id" value="<?= h((string)$saving['id']) ?>">
+                  <button class="btn" type="submit" name="direction" value="up" <?= $isFirst ? 'disabled' : '' ?>>↑</button>
+                  <button class="btn" type="submit" name="direction" value="down" <?= $isLast ? 'disabled' : '' ?>>↓</button>
+                </form>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>
