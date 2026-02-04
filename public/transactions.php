@@ -108,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $savings = repo_list_savings($db);
         $amounts = $_POST['savings_amounts'] ?? [];
         $requestedDate = trim((string)($_POST['savings_date'] ?? ''));
+        $applyOnlyId = (int)($_POST['savings_apply_id'] ?? 0);
         $savingsTopupDate = $requestedDate !== '' ? $requestedDate : $savingsTopupDate;
 
         if ($requestedDate === '') {
@@ -127,6 +128,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $topupCount = 0;
             foreach ($savings as $saving) {
                 $savingsId = (int)$saving['id'];
+                if ($applyOnlyId > 0 && $savingsId !== $applyOnlyId) {
+                    continue;
+                }
                 $amountRaw = trim((string)($amounts[$savingsId] ?? ''));
                 $savingsFormAmounts[$savingsId] = $amountRaw;
                 if ($amountRaw === '') {
@@ -149,7 +153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             if ($error === '' && $topupCount === 0) {
-                $error = 'Enter at least one savings amount to top up.';
+                $error = $applyOnlyId > 0
+                    ? 'Enter a savings amount for the selected ledger.'
+                    : 'Enter at least one savings amount to top up.';
             }
             if ($error === '') {
                 $savingsAppliedCount = $topupCount;
@@ -515,7 +521,8 @@ render_header('Transactions', 'transactions');
             <thead>
               <tr>
                 <th>Ledger</th>
-                <th style="width: 200px;">Default monthly amount</th>
+                <th style="width: 260px;">Default monthly amount</th>
+                <th style="width: 160px;">Apply</th>
               </tr>
             </thead>
             <tbody>
@@ -531,6 +538,11 @@ render_header('Transactions', 'transactions');
                       name="savings_amounts[<?= $savingId ?>]"
                       value="<?= h($savingsFormAmounts[$savingId] ?? '0') ?>"
                     >
+                  </td>
+                  <td>
+                    <button class="btn" type="submit" name="savings_apply_id" value="<?= $savingId ?>">
+                      Accept this saving
+                    </button>
                   </td>
                 </tr>
               <?php endforeach; ?>
