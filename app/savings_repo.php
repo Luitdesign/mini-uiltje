@@ -68,8 +68,7 @@ function repo_next_savings_sort_order(PDO $db): int {
     return $value !== false ? (int)$value : 1;
 }
 
-function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null, string $order = 'newest'): array {
-    $direction = $order === 'oldest' ? 'ASC' : 'DESC';
+function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null): array {
     $sql = 'SELECT t.id,
                    t.txn_date AS `date`,
                    CASE
@@ -85,7 +84,7 @@ function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null, 
                    t.description AS transaction_description
             FROM transactions t
             WHERE t.savings_id = :sid
-            ORDER BY t.txn_date ' . $direction . ', t.id ' . $direction;
+            ORDER BY t.txn_date DESC, t.id DESC';
     if ($limit !== null) {
         $sql .= ' LIMIT :limit';
     }

@@ -45,18 +45,12 @@ if (!$saving && $error === '') {
 
 $ledgerView = (string)($_GET['ledger_view'] ?? 'all');
 $ledgerView = $ledgerView === 'latest' ? 'latest' : 'all';
-$ledgerOrder = (string)($_GET['ledger_order'] ?? 'newest');
-$ledgerOrder = $ledgerOrder === 'oldest' ? 'oldest' : 'newest';
 $ledgerLimit = $ledgerView === 'latest' ? 5 : null;
-$ledgerToggleParams = ['id' => $savingId, 'ledger_order' => $ledgerOrder];
+$ledgerToggleParams = ['id' => $savingId];
 $ledgerToggleParams['ledger_view'] = $ledgerView === 'latest' ? 'all' : 'latest';
 $ledgerToggleUrl = '/savings_view.php' . ($ledgerToggleParams ? '?' . http_build_query($ledgerToggleParams) : '');
 $ledgerToggleLabel = $ledgerView === 'latest' ? 'Show all ledger entries' : 'Show latest 5 entries';
-$ledgerOrderNewestParams = ['id' => $savingId, 'ledger_view' => $ledgerView, 'ledger_order' => 'newest'];
-$ledgerOrderOldestParams = ['id' => $savingId, 'ledger_view' => $ledgerView, 'ledger_order' => 'oldest'];
-$ledgerOrderNewestUrl = '/savings_view.php' . ($ledgerOrderNewestParams ? '?' . http_build_query($ledgerOrderNewestParams) : '');
-$ledgerOrderOldestUrl = '/savings_view.php' . ($ledgerOrderOldestParams ? '?' . http_build_query($ledgerOrderOldestParams) : '');
-$entries = $saving ? repo_list_savings_entries($db, (int)$saving['id'], $ledgerLimit, $ledgerOrder) : [];
+$entries = $saving ? repo_list_savings_entries($db, (int)$saving['id'], $ledgerLimit) : [];
 
 render_header('Saving details', 'savings');
 ?>
@@ -130,22 +124,7 @@ render_header('Saving details', 'savings');
     <div style="margin-top: 12px;">
       <div class="row" style="justify-content: space-between; align-items: center;">
         <div class="small">Ledger entries</div>
-        <div class="row" style="gap: 12px;">
-          <a class="small" href="<?= h($ledgerToggleUrl) ?>"><?= h($ledgerToggleLabel) ?></a>
-          <div class="row" style="gap: 6px; align-items: center;">
-            <span class="small">Order</span>
-            <?php if ($ledgerOrder === 'oldest'): ?>
-              <span class="small" title="Oldest first">⬆️</span>
-            <?php else: ?>
-              <a class="small" href="<?= h($ledgerOrderOldestUrl) ?>" title="Oldest first">⬆️</a>
-            <?php endif; ?>
-            <?php if ($ledgerOrder === 'newest'): ?>
-              <span class="small" title="Newest first">⬇️</span>
-            <?php else: ?>
-              <a class="small" href="<?= h($ledgerOrderNewestUrl) ?>" title="Newest first">⬇️</a>
-            <?php endif; ?>
-          </div>
-        </div>
+        <a class="small" href="<?= h($ledgerToggleUrl) ?>"><?= h($ledgerToggleLabel) ?></a>
       </div>
       <table class="table" style="margin-top: 8px;">
         <thead>
