@@ -475,8 +475,6 @@ function render_transactions_table(
                 <details class="txn-split" id="split-details-<?= (int)$t['id'] ?>">
                   <summary class="sr-only">Split</summary>
                   <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
-                    <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
-                    <label class="small">Split into</label>
                     <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
                       <option value="2">2 transactions</option>
                       <option value="3">3 transactions</option>
