@@ -198,6 +198,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'restore_split') {
+        $savedFlag = true;
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+
+        if ($txnId <= 0) {
+            $error = 'Please select a transaction to restore.';
+        }
+
+        if ($error === '') {
+            try {
+                repo_restore_split_transaction($db, $userId, $txnId);
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
+        }
+    }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
     if ($error === '') {
@@ -429,53 +445,59 @@ function render_transactions_table(
             </td>
             <td data-col="split">
               <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
-              <details class="txn-split">
-                <summary class="small">Split</summary>
-                <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
-                  <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
-                  <label class="small">Split into</label>
-                  <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
-                    <option value="2">2 transactions</option>
-                    <option value="3">3 transactions</option>
-                  </select>
-                  <div class="txn-split-amounts" style="display: grid; gap: 6px;">
-                    <input
-                      class="input js-split-amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      name="split_amounts[]"
-                      form="<?= h($splitFormId) ?>"
-                      data-split-index="1"
-                      placeholder="Amount 1"
-                      required
-                    >
-                    <input
-                      class="input js-split-amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      name="split_amounts[]"
-                      form="<?= h($splitFormId) ?>"
-                      data-split-index="2"
-                      placeholder="Amount 2"
-                      required
-                    >
-                    <input
-                      class="input js-split-amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      name="split_amounts[]"
-                      form="<?= h($splitFormId) ?>"
-                      data-split-index="3"
-                      placeholder="Amount 3"
-                      hidden
-                    >
+              <?php if (!empty($t['parent_transaction_id'])): ?>
+                <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
+                <div class="small muted" style="margin-bottom: 6px;">Split item</div>
+                <button class="btn" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
+              <?php else: ?>
+                <details class="txn-split">
+                  <summary class="small">Split</summary>
+                  <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                    <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
+                    <label class="small">Split into</label>
+                    <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
+                      <option value="2">2 transactions</option>
+                      <option value="3">3 transactions</option>
+                    </select>
+                    <div class="txn-split-amounts" style="display: grid; gap: 6px;">
+                      <input
+                        class="input js-split-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        name="split_amounts[]"
+                        form="<?= h($splitFormId) ?>"
+                        data-split-index="1"
+                        placeholder="Amount 1"
+                        required
+                      >
+                      <input
+                        class="input js-split-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        name="split_amounts[]"
+                        form="<?= h($splitFormId) ?>"
+                        data-split-index="2"
+                        placeholder="Amount 2"
+                        required
+                      >
+                      <input
+                        class="input js-split-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        name="split_amounts[]"
+                        form="<?= h($splitFormId) ?>"
+                        data-split-index="3"
+                        placeholder="Amount 3"
+                        hidden
+                      >
+                    </div>
+                    <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
                   </div>
-                  <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
-                </div>
-              </details>
+                </details>
+              <?php endif; ?>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -498,6 +520,14 @@ function render_split_forms(array $txns, array $actionQueryParams, array $config
           <input type="hidden" name="action" value="split_transaction">
           <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
         </form>
+        <?php if (!empty($txn['parent_transaction_id'])): ?>
+          <?php $restoreFormId = 'restore-split-form-' . $txnId; ?>
+          <form id="<?= h($restoreFormId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
+            <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+            <input type="hidden" name="action" value="restore_split">
+            <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
+          </form>
+        <?php endif; ?>
         <?php
     }
 }
