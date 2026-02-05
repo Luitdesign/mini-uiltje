@@ -4,9 +4,9 @@
 return [
     'db' => [
         'host' => 'localhost',
-        'name' => 'luitdesign_miniuiltje',
-        'user' => 'luitdesign_miniuiltje',
-        'pass' => 'x25r6tWzwSVfMyZLNjKP',
+        'name' => 'luitdesign_test_uiltje',
+        'user' => 'luitdesign_test_uiltje',
+        'pass' => 'PxHWv4rEQd4EJDMbZJmx',
         'charset' => 'utf8mb4',
     ],
     // Change this to a long random string.
