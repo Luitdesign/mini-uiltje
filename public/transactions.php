@@ -421,7 +421,7 @@ function render_transactions_table(
                             hidden
                           >
                         </div>
-                        <button class="btn js-form-submit" type="button" form="<?= h($splitFormId) ?>">Split</button>
+                        <button class="btn js-form-submit" type="submit" form="<?= h($splitFormId) ?>">Split</button>
                       </div>
                     </details>
                   <?php endif; ?>
@@ -493,7 +493,7 @@ function render_transactions_table(
                               hidden
                             >
                           </div>
-                          <button class="btn js-form-submit" type="button" form="<?= h($splitFormId) ?>">Split</button>
+                          <button class="btn js-form-submit" type="submit" form="<?= h($splitFormId) ?>">Split</button>
                         </div>
                       </details>
                     <?php endif; ?>
@@ -561,7 +561,7 @@ function render_transactions_table(
                               hidden
                             >
                           </div>
-                          <button class="btn js-form-submit" type="button" form="<?= h($splitFormId) ?>">Split</button>
+                          <button class="btn js-form-submit" type="submit" form="<?= h($splitFormId) ?>">Split</button>
                         </div>
                       </details>
                     <?php endif; ?>
