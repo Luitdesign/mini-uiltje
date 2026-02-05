@@ -34,6 +34,7 @@ function repo_list_pots_with_balances(PDO $db, int $userId): array {
             FROM transactions t
             JOIN pot_category_map pcm ON pcm.category_id = t.category_id
             WHERE t.user_id = :uid
+              AND t.is_split_active = 1
             GROUP BY pcm.pot_id
         ) spent ON spent.pot_id = p.id
         WHERE p.user_id = :uid
