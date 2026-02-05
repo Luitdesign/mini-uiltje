@@ -381,6 +381,9 @@ function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts
     if ((int)$transaction['is_split_active'] !== 1) {
         throw new RuntimeException('This transaction is not available for splitting.');
     }
+    if (!empty($transaction['parent_transaction_id'])) {
+        throw new RuntimeException('Split transactions cannot be split again.');
+    }
     if (!empty($transaction['is_split_source'])) {
         throw new RuntimeException('This transaction has already been split.');
     }
