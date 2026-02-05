@@ -176,23 +176,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!is_array($amountsRaw)) {
             $error = 'Split amounts could not be read.';
         } else {
+            $splitAmounts = array_fill(0, $splitCount, null);
+            $missingIndex = null;
             for ($i = 0; $i < $splitCount; $i++) {
                 $amountRaw = trim((string)($amountsRaw[$i] ?? ''));
                 if ($amountRaw === '') {
-                    $error = 'Please enter each split amount.';
-                    break;
+                    if ($missingIndex !== null) {
+                        $error = 'Please enter each split amount.';
+                        break;
+                    }
+                    $missingIndex = $i;
+                    continue;
                 }
                 if (!is_numeric($amountRaw)) {
                     $error = 'Each split amount must be numeric.';
                     break;
                 }
-                $splitAmounts[] = (float)$amountRaw;
+                $splitAmounts[$i] = (float)$amountRaw;
+            }
+
+            if ($error === '' && $missingIndex !== null) {
+                $transaction = repo_get_transaction($db, $userId, $txnId);
+                if (!$transaction) {
+                    $error = 'Transaction not found.';
+                } else {
+                    $originalAbs = round(abs((float)$transaction['amount_signed']), 2);
+                    $sum = 0.0;
+                    foreach ($splitAmounts as $amountValue) {
+                        if ($amountValue !== null) {
+                            $sum += (float)$amountValue;
+                        }
+                    }
+                    $remaining = round($originalAbs - $sum, 2);
+                    if ($remaining <= 0) {
+                        $error = 'Split amounts must add up to the original transaction total.';
+                    } else {
+                        $splitAmounts[$missingIndex] = $remaining;
+                    }
+                }
             }
         }
 
         if ($error === '') {
             try {
-                repo_split_transaction($db, $userId, $txnId, $splitAmounts);
+                repo_split_transaction($db, $userId, $txnId, array_values($splitAmounts));
             } catch (Throwable $e) {
                 $error = $e->getMessage();
             }
@@ -472,7 +499,11 @@ function render_transactions_table(
               <?php if (!empty($t['parent_transaction_id'])): ?>
                 <div class="small muted" style="margin-bottom: 6px;">Split item</div>
               <?php else: ?>
-                <details class="txn-split" id="split-details-<?= (int)$t['id'] ?>">
+                <details
+                  class="txn-split"
+                  id="split-details-<?= (int)$t['id'] ?>"
+                  data-split-total="<?= number_format(abs($amt), 2, '.', '') ?>"
+                >
                   <summary class="sr-only">Split</summary>
                   <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
                     <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
@@ -970,6 +1001,7 @@ render_header('Transactions', 'transactions');
       });
     });
 
+    const roundToCents = (value) => Math.round(value * 100) / 100;
     const splitCountSelectors = Array.from(document.querySelectorAll('.js-split-count'));
     splitCountSelectors.forEach((select) => {
       const updateSplitFields = () => {
@@ -989,8 +1021,54 @@ render_header('Transactions', 'transactions');
         });
       };
 
+      const autoFillRemaining = () => {
+        const splitContainer = select.closest('.txn-split');
+        if (!splitContainer) {
+          return;
+        }
+        const totalRaw = splitContainer.dataset.splitTotal || '';
+        const total = Number(totalRaw);
+        if (!total || Number.isNaN(total)) {
+          return;
+        }
+        const inputs = Array.from(splitContainer.querySelectorAll('.js-split-amount')).filter((input) => !input.hidden);
+        const values = [];
+        for (const input of inputs) {
+          const raw = input.value.trim();
+          if (raw === '') {
+            values.push(null);
+            continue;
+          }
+          const parsed = Number(raw);
+          if (Number.isNaN(parsed)) {
+            return;
+          }
+          values.push(parsed);
+        }
+        const missingIndices = values
+          .map((value, index) => (value === null ? index : -1))
+          .filter((index) => index >= 0);
+        if (missingIndices.length !== 1) {
+          return;
+        }
+        const sum = values.reduce((acc, value) => (value === null ? acc : acc + value), 0);
+        const remaining = roundToCents(total - sum);
+        if (remaining <= 0) {
+          return;
+        }
+        const targetInput = inputs[missingIndices[0]];
+        if (targetInput && targetInput.value.trim() === '') {
+          targetInput.value = remaining.toFixed(2);
+        }
+      };
+
       updateSplitFields();
       select.addEventListener('change', updateSplitFields);
+      const splitInputs = Array.from(select.closest('.txn-split')?.querySelectorAll('.js-split-amount') ?? []);
+      splitInputs.forEach((input) => {
+        input.addEventListener('change', autoFillRemaining);
+        input.addEventListener('blur', autoFillRemaining);
+      });
     });
   })();
 </script>
