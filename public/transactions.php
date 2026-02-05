@@ -347,12 +347,11 @@ function render_transactions_table(
           <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
-          <th data-col="split">Split</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($txns)): ?>
-          <tr><td colspan="9" class="small"><?= h($emptyMessage) ?></td></tr>
+          <tr><td colspan="8" class="small"><?= h($emptyMessage) ?></td></tr>
         <?php endif; ?>
 
         <?php foreach ($txns as $t):
@@ -494,17 +493,20 @@ function render_transactions_table(
             <td data-col="direction" class="small">
               <?= h((string)($t['direction'] ?? '')) ?>
             </td>
-            <td data-col="split">
-              <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
-              <?php if (!empty($t['parent_transaction_id'])): ?>
-                <div class="small muted" style="margin-bottom: 6px;">Split item</div>
-              <?php else: ?>
-                <details
+          </tr>
+          <?php if (empty($t['parent_transaction_id'])): ?>
+            <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
+            <tr class="txn-split-row" data-split-row="split-details-<?= (int)$t['id'] ?>" hidden>
+              <td colspan="8">
+                <div
                   class="txn-split"
                   id="split-details-<?= (int)$t['id'] ?>"
                   data-split-total="<?= number_format(abs($amt), 2, '.', '') ?>"
                 >
-                  <summary class="sr-only">Split</summary>
+                  <div class="txn-split-header">
+                    <span class="small muted">Split transaction</span>
+                    <button type="button" class="txn-edit-link js-split-close" data-split-target="split-details-<?= (int)$t['id'] ?>">Close</button>
+                  </div>
                   <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
                     <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
                       <option value="2">2 transactions</option>
@@ -547,10 +549,10 @@ function render_transactions_table(
                     </div>
                     <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
                   </div>
-                </details>
-              <?php endif; ?>
-            </td>
-          </tr>
+                </div>
+              </td>
+            </tr>
+          <?php endif; ?>
         <?php endforeach; ?>
       </tbody>
     </table>
@@ -776,7 +778,6 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
-      <label><input class="js-column-toggle" type="checkbox" data-column="split"> Split</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
     </div>
 
@@ -987,17 +988,32 @@ render_header('Transactions', 'transactions');
     });
 
     const splitToggles = Array.from(document.querySelectorAll('.js-split-toggle'));
+    const splitClosers = Array.from(document.querySelectorAll('.js-split-close'));
+    const toggleSplitRow = (targetId, shouldOpen) => {
+      if (!targetId) {
+        return;
+      }
+      const details = document.getElementById(targetId);
+      if (!details) {
+        return;
+      }
+      const row = details.closest('tr');
+      if (!row) {
+        return;
+      }
+      row.hidden = !shouldOpen;
+      if (!row.hidden) {
+        details.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    };
     splitToggles.forEach((toggle) => {
       toggle.addEventListener('click', () => {
-        const targetId = toggle.dataset.splitTarget;
-        if (!targetId) {
-          return;
-        }
-        const details = document.getElementById(targetId);
-        if (!details) {
-          return;
-        }
-        details.open = true;
+        toggleSplitRow(toggle.dataset.splitTarget, true);
+      });
+    });
+    splitClosers.forEach((close) => {
+      close.addEventListener('click', () => {
+        toggleSplitRow(close.dataset.splitTarget, false);
       });
     });
 
