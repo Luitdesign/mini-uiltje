@@ -358,6 +358,7 @@ function render_transactions_table(
               <?php $hasFriendly = !empty($t['friendly_name']); ?>
               <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
               <?php $isSplitChild = !empty($t['parent_transaction_id']); ?>
+              <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
               <div class="txn-description js-friendly-row" data-has-friendly="<?= $hasFriendly ? '1' : '0' ?>">
                 <div class="txn-friendly-display js-friendly-display" <?= $hasFriendly ? '' : 'hidden' ?>>
                   <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
@@ -374,7 +375,7 @@ function render_transactions_table(
                   <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php if ($isSplitChild): ?>
-                    <span class="txn-split-label">Split</span>
+                    <button type="submit" class="txn-edit-link" form="<?= h($restoreFormId) ?>">Restore split</button>
                   <?php else: ?>
                     <details class="txn-split">
                       <summary class="txn-edit-link">Split</summary>
@@ -446,7 +447,7 @@ function render_transactions_table(
                     </button>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                     <?php if ($isSplitChild): ?>
-                      <span class="txn-split-label">Split</span>
+                      <button type="submit" class="txn-edit-link" form="<?= h($restoreFormId) ?>">Restore split</button>
                     <?php else: ?>
                       <details class="txn-split">
                         <summary class="txn-edit-link">Split</summary>
@@ -514,7 +515,7 @@ function render_transactions_table(
                     <?php endif; ?>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                     <?php if ($isSplitChild): ?>
-                      <span class="txn-split-label">Split</span>
+                      <button type="submit" class="txn-edit-link" form="<?= h($restoreFormId) ?>">Restore split</button>
                     <?php else: ?>
                       <details class="txn-split">
                         <summary class="txn-edit-link">Split</summary>
@@ -566,13 +567,6 @@ function render_transactions_table(
                     <?php endif; ?>
                   <?php endif; ?>
                 </div>
-                <?php if ($isSplitChild): ?>
-                  <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
-                  <div class="txn-split-row" style="margin-top: 8px; display: grid; gap: 6px;">
-                    <div class="small muted">Split item</div>
-                    <button class="btn" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
-                  </div>
-                <?php endif; ?>
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
                   <label class="small" style="margin-bottom: 6px;">Friendly name</label>
                   <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
