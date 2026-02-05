@@ -232,6 +232,32 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   align-self: flex-start;
 }
 
+.txn-split {
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.txn-split summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.txn-split summary::-webkit-details-marker {
+  display: none;
+}
+
+.txn-split[open] summary {
+  margin-bottom: 6px;
+}
+
+.txn-split-label {
+  margin-left: 8px;
+  color: var(--accent);
+  font-size: 12px;
+}
+
 .txn-friendly-editor {
   margin-top: 6px;
 }
