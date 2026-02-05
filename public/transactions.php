@@ -1068,25 +1068,6 @@ render_header('Transactions', 'transactions');
           return;
         }
         event.preventDefault();
-        targetForm.querySelectorAll('.js-form-clone').forEach((node) => node.remove());
-        const associatedFields = Array.from(document.querySelectorAll(`[form="${formId}"]`));
-        associatedFields.forEach((field) => {
-          if (!field.name || field.tagName === 'BUTTON') {
-            return;
-          }
-          if (field.disabled) {
-            return;
-          }
-          if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) {
-            return;
-          }
-          const clone = document.createElement('input');
-          clone.type = 'hidden';
-          clone.name = field.name;
-          clone.value = field.value;
-          clone.classList.add('js-form-clone');
-          targetForm.appendChild(clone);
-        });
         if (typeof targetForm.requestSubmit === 'function') {
           targetForm.requestSubmit();
         } else {
