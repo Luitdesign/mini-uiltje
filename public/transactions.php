@@ -356,7 +356,6 @@ function render_transactions_table(
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <?php $hasFriendly = !empty($t['friendly_name']); ?>
-              <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
               <?php $isSplitChild = !empty($t['parent_transaction_id']); ?>
               <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
               <div class="txn-description js-friendly-row" data-has-friendly="<?= $hasFriendly ? '1' : '0' ?>">
@@ -379,10 +378,13 @@ function render_transactions_table(
                   <?php else: ?>
                     <details class="txn-split">
                       <summary class="txn-edit-link">Split</summary>
-                      <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                      <form method="post" action="<?= h($splitAction) ?>" class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                        <input type="hidden" name="action" value="split_transaction">
+                        <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
                         <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
                         <label class="small">Split into</label>
-                        <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
+                        <select class="input js-split-count" name="split_count">
                           <option value="2">2 transactions</option>
                           <option value="3">3 transactions</option>
                         </select>
@@ -393,7 +395,6 @@ function render_transactions_table(
                             step="0.01"
                             min="0.01"
                             name="split_amounts[]"
-                            form="<?= h($splitFormId) ?>"
                             data-split-index="1"
                             placeholder="Amount 1"
                             required
@@ -404,7 +405,6 @@ function render_transactions_table(
                             step="0.01"
                             min="0.01"
                             name="split_amounts[]"
-                            form="<?= h($splitFormId) ?>"
                             data-split-index="2"
                             placeholder="Amount 2"
                             required
@@ -415,14 +415,13 @@ function render_transactions_table(
                             step="0.01"
                             min="0.01"
                             name="split_amounts[]"
-                            form="<?= h($splitFormId) ?>"
                             data-split-index="3"
                             placeholder="Amount 3"
                             hidden
                           >
                         </div>
-                        <button class="btn js-form-submit" type="submit" form="<?= h($splitFormId) ?>">Split</button>
-                      </div>
+                        <button class="btn" type="submit">Split</button>
+                      </form>
                     </details>
                   <?php endif; ?>
                 </div>
@@ -451,10 +450,13 @@ function render_transactions_table(
                     <?php else: ?>
                       <details class="txn-split">
                         <summary class="txn-edit-link">Split</summary>
-                        <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                        <form method="post" action="<?= h($splitAction) ?>" class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                          <input type="hidden" name="action" value="split_transaction">
+                          <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
                           <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
                           <label class="small">Split into</label>
-                          <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
+                          <select class="input js-split-count" name="split_count">
                             <option value="2">2 transactions</option>
                             <option value="3">3 transactions</option>
                           </select>
@@ -465,7 +467,6 @@ function render_transactions_table(
                               step="0.01"
                               min="0.01"
                               name="split_amounts[]"
-                              form="<?= h($splitFormId) ?>"
                               data-split-index="1"
                               placeholder="Amount 1"
                               required
@@ -476,7 +477,6 @@ function render_transactions_table(
                               step="0.01"
                               min="0.01"
                               name="split_amounts[]"
-                              form="<?= h($splitFormId) ?>"
                               data-split-index="2"
                               placeholder="Amount 2"
                               required
@@ -487,14 +487,13 @@ function render_transactions_table(
                               step="0.01"
                               min="0.01"
                               name="split_amounts[]"
-                              form="<?= h($splitFormId) ?>"
                               data-split-index="3"
                               placeholder="Amount 3"
                               hidden
                             >
                           </div>
-                          <button class="btn js-form-submit" type="submit" form="<?= h($splitFormId) ?>">Split</button>
-                        </div>
+                          <button class="btn" type="submit">Split</button>
+                        </form>
                       </details>
                     <?php endif; ?>
                   <?php else: ?>
@@ -519,10 +518,13 @@ function render_transactions_table(
                     <?php else: ?>
                       <details class="txn-split">
                         <summary class="txn-edit-link">Split</summary>
-                        <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                        <form method="post" action="<?= h($splitAction) ?>" class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                          <input type="hidden" name="action" value="split_transaction">
+                          <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
                           <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
                           <label class="small">Split into</label>
-                          <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
+                          <select class="input js-split-count" name="split_count">
                             <option value="2">2 transactions</option>
                             <option value="3">3 transactions</option>
                           </select>
@@ -533,7 +535,6 @@ function render_transactions_table(
                               step="0.01"
                               min="0.01"
                               name="split_amounts[]"
-                              form="<?= h($splitFormId) ?>"
                               data-split-index="1"
                               placeholder="Amount 1"
                               required
@@ -544,7 +545,6 @@ function render_transactions_table(
                               step="0.01"
                               min="0.01"
                               name="split_amounts[]"
-                              form="<?= h($splitFormId) ?>"
                               data-split-index="2"
                               placeholder="Amount 2"
                               required
@@ -555,14 +555,13 @@ function render_transactions_table(
                               step="0.01"
                               min="0.01"
                               name="split_amounts[]"
-                              form="<?= h($splitFormId) ?>"
                               data-split-index="3"
                               placeholder="Amount 3"
                               hidden
                             >
                           </div>
-                          <button class="btn js-form-submit" type="submit" form="<?= h($splitFormId) ?>">Split</button>
-                        </div>
+                          <button class="btn" type="submit">Split</button>
+                        </form>
                       </details>
                     <?php endif; ?>
                   <?php endif; ?>
@@ -612,13 +611,7 @@ function render_split_forms(array $txns, array $actionQueryParams, array $config
         if ($txnId <= 0) {
             continue;
         }
-        $formId = 'split-form-' . $txnId;
         ?>
-        <form id="<?= h($formId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
-          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-          <input type="hidden" name="action" value="split_transaction">
-          <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
-        </form>
         <?php if (!empty($txn['parent_transaction_id'])): ?>
           <?php $restoreFormId = 'restore-split-form-' . $txnId; ?>
           <form id="<?= h($restoreFormId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
@@ -647,6 +640,7 @@ if ($startDate !== '') {
 if ($endDate !== '') {
     $actionQueryParams['end_date'] = $endDate;
 }
+$splitAction = '/transactions.php?' . http_build_query($actionQueryParams);
 
 $yearInputValue = $year > 0 ? (string)$year : '';
 $disableYearMonth = $hasDateRange || $allTime;
