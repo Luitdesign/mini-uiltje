@@ -375,7 +375,7 @@ function render_transactions_table(
                   <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                   <?php if ($isSplitChild): ?>
-                    <button type="submit" class="txn-edit-link" form="<?= h($restoreFormId) ?>">Restore split</button>
+                    <button type="button" class="txn-edit-link js-form-submit" form="<?= h($restoreFormId) ?>">Restore split</button>
                   <?php else: ?>
                     <details class="txn-split">
                       <summary class="txn-edit-link">Split</summary>
@@ -421,7 +421,7 @@ function render_transactions_table(
                             hidden
                           >
                         </div>
-                        <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
+                        <button class="btn js-form-submit" type="button" form="<?= h($splitFormId) ?>">Split</button>
                       </div>
                     </details>
                   <?php endif; ?>
@@ -447,7 +447,7 @@ function render_transactions_table(
                     </button>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                     <?php if ($isSplitChild): ?>
-                      <button type="submit" class="txn-edit-link" form="<?= h($restoreFormId) ?>">Restore split</button>
+                      <button type="button" class="txn-edit-link js-form-submit" form="<?= h($restoreFormId) ?>">Restore split</button>
                     <?php else: ?>
                       <details class="txn-split">
                         <summary class="txn-edit-link">Split</summary>
@@ -493,7 +493,7 @@ function render_transactions_table(
                               hidden
                             >
                           </div>
-                          <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
+                          <button class="btn js-form-submit" type="button" form="<?= h($splitFormId) ?>">Split</button>
                         </div>
                       </details>
                     <?php endif; ?>
@@ -515,7 +515,7 @@ function render_transactions_table(
                     <?php endif; ?>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                     <?php if ($isSplitChild): ?>
-                      <button type="submit" class="txn-edit-link" form="<?= h($restoreFormId) ?>">Restore split</button>
+                      <button type="button" class="txn-edit-link js-form-submit" form="<?= h($restoreFormId) ?>">Restore split</button>
                     <?php else: ?>
                       <details class="txn-split">
                         <summary class="txn-edit-link">Split</summary>
@@ -561,7 +561,7 @@ function render_transactions_table(
                               hidden
                             >
                           </div>
-                          <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
+                          <button class="btn js-form-submit" type="button" form="<?= h($splitFormId) ?>">Split</button>
                         </div>
                       </details>
                     <?php endif; ?>
@@ -1054,6 +1054,26 @@ render_header('Transactions', 'transactions');
 
       updateSplitFields();
       select.addEventListener('change', updateSplitFields);
+    });
+
+    const formSubmitButtons = Array.from(document.querySelectorAll('.js-form-submit'));
+    formSubmitButtons.forEach((button) => {
+      button.addEventListener('click', (event) => {
+        const formId = button.getAttribute('form');
+        if (!formId) {
+          return;
+        }
+        const targetForm = document.getElementById(formId);
+        if (!targetForm) {
+          return;
+        }
+        event.preventDefault();
+        if (typeof targetForm.requestSubmit === 'function') {
+          targetForm.requestSubmit();
+        } else {
+          targetForm.submit();
+        }
+      });
     });
   })();
 </script>
