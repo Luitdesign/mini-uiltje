@@ -320,11 +320,12 @@ function render_transactions_table(
           <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
+          <th data-col="split">Split</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($txns)): ?>
-          <tr><td colspan="8" class="small"><?= h($emptyMessage) ?></td></tr>
+          <tr><td colspan="9" class="small"><?= h($emptyMessage) ?></td></tr>
         <?php endif; ?>
 
         <?php foreach ($txns as $t):
@@ -356,8 +357,6 @@ function render_transactions_table(
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <?php $hasFriendly = !empty($t['friendly_name']); ?>
-              <?php $isSplitChild = !empty($t['parent_transaction_id']); ?>
-              <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
               <div class="txn-description js-friendly-row" data-has-friendly="<?= $hasFriendly ? '1' : '0' ?>">
                 <div class="txn-friendly-display js-friendly-display" <?= $hasFriendly ? '' : 'hidden' ?>>
                   <button type="button" class="txn-toggle js-friendly-toggle" data-target="original">
@@ -373,57 +372,6 @@ function render_transactions_table(
                     <span class="badge">Split</span>
                   <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
-                  <?php if ($isSplitChild): ?>
-                    <button type="button" class="txn-edit-link js-form-submit" form="<?= h($restoreFormId) ?>">Restore split</button>
-                  <?php else: ?>
-                    <details class="txn-split">
-                      <summary class="txn-edit-link">Split</summary>
-                      <form method="post" action="<?= h($splitAction) ?>" class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
-                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-                        <input type="hidden" name="action" value="split_transaction">
-                        <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
-                        <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
-                        <label class="small">Split into</label>
-                        <select class="input js-split-count" name="split_count">
-                          <option value="2">2 transactions</option>
-                          <option value="3">3 transactions</option>
-                        </select>
-                        <div class="txn-split-amounts" style="display: grid; gap: 6px;">
-                          <input
-                            class="input js-split-amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            name="split_amounts[]"
-                            data-split-index="1"
-                            placeholder="Amount 1"
-                            required
-                          >
-                          <input
-                            class="input js-split-amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            name="split_amounts[]"
-                            data-split-index="2"
-                            placeholder="Amount 2"
-                            required
-                          >
-                          <input
-                            class="input js-split-amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            name="split_amounts[]"
-                            data-split-index="3"
-                            placeholder="Amount 3"
-                            hidden
-                          >
-                        </div>
-                        <button class="btn" type="submit">Split</button>
-                      </form>
-                    </details>
-                  <?php endif; ?>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
                   <?php if ($hasFriendly): ?>
@@ -445,57 +393,6 @@ function render_transactions_table(
                       <?php endif; ?>
                     </button>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
-                    <?php if ($isSplitChild): ?>
-                      <button type="button" class="txn-edit-link js-form-submit" form="<?= h($restoreFormId) ?>">Restore split</button>
-                    <?php else: ?>
-                      <details class="txn-split">
-                        <summary class="txn-edit-link">Split</summary>
-                        <form method="post" action="<?= h($splitAction) ?>" class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
-                          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-                          <input type="hidden" name="action" value="split_transaction">
-                          <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
-                          <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
-                          <label class="small">Split into</label>
-                          <select class="input js-split-count" name="split_count">
-                            <option value="2">2 transactions</option>
-                            <option value="3">3 transactions</option>
-                          </select>
-                          <div class="txn-split-amounts" style="display: grid; gap: 6px;">
-                            <input
-                              class="input js-split-amount"
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              name="split_amounts[]"
-                              data-split-index="1"
-                              placeholder="Amount 1"
-                              required
-                            >
-                            <input
-                              class="input js-split-amount"
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              name="split_amounts[]"
-                              data-split-index="2"
-                              placeholder="Amount 2"
-                              required
-                            >
-                            <input
-                              class="input js-split-amount"
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              name="split_amounts[]"
-                              data-split-index="3"
-                              placeholder="Amount 3"
-                              hidden
-                            >
-                          </div>
-                          <button class="btn" type="submit">Split</button>
-                        </form>
-                      </details>
-                    <?php endif; ?>
                   <?php else: ?>
                     <div class="txn-flags">
                       <strong><?= h($t['description']) ?></strong>
@@ -513,57 +410,6 @@ function render_transactions_table(
                       <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>
                     <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
-                    <?php if ($isSplitChild): ?>
-                      <button type="button" class="txn-edit-link js-form-submit" form="<?= h($restoreFormId) ?>">Restore split</button>
-                    <?php else: ?>
-                      <details class="txn-split">
-                        <summary class="txn-edit-link">Split</summary>
-                        <form method="post" action="<?= h($splitAction) ?>" class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
-                          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-                          <input type="hidden" name="action" value="split_transaction">
-                          <input type="hidden" name="transaction_id" value="<?= (int)$t['id'] ?>">
-                          <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
-                          <label class="small">Split into</label>
-                          <select class="input js-split-count" name="split_count">
-                            <option value="2">2 transactions</option>
-                            <option value="3">3 transactions</option>
-                          </select>
-                          <div class="txn-split-amounts" style="display: grid; gap: 6px;">
-                            <input
-                              class="input js-split-amount"
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              name="split_amounts[]"
-                              data-split-index="1"
-                              placeholder="Amount 1"
-                              required
-                            >
-                            <input
-                              class="input js-split-amount"
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              name="split_amounts[]"
-                              data-split-index="2"
-                              placeholder="Amount 2"
-                              required
-                            >
-                            <input
-                              class="input js-split-amount"
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              name="split_amounts[]"
-                              data-split-index="3"
-                              placeholder="Amount 3"
-                              hidden
-                            >
-                          </div>
-                          <button class="btn" type="submit">Split</button>
-                        </form>
-                      </details>
-                    <?php endif; ?>
                   <?php endif; ?>
                 </div>
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
@@ -597,6 +443,62 @@ function render_transactions_table(
             <td data-col="direction" class="small">
               <?= h((string)($t['direction'] ?? '')) ?>
             </td>
+            <td data-col="split">
+              <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
+              <?php if (!empty($t['parent_transaction_id'])): ?>
+                <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
+                <div class="small muted" style="margin-bottom: 6px;">Split item</div>
+                <button class="btn" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
+              <?php else: ?>
+                <details class="txn-split">
+                  <summary class="small">Split</summary>
+                  <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                    <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
+                    <label class="small">Split into</label>
+                    <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
+                      <option value="2">2 transactions</option>
+                      <option value="3">3 transactions</option>
+                    </select>
+                    <div class="txn-split-amounts" style="display: grid; gap: 6px;">
+                      <input
+                        class="input js-split-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        name="split_amounts[]"
+                        form="<?= h($splitFormId) ?>"
+                        data-split-index="1"
+                        placeholder="Amount 1"
+                        required
+                      >
+                      <input
+                        class="input js-split-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        name="split_amounts[]"
+                        form="<?= h($splitFormId) ?>"
+                        data-split-index="2"
+                        placeholder="Amount 2"
+                        required
+                      >
+                      <input
+                        class="input js-split-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        name="split_amounts[]"
+                        form="<?= h($splitFormId) ?>"
+                        data-split-index="3"
+                        placeholder="Amount 3"
+                        hidden
+                      >
+                    </div>
+                    <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
+                  </div>
+                </details>
+              <?php endif; ?>
+            </td>
           </tr>
         <?php endforeach; ?>
       </tbody>
@@ -611,7 +513,13 @@ function render_split_forms(array $txns, array $actionQueryParams, array $config
         if ($txnId <= 0) {
             continue;
         }
+        $formId = 'split-form-' . $txnId;
         ?>
+        <form id="<?= h($formId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
+          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+          <input type="hidden" name="action" value="split_transaction">
+          <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
+        </form>
         <?php if (!empty($txn['parent_transaction_id'])): ?>
           <?php $restoreFormId = 'restore-split-form-' . $txnId; ?>
           <form id="<?= h($restoreFormId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
@@ -640,7 +548,6 @@ if ($startDate !== '') {
 if ($endDate !== '') {
     $actionQueryParams['end_date'] = $endDate;
 }
-$splitAction = '/transactions.php?' . http_build_query($actionQueryParams);
 
 $yearInputValue = $year > 0 ? (string)$year : '';
 $disableYearMonth = $hasDateRange || $allTime;
@@ -818,6 +725,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="split"> Split</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
     </div>
 
@@ -1048,26 +956,6 @@ render_header('Transactions', 'transactions');
 
       updateSplitFields();
       select.addEventListener('change', updateSplitFields);
-    });
-
-    const formSubmitButtons = Array.from(document.querySelectorAll('.js-form-submit'));
-    formSubmitButtons.forEach((button) => {
-      button.addEventListener('click', (event) => {
-        const formId = button.getAttribute('form');
-        if (!formId) {
-          return;
-        }
-        const targetForm = document.getElementById(formId);
-        if (!targetForm) {
-          return;
-        }
-        event.preventDefault();
-        if (typeof targetForm.requestSubmit === 'function') {
-          targetForm.requestSubmit();
-        } else {
-          targetForm.submit();
-        }
-      });
     });
   })();
 </script>
