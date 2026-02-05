@@ -492,6 +492,59 @@ function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts
     }
 }
 
+function repo_restore_split_transaction(PDO $db, int $userId, int $txnId): void {
+    $transaction = repo_get_transaction($db, $userId, $txnId);
+    if (!$transaction) {
+        throw new RuntimeException('Transaction not found.');
+    }
+
+    $parentId = null;
+    if (!empty($transaction['parent_transaction_id'])) {
+        $parentId = (int)$transaction['parent_transaction_id'];
+    } elseif (!empty($transaction['is_split_source'])) {
+        $parentId = (int)$transaction['id'];
+    }
+
+    if (!$parentId) {
+        throw new RuntimeException('This transaction is not part of a split.');
+    }
+
+    $parentTransaction = repo_get_transaction($db, $userId, $parentId);
+    if (!$parentTransaction || empty($parentTransaction['is_split_source'])) {
+        throw new RuntimeException('Split source transaction not found.');
+    }
+
+    $stmtDelete = $db->prepare(
+        'DELETE FROM transactions
+         WHERE user_id = :uid
+           AND parent_transaction_id = :parent_id'
+    );
+    $stmtUpdate = $db->prepare(
+        'UPDATE transactions
+         SET is_split_source = 0,
+             is_split_active = 1,
+             split_group_id = NULL,
+             parent_transaction_id = NULL
+         WHERE id = :id AND user_id = :uid'
+    );
+
+    $db->beginTransaction();
+    try {
+        $stmtDelete->execute([
+            ':uid' => $userId,
+            ':parent_id' => $parentId,
+        ]);
+        $stmtUpdate->execute([
+            ':id' => $parentId,
+            ':uid' => $userId,
+        ]);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        throw $e;
+    }
+}
+
 function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $month): int {
     $stmtRules = $db->prepare(
         'SELECT *
