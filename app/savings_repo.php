@@ -28,6 +28,7 @@ function repo_list_savings_with_balance(PDO $db): array {
                    ) AS total_amount
             FROM transactions
             WHERE savings_id IS NOT NULL
+              AND is_split_active = 1
             GROUP BY savings_id
         ) st ON st.savings_id = s.id
         ORDER BY s.active DESC, s.sort_order ASC, s.name ASC, s.id ASC
@@ -51,6 +52,7 @@ function repo_find_saving_with_balance(PDO $db, int $id): ?array {
                    ) AS total_amount
             FROM transactions
             WHERE savings_id IS NOT NULL
+              AND is_split_active = 1
             GROUP BY savings_id
         ) st ON st.savings_id = s.id
         WHERE s.id = :id
@@ -84,6 +86,7 @@ function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null):
                    t.description AS transaction_description
             FROM transactions t
             WHERE t.savings_id = :sid
+              AND t.is_split_active = 1
             ORDER BY t.txn_date DESC, t.id DESC';
     if ($limit !== null) {
         $sql .= ' LIMIT :limit';
@@ -214,6 +217,7 @@ function repo_set_transaction_ledger(
         'SELECT id, amount_signed, txn_date, is_topup
          FROM transactions
          WHERE id = :id AND user_id = :uid
+           AND is_split_active = 1
          LIMIT 1'
     );
     $stmt->execute([
@@ -290,7 +294,8 @@ function repo_apply_category_ledger(
         'SELECT id
          FROM transactions
          WHERE user_id = :uid
-           AND category_id = :cid'
+           AND category_id = :cid
+           AND is_split_active = 1'
     );
     $stmt->execute([
         ':uid' => $userId,

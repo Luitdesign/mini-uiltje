@@ -162,6 +162,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'split_transaction') {
+        $savedFlag = true;
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        $splitCount = (int)($_POST['split_count'] ?? 0);
+        $amountsRaw = $_POST['split_amounts'] ?? [];
+        $splitAmounts = [];
+
+        if ($txnId <= 0) {
+            $error = 'Please select a transaction to split.';
+        } elseif ($splitCount < 2 || $splitCount > 3) {
+            $error = 'Please choose to split into two or three transactions.';
+        } elseif (!is_array($amountsRaw)) {
+            $error = 'Split amounts could not be read.';
+        } else {
+            for ($i = 0; $i < $splitCount; $i++) {
+                $amountRaw = trim((string)($amountsRaw[$i] ?? ''));
+                if ($amountRaw === '') {
+                    $error = 'Please enter each split amount.';
+                    break;
+                }
+                if (!is_numeric($amountRaw)) {
+                    $error = 'Each split amount must be numeric.';
+                    break;
+                }
+                $splitAmounts[] = (float)$amountRaw;
+            }
+        }
+
+        if ($error === '') {
+            try {
+                repo_split_transaction($db, $userId, $txnId, $splitAmounts);
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
+        }
+    }
 
     // After POST, redirect to GET (PRG pattern) to avoid resubmission.
     if ($error === '') {
@@ -268,11 +304,12 @@ function render_transactions_table(
           <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
+          <th data-col="split">Split</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($txns)): ?>
-          <tr><td colspan="8" class="small"><?= h($emptyMessage) ?></td></tr>
+          <tr><td colspan="9" class="small"><?= h($emptyMessage) ?></td></tr>
         <?php endif; ?>
 
         <?php foreach ($txns as $t):
@@ -315,6 +352,9 @@ function render_transactions_table(
                   <?php if ($hasSavingsLedger): ?>
                     <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                   <?php endif; ?>
+                  <?php if (!empty($t['parent_transaction_id'])): ?>
+                    <span class="badge">Split</span>
+                  <?php endif; ?>
                   <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
@@ -327,6 +367,9 @@ function render_transactions_table(
                         <?php endif; ?>
                         <?php if ($hasSavingsLedger): ?>
                           <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($t['parent_transaction_id'])): ?>
+                          <span class="badge">Split</span>
                         <?php endif; ?>
                       </div>
                       <?php if (!empty($t['notes'])): ?>
@@ -342,6 +385,9 @@ function render_transactions_table(
                       <?php endif; ?>
                       <?php if ($hasSavingsLedger): ?>
                         <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                      <?php endif; ?>
+                      <?php if (!empty($t['parent_transaction_id'])): ?>
+                        <span class="badge">Split</span>
                       <?php endif; ?>
                     </div>
                     <?php if (!empty($t['notes'])): ?>
@@ -381,11 +427,79 @@ function render_transactions_table(
             <td data-col="direction" class="small">
               <?= h((string)($t['direction'] ?? '')) ?>
             </td>
+            <td data-col="split">
+              <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
+              <details class="txn-split">
+                <summary class="small">Split</summary>
+                <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
+                  <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
+                  <label class="small">Split into</label>
+                  <select class="input js-split-count" name="split_count" form="<?= h($splitFormId) ?>">
+                    <option value="2">2 transactions</option>
+                    <option value="3">3 transactions</option>
+                  </select>
+                  <div class="txn-split-amounts" style="display: grid; gap: 6px;">
+                    <input
+                      class="input js-split-amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      name="split_amounts[]"
+                      form="<?= h($splitFormId) ?>"
+                      data-split-index="1"
+                      placeholder="Amount 1"
+                      required
+                    >
+                    <input
+                      class="input js-split-amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      name="split_amounts[]"
+                      form="<?= h($splitFormId) ?>"
+                      data-split-index="2"
+                      placeholder="Amount 2"
+                      required
+                    >
+                    <input
+                      class="input js-split-amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      name="split_amounts[]"
+                      form="<?= h($splitFormId) ?>"
+                      data-split-index="3"
+                      placeholder="Amount 3"
+                      hidden
+                    >
+                  </div>
+                  <button class="btn" type="submit" form="<?= h($splitFormId) ?>">Split</button>
+                </div>
+              </details>
+            </td>
           </tr>
         <?php endforeach; ?>
       </tbody>
     </table>
     <?php
+}
+
+function render_split_forms(array $txns, array $actionQueryParams, array $config): void {
+    $action = '/transactions.php?' . http_build_query($actionQueryParams);
+    foreach ($txns as $txn) {
+        $txnId = (int)($txn['id'] ?? 0);
+        if ($txnId <= 0) {
+            continue;
+        }
+        $formId = 'split-form-' . $txnId;
+        ?>
+        <form id="<?= h($formId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
+          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+          <input type="hidden" name="action" value="split_transaction">
+          <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
+        </form>
+        <?php
+    }
 }
 
 $actionQueryParams = [
@@ -581,6 +695,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="split"> Split</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
     </div>
 
@@ -613,6 +728,8 @@ render_header('Transactions', 'transactions');
     <button class="btn floating-save" type="submit" name="action" value="update_categories">Save all categories</button>
   </form>
 </div>
+
+<?php render_split_forms(array_merge($incomeTxns, $expenseTxns, $internalTxns), $actionQueryParams, $config); ?>
 
 <script>
   (function () {
@@ -786,6 +903,29 @@ render_header('Transactions', 'transactions');
           }
         });
       }
+    });
+
+    const splitCountSelectors = Array.from(document.querySelectorAll('.js-split-count'));
+    splitCountSelectors.forEach((select) => {
+      const updateSplitFields = () => {
+        const splitContainer = select.closest('.txn-split');
+        if (!splitContainer) {
+          return;
+        }
+        const splitCount = Number(select.value || '2');
+        splitContainer.querySelectorAll('.js-split-amount').forEach((input) => {
+          const index = Number(input.dataset.splitIndex || '0');
+          const isActive = index <= splitCount;
+          input.hidden = !isActive;
+          input.required = isActive;
+          if (!isActive) {
+            input.value = '';
+          }
+        });
+      };
+
+      updateSplitFields();
+      select.addEventListener('change', updateSplitFields);
     });
   })();
 </script>
