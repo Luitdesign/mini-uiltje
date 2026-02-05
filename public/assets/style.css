@@ -134,6 +134,19 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 
 .small { font-size: 13px; color: var(--muted); }
 
+.txn-split-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.txn-split-link:hover {
+  text-decoration: underline;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
