@@ -371,7 +371,15 @@ function render_transactions_table(
                   <?php if (!empty($t['parent_transaction_id'])): ?>
                     <span class="badge">Split</span>
                   <?php endif; ?>
-                  <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                  <div class="txn-friendly-actions">
+                    <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                    <?php if (!empty($t['parent_transaction_id'])): ?>
+                      <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
+                      <button class="txn-edit-link" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
+                    <?php else: ?>
+                      <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
+                    <?php endif; ?>
+                  </div>
                 </div>
                 <div class="txn-original-display js-original-display" <?= $hasFriendly ? 'hidden' : '' ?>>
                   <?php if ($hasFriendly): ?>
@@ -392,7 +400,15 @@ function render_transactions_table(
                         <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
-                    <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                    <div class="txn-friendly-actions">
+                      <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                      <?php if (!empty($t['parent_transaction_id'])): ?>
+                        <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
+                        <button class="txn-edit-link" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
+                      <?php else: ?>
+                        <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
+                      <?php endif; ?>
+                    </div>
                   <?php else: ?>
                     <div class="txn-flags">
                       <strong><?= h($t['description']) ?></strong>
@@ -409,7 +425,15 @@ function render_transactions_table(
                     <?php if (!empty($t['notes'])): ?>
                       <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                     <?php endif; ?>
-                    <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                    <div class="txn-friendly-actions">
+                      <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
+                      <?php if (!empty($t['parent_transaction_id'])): ?>
+                        <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
+                        <button class="txn-edit-link" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
+                      <?php else: ?>
+                        <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
+                      <?php endif; ?>
+                    </div>
                   <?php endif; ?>
                 </div>
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
@@ -446,12 +470,10 @@ function render_transactions_table(
             <td data-col="split">
               <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
               <?php if (!empty($t['parent_transaction_id'])): ?>
-                <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
                 <div class="small muted" style="margin-bottom: 6px;">Split item</div>
-                <button class="txn-split-link small" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
               <?php else: ?>
-                <details class="txn-split">
-                  <summary class="small">Split</summary>
+                <details class="txn-split" id="split-details-<?= (int)$t['id'] ?>">
+                  <summary class="sr-only">Split</summary>
                   <div class="txn-split-fields" style="margin-top: 8px; display: grid; gap: 8px;">
                     <div class="small muted">Total: <?= number_format(abs($amt), 2, ',', '.') ?></div>
                     <label class="small">Split into</label>
@@ -933,6 +955,21 @@ render_header('Transactions', 'transactions');
           }
         });
       }
+    });
+
+    const splitToggles = Array.from(document.querySelectorAll('.js-split-toggle'));
+    splitToggles.forEach((toggle) => {
+      toggle.addEventListener('click', () => {
+        const targetId = toggle.dataset.splitTarget;
+        if (!targetId) {
+          return;
+        }
+        const details = document.getElementById(targetId);
+        if (!details) {
+          return;
+        }
+        details.open = true;
+      });
     });
 
     const splitCountSelectors = Array.from(document.querySelectorAll('.js-split-count'));
