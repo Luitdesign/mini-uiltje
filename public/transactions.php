@@ -448,7 +448,7 @@ function render_transactions_table(
               <?php if (!empty($t['parent_transaction_id'])): ?>
                 <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
                 <div class="small muted" style="margin-bottom: 6px;">Split item</div>
-                <button class="btn" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
+                <button class="txn-split-link small" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
               <?php else: ?>
                 <details class="txn-split">
                   <summary class="small">Split</summary>
