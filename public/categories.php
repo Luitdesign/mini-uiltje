@@ -9,6 +9,8 @@ if (isset($_GET['saved'])) {
     $saved = (string)$_GET['saved'];
     if ($saved === 'added') {
         $info = 'Category added.';
+    } elseif ($saved === 'parent_added') {
+        $info = 'Parent category added.';
     } elseif ($saved === 'bulk') {
         $addedCount = (int)($_GET['added'] ?? 0);
         $skippedCount = (int)($_GET['skipped'] ?? 0);
@@ -73,6 +75,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (Throwable $e) {
                     $error = $e->getMessage();
                 }
+            }
+        }
+    } elseif ($action === 'add_parent') {
+        $parentName = trim((string)($_POST['parent_name'] ?? ''));
+        $useColor = isset($_POST['use_parent_color']);
+        $color = $useColor ? (string)($_POST['parent_color'] ?? '') : null;
+        if ($parentName === '') {
+            $error = 'Parent category name cannot be empty.';
+        } else {
+            try {
+                $id = repo_create_parent_category($db, $parentName, $color);
+                if ($id) {
+                    redirect('/categories.php?saved=parent_added');
+                } else {
+                    $error = 'Could not save parent category.';
+                }
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
             }
         }
     } elseif ($action === 'update') {
@@ -165,6 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $cats = repo_list_categories($db);
+$parentCats = repo_list_parent_categories($db);
 $savings = repo_list_savings($db);
 $editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
 $uncategorizedColor = '#ff0000';
@@ -209,6 +230,62 @@ render_header('Categories', 'categories');
       <?= h($error) ?>
     </div>
   <?php endif; ?>
+
+  <div class="card" style="margin-top: 12px;">
+    <h2>Parent categories</h2>
+    <form method="post" action="/categories.php" class="row" style="align-items:flex-end; margin-top: 12px;">
+      <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+      <input type="hidden" name="action" value="add_parent">
+      <div style="flex: 1; min-width: 260px;">
+        <label>New parent category</label>
+        <input class="input" name="parent_name" placeholder="e.g. Living costs" required>
+      </div>
+      <div style="min-width: 200px;">
+        <label>Parent color</label>
+        <div class="row" style="align-items: center;">
+          <label class="small" style="margin: 0;">
+            <input type="checkbox" name="use_parent_color" value="1">
+            Use color
+          </label>
+          <input class="input" type="color" name="parent_color" value="#93c5fd" style="width: 56px; height: 44px; padding: 4px;">
+        </div>
+        <div class="small">Optional color for grouping.</div>
+      </div>
+      <div>
+        <button class="btn" type="submit">Add parent</button>
+      </div>
+    </form>
+
+    <table class="table" style="margin-top: 12px;">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th style="width: 200px;">Color</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($parentCats as $parentCat): ?>
+          <tr>
+            <td><?= h((string)$parentCat['name']) ?></td>
+            <td>
+              <?php if (!empty($parentCat['color'])): ?>
+                <?php $swatch = rgba_from_hex($parentCat['color'], 0.18); ?>
+                <span class="badge" style="background: <?= h((string)$swatch) ?>; color: var(--text); border-color: <?= h($parentCat['color']) ?>;">
+                  <?= h($parentCat['color']) ?>
+                </span>
+              <?php else: ?>
+                <span class="small muted">None</span>
+              <?php endif; ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+
+    <?php if (empty($parentCats)): ?>
+      <div class="small muted" style="margin-top: 8px;">No parent categories yet.</div>
+    <?php endif; ?>
+  </div>
 
   <form method="post" action="/categories.php" class="row" style="align-items:flex-end; margin-top: 12px;">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">

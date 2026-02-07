@@ -45,13 +45,15 @@ function repo_list_categories(PDO $db): array {
         SELECT c.id,
                c.name,
                c.color,
+               c.is_parent,
                c.savings_id,
                s.name AS savings_name,
                COUNT(t.id) AS usage_count
         FROM categories c
         LEFT JOIN savings s ON s.id = c.savings_id
         LEFT JOIN transactions t ON t.category_id = c.id AND t.is_split_active = 1
-        GROUP BY c.id, c.name, c.color, c.savings_id, s.name
+        WHERE c.is_parent = 0
+        GROUP BY c.id, c.name, c.color, c.is_parent, c.savings_id, s.name
         ORDER BY usage_count DESC, c.name ASC
     ");
     $rows = $stmt->fetchAll();
@@ -106,6 +108,15 @@ function repo_set_setting(PDO $db, string $key, ?string $value): void {
     ]);
 }
 
+function repo_find_category_by_name(PDO $db, string $name): ?array {
+    $name = trim($name);
+    if ($name === '') return null;
+    $stmt = $db->prepare("SELECT id, is_parent FROM categories WHERE name = :n LIMIT 1");
+    $stmt->execute([':n' => $name]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
 function repo_find_category_id(PDO $db, string $name): ?int {
     $name = trim($name);
     if ($name === '') return null;
@@ -120,15 +131,42 @@ function repo_create_category(PDO $db, string $name, ?string $color, ?int $savin
     if ($name === '') return null;
     $color = normalize_hex_color($color);
     $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
-    // Insert ignore via try/catch for unique constraint
-    try {
-        $stmt = $db->prepare("INSERT INTO categories(name, color, savings_id) VALUES(:n, :color, :savings_id)");
-        $stmt->execute([':n' => $name, ':color' => $color, ':savings_id' => $savingsId]);
-        return (int)$db->lastInsertId();
-    } catch (PDOException $e) {
-        $existingId = repo_find_category_id($db, $name);
-        return $existingId ?: null;
+    $existing = repo_find_category_by_name($db, $name);
+    if ($existing) {
+        return ((int)$existing['is_parent'] === 0) ? (int)$existing['id'] : null;
     }
+    $stmt = $db->prepare("INSERT INTO categories(name, color, savings_id) VALUES(:n, :color, :savings_id)");
+    $stmt->execute([':n' => $name, ':color' => $color, ':savings_id' => $savingsId]);
+    return (int)$db->lastInsertId();
+}
+
+function repo_create_parent_category(PDO $db, string $name, ?string $color = null): ?int {
+    $name = trim($name);
+    if ($name === '') return null;
+    $color = normalize_hex_color($color);
+    $existing = repo_find_category_by_name($db, $name);
+    if ($existing) {
+        throw new RuntimeException('Category name already exists.');
+    }
+    $stmt = $db->prepare(
+        "INSERT INTO categories(name, color, parent_id, is_parent, savings_id)
+         VALUES(:n, :color, NULL, 1, NULL)"
+    );
+    $stmt->execute([':n' => $name, ':color' => $color]);
+    return (int)$db->lastInsertId();
+}
+
+function repo_list_parent_categories(PDO $db): array {
+    $stmt = $db->query("
+        SELECT id,
+               name,
+               color,
+               created_at
+        FROM categories
+        WHERE is_parent = 1
+        ORDER BY name ASC
+    ");
+    return $stmt->fetchAll();
 }
 
 function repo_bulk_create_categories(PDO $db, array $names): array {
