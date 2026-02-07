@@ -13,7 +13,7 @@ try {
 
 $expectedSchema = [
     'users' => ['id', 'username', 'password_hash', 'created_at'],
-    'categories' => ['id', 'name', 'color', 'parent_id', 'savings_id', 'created_at'],
+    'categories' => ['id', 'name', 'color', 'parent_id', 'is_parent', 'savings_id', 'created_at'],
     'app_settings' => ['setting_key', 'setting_value'],
     'imports' => ['id', 'user_id', 'filename', 'imported_at'],
     'rules' => [
