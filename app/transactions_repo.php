@@ -72,7 +72,7 @@ function repo_get_category(PDO $db, int $categoryId): ?array {
     if ($categoryId <= 0) {
         return null;
     }
-    $stmt = $db->prepare("SELECT id, name, color, savings_id FROM categories WHERE id = :id LIMIT 1");
+    $stmt = $db->prepare("SELECT id, name, color, savings_id, parent_id FROM categories WHERE id = :id LIMIT 1");
     $stmt->execute([':id' => $categoryId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
@@ -201,7 +201,7 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     return ['created_ids' => $createdIds, 'skipped' => $skipped];
 }
 
-function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color, ?int $savingsId = null): void {
+function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color, ?int $savingsId = null, ?int $parentId = null): void {
     $name = trim($name);
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
@@ -211,13 +211,25 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?string $c
     }
     $color = normalize_hex_color($color);
     $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
+    $parentId = $parentId !== null && $parentId > 0 ? $parentId : null;
+    if ($parentId !== null && $parentId === $categoryId) {
+        throw new RuntimeException('Category cannot be its own parent.');
+    }
 
     try {
-        $stmt = $db->prepare("UPDATE categories SET name = :name, color = :color, savings_id = :savings_id WHERE id = :id");
+        $stmt = $db->prepare(
+            "UPDATE categories
+             SET name = :name,
+                 color = :color,
+                 savings_id = :savings_id,
+                 parent_id = :parent_id
+             WHERE id = :id"
+        );
         $stmt->execute([
             ':name' => $name,
             ':color' => $color,
             ':savings_id' => $savingsId,
+            ':parent_id' => $parentId,
             ':id' => $categoryId,
         ]);
     } catch (PDOException $e) {

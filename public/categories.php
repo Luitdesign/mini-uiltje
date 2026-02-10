@@ -109,6 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($savingsId !== null && $savingsId <= 0) {
             $savingsId = null;
         }
+        $parentIdRaw = trim((string)($_POST['parent_id'] ?? ''));
+        $parentId = $parentIdRaw !== '' ? (int)$parentIdRaw : null;
+        if ($parentId !== null && $parentId <= 0) {
+            $parentId = null;
+        }
         if ($error === '' && $name === '') {
             $error = 'Category name cannot be empty.';
         }
@@ -118,9 +123,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Selected ledger not found.';
             }
         }
+        if ($error === '' && $parentId !== null) {
+            if ($parentId === $categoryId) {
+                $error = 'Category cannot be its own parent.';
+            } else {
+                $parentCatsForValidation = repo_list_parent_categories($db);
+                $parentLookup = [];
+                foreach ($parentCatsForValidation as $parentCat) {
+                    $parentLookup[(int)$parentCat['id']] = true;
+                }
+                if (!isset($parentLookup[$parentId])) {
+                    $error = 'Selected parent category not found.';
+                }
+            }
+        }
         if ($error === '') {
             try {
-                repo_update_category($db, $categoryId, $name, $color, $savingsId);
+                repo_update_category($db, $categoryId, $name, $color, $savingsId, $parentId);
                 repo_apply_category_ledger($db, current_user_id(), $categoryId, $savingsId);
                 redirect('/categories.php?saved=updated');
             } catch (Throwable $e) {
@@ -188,6 +207,8 @@ $cats = repo_list_categories($db);
 $parentCats = repo_list_parent_categories($db);
 $savings = repo_list_savings($db);
 $editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
+$editCategory = $editId > 0 ? repo_get_category($db, $editId) : null;
+$editParentId = $editCategory ? (int)($editCategory['parent_id'] ?? 0) : 0;
 $uncategorizedColor = '#ff0000';
 $storedUncategorizedColor = repo_get_setting($db, 'uncategorized_color');
 if ($storedUncategorizedColor !== $uncategorizedColor) {
@@ -339,7 +360,7 @@ render_header('Categories', 'categories');
     <h2>Existing</h2>
     <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
   </div>
-  <table class="table category-table" style="margin-top: 12px;">
+    <table class="table category-table" style="margin-top: 12px;">
     <thead>
       <tr>
         <th>Name</th>
@@ -386,6 +407,17 @@ render_header('Categories', 'categories');
                   </option>
                 <?php endforeach; ?>
               </select>
+              <div style="margin-top: 8px;">
+                <select class="input" name="parent_id" form="<?= h((string)$formId) ?>">
+                  <option value="">Parent: None</option>
+                  <?php foreach ($parentCats as $parentCat): ?>
+                    <?php $selected = $editParentId === (int)$parentCat['id']; ?>
+                    <option value="<?= h((string)$parentCat['id']) ?>" <?= $selected ? 'selected' : '' ?>>
+                      Parent: <?= h((string)$parentCat['name']) ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
             <?php elseif (!empty($cat['savings_name'])): ?>
               <?= h((string)$cat['savings_name']) ?>
             <?php else: ?>
