@@ -365,6 +365,7 @@ render_header('Categories', 'categories');
       <tr>
         <th>Name</th>
         <th style="width: 220px;">Ledger</th>
+        <th style="width: 220px;">Parent</th>
         <th style="width: 200px;">Color</th>
         <th style="width: 200px;">Actions</th>
       </tr>
@@ -375,6 +376,7 @@ render_header('Categories', 'categories');
         <td style="height:44px;">
           <a href="/transactions.php?category_id=0&all_time=1">Uncategorized</a>
         </td>
+        <td><span class="small muted">None</span></td>
         <td><span class="small muted">None</span></td>
         <td>
           <?php $swatch = rgba_from_hex($uncategorizedColor, 0.18); ?>
@@ -407,19 +409,25 @@ render_header('Categories', 'categories');
                   </option>
                 <?php endforeach; ?>
               </select>
-              <div style="margin-top: 8px;">
-                <select class="input" name="parent_id" form="<?= h((string)$formId) ?>">
-                  <option value="">Parent: None</option>
-                  <?php foreach ($parentCats as $parentCat): ?>
-                    <?php $selected = $editParentId === (int)$parentCat['id']; ?>
-                    <option value="<?= h((string)$parentCat['id']) ?>" <?= $selected ? 'selected' : '' ?>>
-                      Parent: <?= h((string)$parentCat['name']) ?>
-                    </option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
             <?php elseif (!empty($cat['savings_name'])): ?>
               <?= h((string)$cat['savings_name']) ?>
+            <?php else: ?>
+              <span class="small muted">None</span>
+            <?php endif; ?>
+          </td>
+          <td>
+            <?php if ($editId === $catId): ?>
+              <select class="input" name="parent_id" form="<?= h((string)$formId) ?>">
+                <option value="">None</option>
+                <?php foreach ($parentCats as $parentCat): ?>
+                  <?php $selected = $editParentId === (int)$parentCat['id']; ?>
+                  <option value="<?= h((string)$parentCat['id']) ?>" <?= $selected ? 'selected' : '' ?>>
+                    <?= h((string)$parentCat['name']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            <?php elseif (!empty($cat['parent_name'])): ?>
+              <?= h((string)$cat['parent_name']) ?>
             <?php else: ?>
               <span class="small muted">None</span>
             <?php endif; ?>
