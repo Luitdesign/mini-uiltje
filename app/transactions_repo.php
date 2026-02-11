@@ -46,14 +46,17 @@ function repo_list_categories(PDO $db): array {
                c.name,
                c.color,
                c.is_parent,
+               c.parent_id,
+               p.name AS parent_name,
                c.savings_id,
                s.name AS savings_name,
                COUNT(t.id) AS usage_count
         FROM categories c
+        LEFT JOIN categories p ON p.id = c.parent_id
         LEFT JOIN savings s ON s.id = c.savings_id
         LEFT JOIN transactions t ON t.category_id = c.id AND t.is_split_active = 1
         WHERE c.is_parent = 0
-        GROUP BY c.id, c.name, c.color, c.is_parent, c.savings_id, s.name
+        GROUP BY c.id, c.name, c.color, c.is_parent, c.parent_id, p.name, c.savings_id, s.name
         ORDER BY usage_count DESC, c.name ASC
     ");
     $rows = $stmt->fetchAll();
