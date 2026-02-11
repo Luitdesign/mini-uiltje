@@ -720,7 +720,8 @@ function repo_period_breakdown_by_category(
     int $year,
     int $month,
     ?string $startDate = null,
-    ?string $endDate = null
+    ?string $endDate = null,
+    bool $groupByParentCategory = false
 ): array {
     $params = [':uid' => $userId];
     $whereDate = '';
@@ -741,14 +742,19 @@ function repo_period_breakdown_by_category(
         }
     }
 
+    $categoryExpression = $groupByParentCategory
+        ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
+        : "COALESCE(c.name, 'Niet ingedeeld')";
+
     $sql = "
         SELECT
-            COALESCE(c.name, 'Niet ingedeeld') AS category,
+            {$categoryExpression} AS category,
             SUM(CASE WHEN t.amount_signed > 0 AND t.savings_id IS NULL THEN t.amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
             SUM(t.amount_signed) AS net
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN categories p ON p.id = c.parent_id
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.is_split_active = 1

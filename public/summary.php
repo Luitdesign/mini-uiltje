@@ -8,6 +8,8 @@ $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
 $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $startDate = trim((string)($_GET['start_date'] ?? ''));
 $endDate = trim((string)($_GET['end_date'] ?? ''));
+$categoryView = (string)($_GET['category_view'] ?? 'category');
+$groupByParentCategory = $categoryView === 'parent';
 $allTime = (string)($_GET['all_time'] ?? '') === '1';
 $hasDateRange = $startDate !== '' || $endDate !== '';
 if ($allTime) {
@@ -32,7 +34,15 @@ $periodValue = $allTime
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
 $sum = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd);
-$breakdown = repo_period_breakdown_by_category($db, $userId, $year, $month, $rangeStart, $rangeEnd);
+$breakdown = repo_period_breakdown_by_category(
+    $db,
+    $userId,
+    $year,
+    $month,
+    $rangeStart,
+    $rangeEnd,
+    $groupByParentCategory
+);
 
 render_header('Summary', 'summary');
 $yearInputValue = $year > 0 ? (string)$year : '';
@@ -51,6 +61,7 @@ if ($startDate !== '') {
 if ($endDate !== '') {
     $linkParams['end_date'] = $endDate;
 }
+$linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
 ?>
 
 <div class="card">
@@ -94,6 +105,25 @@ if ($endDate !== '') {
       <button class="btn" type="submit">Apply</button>
     </div>
   </form>
+
+  <form method="get" action="/summary.php" class="row" style="margin-top:8px; align-items:center;">
+    <input type="hidden" name="year" value="<?= h((string)$year) ?>">
+    <input type="hidden" name="month" value="<?= h((string)$month) ?>">
+    <input type="hidden" name="start_date" value="<?= h($startDate) ?>">
+    <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
+    <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <span class="small">Group by:</span>
+      <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
+        <input type="radio" name="category_view" value="category" <?= !$groupByParentCategory ? 'checked' : '' ?> onchange="this.form.submit()">
+        Categories
+      </label>
+      <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
+        <input type="radio" name="category_view" value="parent" <?= $groupByParentCategory ? 'checked' : '' ?> onchange="this.form.submit()">
+        Parent categories
+      </label>
+    </div>
+  </form>
 </div>
 
 <div class="card">
@@ -114,7 +144,7 @@ if ($endDate !== '') {
 </div>
 
 <div class="card">
-  <h2>By category</h2>
+  <h2>By <?= $groupByParentCategory ? 'parent category' : 'category' ?></h2>
   <table class="table">
     <thead>
       <tr>
