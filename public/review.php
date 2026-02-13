@@ -4,6 +4,32 @@ require_login();
 
 $userId = current_user_id();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_validate($config);
+
+    $action = (string)($_POST['action'] ?? '');
+    if ($action === 'disapprove_auto') {
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        if ($txnId > 0) {
+            $stmt = $db->prepare(
+                "UPDATE transactions
+                 SET approved = 0,
+                     category_id = NULL,
+                     category_auto_id = NULL,
+                     rule_auto_id = NULL,
+                     auto_reason = NULL
+                 WHERE id = :id AND user_id = :uid"
+            );
+            $stmt->execute([
+                ':id' => $txnId,
+                ':uid' => $userId,
+            ]);
+        }
+    }
+
+    redirect('/review.php');
+}
+
 $allCategories = array_map(
     static fn (array $category): string => (string)$category['name'],
     repo_list_assignable_categories($db)
@@ -136,6 +162,14 @@ render_header('Review · Mini-Uiltje', 'review');
 <?php endforeach; ?>
 </div>
 
+<?php foreach ($transactions as $transaction): ?>
+    <form id="disapprove-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="disapprove_auto">
+        <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+    </form>
+<?php endforeach; ?>
+
 <div class="card" id="toast" role="status" aria-live="polite" hidden>
     <span id="toast-message">Updated</span>
     <button class="btn" type="button" id="toast-undo">Undo</button>
@@ -170,6 +204,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 <div class="badge badge-savings">Auto: ${autoCategory || 'Suggested'}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
+                    <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Disapprove</button>
                     <a class="btn btn-split-action" href="#" aria-label="Split transaction">Split</a>
                 </div>
             `;
