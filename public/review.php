@@ -136,10 +136,6 @@ render_header('Review · Mini-Uiltje', 'review');
 <?php endforeach; ?>
 </div>
 
-<div class="floating-save" id="sticky-footer">
-    <button class="btn" id="approve-all-auto" type="button">✓ Approve all auto</button>
-</div>
-
 <div class="card" id="toast" role="status" aria-live="polite" hidden>
     <span id="toast-message">Updated</span>
     <button class="btn" type="button" id="toast-undo">Undo</button>
@@ -152,8 +148,6 @@ render_header('Review · Mini-Uiltje', 'review');
     const chips = Array.from(document.querySelectorAll('.chip'));
     const cards = Array.from(document.querySelectorAll('[data-card]'));
     const groups = Array.from(document.querySelectorAll('[data-date-group]'));
-    const cta = document.getElementById('sticky-footer');
-    const approveAllAutoBtn = document.getElementById('approve-all-auto');
     const leftCount = document.getElementById('left-count');
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
@@ -238,10 +232,6 @@ render_header('Review · Mini-Uiltje', 'review');
             const visibleCards = group.querySelectorAll('[data-card]:not([hidden])').length;
             group.hidden = visibleCards === 0;
         });
-
-        const visibleAutoCount = cards.filter((card) => !card.hidden && card.dataset.status === 'auto').length;
-        const showCta = currentFilter === 'needs' || currentFilter === 'auto';
-        cta.hidden = !(showCta && visibleAutoCount > 0);
 
         const remaining = cards.filter((card) => statusNeedsReview(card.dataset.status)).length;
         leftCount.textContent = String(remaining);
@@ -333,26 +323,6 @@ render_header('Review · Mini-Uiltje', 'review');
                 formatCategoryArea(card);
             }
         }
-    });
-
-    approveAllAutoBtn.addEventListener('click', () => {
-        const visibleAutoCards = cards.filter((card) => !card.hidden && card.dataset.status === 'auto');
-        if (visibleAutoCards.length === 0) return;
-
-        const previous = visibleAutoCards.map((card) => ({
-            card,
-            status: card.dataset.status,
-            category: card.dataset.category,
-        }));
-
-        visibleAutoCards.forEach((card) => approveCard(card, false));
-        showToast(`Approved ${visibleAutoCards.length} auto suggestions.`, () => {
-            previous.forEach((item) => {
-                item.card.dataset.status = item.status;
-                item.card.dataset.category = item.category;
-            });
-            renderCards();
-        });
     });
 
     toastUndo.addEventListener('click', () => {
