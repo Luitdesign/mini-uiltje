@@ -135,17 +135,17 @@ function format_date_label(string $date): string
     <title>Review · Mini-Uiltje</title>
     <style>
         :root {
-            --bg: #060912;
-            --panel: #101623;
-            --panel-soft: #141d2f;
-            --border: #263245;
-            --text: #e6edf5;
-            --muted: #9ba8bd;
-            --accent: #46d2d0;
-            --accent-soft: rgba(70, 210, 208, 0.2);
+            --bg: #0b0d10;
+            --panel: #12161b;
+            --panel-soft: #161b22;
+            --border: #243040;
+            --text: #e6edf3;
+            --muted: #9aa4af;
+            --accent: #6ee7b7;
+            --accent-soft: rgba(110, 231, 183, 0.2);
             --warn: #e5aa58;
-            --danger: #ff7f9e;
-            --success: #7ce9ba;
+            --danger: #fb7185;
+            --success: #6ee7b7;
         }
 
         * { box-sizing: border-box; }
@@ -154,8 +154,8 @@ function format_date_label(string $date): string
             margin: 0;
             font-family: Inter, "Segoe UI", Roboto, sans-serif;
             background:
-                radial-gradient(70% 60% at 20% 0%, rgba(70, 210, 208, 0.07), transparent 70%),
-                radial-gradient(50% 40% at 80% 20%, rgba(68, 108, 255, 0.08), transparent 70%),
+                radial-gradient(70% 60% at 20% 0%, rgba(110, 231, 183, 0.07), transparent 70%),
+                radial-gradient(50% 40% at 80% 20%, rgba(148, 163, 184, 0.06), transparent 70%),
                 var(--bg);
             color: var(--text);
         }
@@ -172,7 +172,7 @@ function format_date_label(string $date): string
             top: 0;
             z-index: 15;
             padding: 12px 0 12px;
-            background: linear-gradient(180deg, rgba(6, 9, 18, 0.98), rgba(6, 9, 18, 0.86));
+            background: linear-gradient(180deg, rgba(11, 13, 16, 0.98), rgba(11, 13, 16, 0.86));
             backdrop-filter: blur(10px);
         }
 
@@ -220,7 +220,7 @@ function format_date_label(string $date): string
         .month-pill {
             padding: 8px 12px;
             border-radius: 12px;
-            color: #d7e2f0;
+            color: var(--text);
             cursor: pointer;
         }
 
@@ -228,8 +228,8 @@ function format_date_label(string $date): string
             margin-top: 12px;
             padding: 14px;
             border-radius: 14px;
-            background: rgba(12, 17, 29, 0.9);
-            border: 1px solid #1c2a3d;
+            background: rgba(18, 22, 27, 0.9);
+            border: 1px solid var(--border);
         }
 
         .progress-top {
@@ -247,7 +247,7 @@ function format_date_label(string $date): string
         .progress-track {
             height: 10px;
             border-radius: 99px;
-            background: #253346;
+            background: rgba(148, 163, 184, 0.2);
             overflow: hidden;
         }
 
@@ -255,7 +255,7 @@ function format_date_label(string $date): string
             display: block;
             width: 58%;
             height: 100%;
-            background: linear-gradient(90deg, #4dd9d6, #7bd2e9);
+            background: linear-gradient(90deg, #6ee7b7, #9ae6b4);
         }
 
         .filter-row {
@@ -273,13 +273,13 @@ function format_date_label(string $date): string
             padding: 8px 14px;
             white-space: nowrap;
             cursor: pointer;
-            color: #c7d3e3;
+            color: var(--text);
         }
 
         .chip[aria-pressed="true"] {
-            background: linear-gradient(180deg, rgba(70, 210, 208, 0.34), rgba(70, 210, 208, 0.24));
-            border-color: #4acdcc;
-            color: #d8f8f7;
+            background: linear-gradient(180deg, rgba(110, 231, 183, 0.28), rgba(110, 231, 183, 0.16));
+            border-color: var(--accent);
+            color: var(--text);
         }
 
         .date-group {
@@ -291,7 +291,7 @@ function format_date_label(string $date): string
             justify-content: space-between;
             align-items: center;
             margin: 0 2px 10px;
-            color: #d6dfec;
+            color: var(--text);
         }
 
         .date-heading h2 {
@@ -302,8 +302,8 @@ function format_date_label(string $date): string
         .date-heading span { color: var(--muted); }
 
         .card {
-            background: linear-gradient(130deg, rgba(20, 29, 47, 0.95), rgba(12, 18, 30, 0.95));
-            border: 1px solid #243145;
+            background: linear-gradient(130deg, rgba(22, 27, 34, 0.95), rgba(18, 22, 27, 0.95));
+            border: 1px solid var(--border);
             border-radius: 18px;
             padding: 14px;
             margin-bottom: 10px;
@@ -357,8 +357,8 @@ function format_date_label(string $date): string
         }
 
         .pill-auto {
-            background: linear-gradient(180deg, rgba(70, 210, 208, 0.34), rgba(70, 210, 208, 0.18));
-            border-color: rgba(70, 210, 208, 0.45);
+            background: linear-gradient(180deg, rgba(110, 231, 183, 0.3), rgba(110, 231, 183, 0.14));
+            border-color: rgba(110, 231, 183, 0.45);
         }
 
         .pill-uncat {
@@ -392,7 +392,7 @@ function format_date_label(string $date): string
         }
 
         .more-btn,
-        .split-btn { background: #1a2336; }
+        .split-btn { background: rgba(110, 231, 183, 0.08); }
 
         .actions {
             display: flex;
@@ -401,9 +401,9 @@ function format_date_label(string $date): string
         }
 
         .approve-btn {
-            background: linear-gradient(180deg, rgba(70, 210, 208, 0.37), rgba(70, 210, 208, 0.22));
-            border-color: rgba(70, 210, 208, 0.65);
-            color: #e5fdfd;
+            background: linear-gradient(180deg, rgba(110, 231, 183, 0.35), rgba(110, 231, 183, 0.18));
+            border-color: rgba(110, 231, 183, 0.6);
+            color: var(--text);
             font-weight: 600;
         }
 
@@ -427,8 +427,8 @@ function format_date_label(string $date): string
             border-radius: 18px;
             padding: 12px 18px;
             font-weight: 700;
-            background: linear-gradient(180deg, rgba(70, 210, 208, 0.38), rgba(70, 210, 208, 0.19));
-            border-color: rgba(70, 210, 208, 0.65);
+            background: linear-gradient(180deg, rgba(110, 231, 183, 0.38), rgba(110, 231, 183, 0.18));
+            border-color: rgba(110, 231, 183, 0.6);
             cursor: pointer;
         }
 
@@ -444,8 +444,8 @@ function format_date_label(string $date): string
             grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-            background: rgba(8, 12, 21, 0.96);
-            border-top: 1px solid #1d2a3e;
+            background: rgba(18, 22, 27, 0.96);
+            border-top: 1px solid var(--border);
             backdrop-filter: blur(9px);
         }
 
@@ -454,7 +454,7 @@ function format_date_label(string $date): string
             background: transparent;
             padding: 4px 2px;
             text-align: center;
-            color: #9aa7bc;
+            color: var(--muted);
             font-size: 0.85rem;
             text-decoration: none;
         }
@@ -482,8 +482,8 @@ function format_date_label(string $date): string
         }
 
         .sheet-panel {
-            background: #0d1423;
-            border: 1px solid #253246;
+            background: var(--panel);
+            border: 1px solid var(--border);
             border-bottom: none;
             border-radius: 20px 20px 0 0;
             padding: 14px;
@@ -501,7 +501,7 @@ function format_date_label(string $date): string
             padding: 11px 12px;
             border-radius: 12px;
             border: 1px solid var(--border);
-            background: #131d2e;
+            background: #0e1217;
             color: var(--text);
             margin-bottom: 12px;
         }
@@ -526,11 +526,11 @@ function format_date_label(string $date): string
             transform: translateX(-50%);
             bottom: 130px;
             z-index: 30;
-            background: #111b2b;
-            border: 1px solid #2a3951;
+            background: var(--panel);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 10px 14px;
-            color: #d8e4f3;
+            color: var(--text);
             display: none;
             gap: 12px;
             align-items: center;
@@ -541,7 +541,7 @@ function format_date_label(string $date): string
         .toast button {
             background: none;
             border: none;
-            color: #7ad6e3;
+            color: var(--accent);
             font-weight: 700;
             cursor: pointer;
         }
