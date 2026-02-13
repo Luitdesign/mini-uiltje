@@ -61,6 +61,9 @@ function ensure_transaction_extensions(PDO $db): void {
     if (!column_exists($db, 'transactions', 'savings_id')) {
         $db->exec('ALTER TABLE transactions ADD COLUMN savings_id INT UNSIGNED NULL AFTER auto_reason');
     }
+    if (!column_exists($db, 'transactions', 'approved')) {
+        $db->exec('ALTER TABLE transactions ADD COLUMN approved TINYINT(1) NOT NULL DEFAULT 0 AFTER is_topup');
+    }
 
     if (!index_exists($db, 'transactions', 'idx_transactions_import_batch')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_import_batch (import_batch_id)');
