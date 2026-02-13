@@ -1,110 +1,62 @@
 <?php
-$monthLabel = 'Feb 2026';
-$leftToReview = 18;
+require_once __DIR__ . '/../app/bootstrap.php';
+require_login();
 
-$quickCategories = [
-    'Boodschappen',
-    'Vervoer',
-    'Wonen',
-    'Bankkosten',
-    'Zorg',
-    'Overig',
-    'Uit eten',
-    'Abonnementen',
-];
+$userId = current_user_id();
 
-$transactions = [
-    [
-        'id' => 1,
-        'date' => '2026-02-12',
-        'description' => 'Albert Heijn 1491 Zwolle NLD',
-        'amount' => -12.46,
-        'category' => null,
-        'auto_category' => 'Boodschappen',
-        'status' => 'auto',
-        'note' => 'IBAN: NL85 XXXXX 181982 · Term: ZVW51 · Validatum: 12-02-2026',
-    ],
-    [
-        'id' => 2,
-        'date' => '2026-02-12',
-        'description' => 'De Goudreinet ZwolleZ ZWOLLE NLD',
-        'amount' => -1.69,
-        'category' => null,
-        'auto_category' => null,
-        'status' => 'uncat',
-        'note' => 'Pinbetaling · pas 1734',
-    ],
-    [
-        'id' => 3,
-        'date' => '2026-02-12',
-        'description' => 'Salaris Februari',
-        'amount' => 2650.00,
-        'category' => 'Inkomen',
-        'auto_category' => null,
-        'status' => 'approved',
-        'note' => 'Werkgever Mini-Uiltje BV',
-    ],
-    [
-        'id' => 4,
-        'date' => '2026-02-11',
-        'description' => 'NS Reizen',
-        'amount' => -7.40,
-        'category' => null,
-        'auto_category' => 'Vervoer',
-        'status' => 'auto',
-        'note' => 'OV-chipkaart opladen',
-    ],
-    [
-        'id' => 5,
-        'date' => '2026-02-11',
-        'description' => 'Zilveren Kruis Premie',
-        'amount' => -148.29,
-        'category' => 'Zorg',
-        'auto_category' => null,
-        'status' => 'approved',
-        'note' => 'Automatische incasso',
-    ],
-    [
-        'id' => 6,
-        'date' => '2026-02-10',
-        'description' => 'Spotify',
-        'amount' => -10.99,
-        'category' => null,
-        'auto_category' => null,
-        'status' => 'uncat',
-        'note' => 'Abonnement',
-    ],
-    [
-        'id' => 7,
-        'date' => '2026-02-10',
-        'description' => 'ING Bankkosten',
-        'amount' => -3.45,
-        'category' => null,
-        'auto_category' => 'Bankkosten',
-        'status' => 'auto',
-        'note' => 'Maandelijkse kosten',
-    ],
-    [
-        'id' => 8,
-        'date' => '2026-02-09',
-        'description' => 'Huur Februari',
-        'amount' => -925.00,
-        'category' => 'Wonen',
-        'auto_category' => null,
-        'status' => 'approved',
-        'note' => 'Woningcorporatie Delta',
-    ],
-    [
-        'id' => 9,
-        'date' => '2026-02-09',
-        'description' => 'Etos Zwolle',
-        'amount' => -16.35,
-        'category' => null,
-        'auto_category' => null,
-        'status' => 'uncat',
-        'note' => 'Drogist',
-    ],
-];
+$quickCategories = array_map(
+    static fn (array $category): string => (string)$category['name'],
+    array_slice(repo_list_assignable_categories($db), 0, 8)
+);
+
+if ($quickCategories === []) {
+    $quickCategories = ['Overig'];
+}
+
+$stmt = $db->prepare(
+    "SELECT
+        t.id,
+        t.txn_date,
+        t.description,
+        t.amount_signed,
+        t.notes,
+        c.name AS category_name,
+        ca.name AS auto_category_name
+     FROM transactions t
+     LEFT JOIN categories c ON c.id = t.category_id
+     LEFT JOIN categories ca ON ca.id = t.category_auto_id
+     WHERE t.user_id = :uid
+       AND t.is_split_active = 1
+       AND t.approved = 0
+     ORDER BY t.txn_date DESC, t.id DESC"
+);
+$stmt->execute([':uid' => $userId]);
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$transactions = array_map(static function (array $row): array {
+    $hasAutoCategory = !empty($row['auto_category_name']);
+    $status = $hasAutoCategory ? 'auto' : 'uncat';
+
+    return [
+        'id' => (int)$row['id'],
+        'date' => (string)$row['txn_date'],
+        'description' => (string)$row['description'],
+        'amount' => (float)$row['amount_signed'],
+        'category' => $row['category_name'] !== null ? (string)$row['category_name'] : null,
+        'auto_category' => $row['auto_category_name'] !== null ? (string)$row['auto_category_name'] : null,
+        'status' => $status,
+        'note' => $row['notes'] !== null ? trim((string)$row['notes']) : null,
+    ];
+}, $rows);
+
+$leftToReview = count($transactions);
+$monthLabel = 'No pending transactions';
+if ($transactions !== []) {
+    $monthValue = DateTime::createFromFormat('Y-m-d', $transactions[0]['date']);
+    if ($monthValue instanceof DateTime) {
+        $monthLabel = $monthValue->format('M Y');
+    }
+}
 
 usort($transactions, static function (array $a, array $b): int {
     return strcmp($b['date'], $a['date']);
