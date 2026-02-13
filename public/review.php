@@ -4,8 +4,19 @@ require_login();
 
 $userId = current_user_id();
 
+$allowedReviewFilters = ['needs', 'uncat', 'auto', 'all'];
+$currentReviewFilter = (string)($_GET['filter'] ?? 'needs');
+if (!in_array($currentReviewFilter, $allowedReviewFilters, true)) {
+    $currentReviewFilter = 'needs';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
+
+    $postedReviewFilter = (string)($_POST['review_filter'] ?? 'needs');
+    if (!in_array($postedReviewFilter, $allowedReviewFilters, true)) {
+        $postedReviewFilter = 'needs';
+    }
 
     $action = (string)($_POST['action'] ?? '');
     if ($action === 'approve_auto') {
@@ -119,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    redirect('/review.php');
+    redirect('/review.php?filter=' . urlencode($postedReviewFilter));
 }
 
 $assignableCategories = repo_list_assignable_categories($db);
@@ -297,6 +308,7 @@ render_header('Review · Mini-Uiltje', 'review');
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="action" value="split_transaction">
         <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+        <input type="hidden" name="review_filter" value="<?= htmlspecialchars($currentReviewFilter, ENT_QUOTES, 'UTF-8') ?>" data-review-filter-input>
     </form>
 <?php endforeach; ?>
 </div>
@@ -306,17 +318,20 @@ render_header('Review · Mini-Uiltje', 'review');
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="action" value="disapprove_auto">
         <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+        <input type="hidden" name="review_filter" value="<?= htmlspecialchars($currentReviewFilter, ENT_QUOTES, 'UTF-8') ?>" data-review-filter-input>
     </form>
     <form id="approve-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="action" value="approve_auto">
         <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+        <input type="hidden" name="review_filter" value="<?= htmlspecialchars($currentReviewFilter, ENT_QUOTES, 'UTF-8') ?>" data-review-filter-input>
     </form>
     <form id="set-category-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="action" value="set_category">
         <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
         <input type="hidden" name="category_id" value="">
+        <input type="hidden" name="review_filter" value="<?= htmlspecialchars($currentReviewFilter, ENT_QUOTES, 'UTF-8') ?>" data-review-filter-input>
     </form>
 <?php endforeach; ?>
 
@@ -337,7 +352,11 @@ render_header('Review · Mini-Uiltje', 'review');
     const toastMessage = document.getElementById('toast-message');
     const toastUndo = document.getElementById('toast-undo');
 
-    let currentFilter = 'needs';
+    const allowedFilters = new Set(['needs', 'uncat', 'auto', 'all']);
+    let currentFilter = <?= json_encode($currentReviewFilter, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    if (!allowedFilters.has(currentFilter)) {
+        currentFilter = 'needs';
+    }
     let undoState = null;
     let toastTimer = null;
 
@@ -456,8 +475,16 @@ render_header('Review · Mini-Uiltje', 'review');
         chip.addEventListener('click', () => {
             currentFilter = chip.dataset.filter;
             chips.forEach((btn) => btn.setAttribute('aria-pressed', String(btn === chip)));
+            document.querySelectorAll('[data-review-filter-input]').forEach((input) => {
+                input.value = currentFilter;
+            });
             renderCards();
         });
+    });
+
+    chips.forEach((btn) => btn.setAttribute('aria-pressed', String(btn.dataset.filter === currentFilter)));
+    document.querySelectorAll('[data-review-filter-input]').forEach((input) => {
+        input.value = currentFilter;
     });
 
     document.addEventListener('click', (event) => {
