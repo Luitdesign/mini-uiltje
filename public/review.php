@@ -4,13 +4,13 @@ require_login();
 
 $userId = current_user_id();
 
-$quickCategories = array_map(
+$allCategories = array_map(
     static fn (array $category): string => (string)$category['name'],
-    array_slice(repo_list_assignable_categories($db), 0, 8)
+    repo_list_assignable_categories($db)
 );
 
-if ($quickCategories === []) {
-    $quickCategories = ['Overig'];
+if ($allCategories === []) {
+    $allCategories = ['Overig'];
 }
 
 $stmt = $db->prepare(
@@ -140,35 +140,6 @@ render_header('Review · Mini-Uiltje', 'review');
     <button class="btn" id="approve-all-auto" type="button">✓ Approve all auto</button>
 </div>
 
-<dialog class="card" id="category-sheet" aria-label="Category picker">
-    <div>
-        <div class="inline-actions">
-            <h2>Choose category</h2>
-            <button class="btn" type="button" id="sheet-close">Close</button>
-        </div>
-        <label for="sheet-search">Search categories</label>
-        <input id="sheet-search" class="input" type="search" placeholder="Search categories">
-
-        <p class="small">Recent</p>
-        <div class="inline-actions" id="sheet-recent">
-            <?php foreach ($quickCategories as $category): ?>
-                <button class="btn sheet-category" type="button" data-category-name="<?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8') ?>">
-                    <?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8') ?>
-                </button>
-            <?php endforeach; ?>
-        </div>
-
-        <p class="small">All categories</p>
-        <div class="inline-actions" id="sheet-all">
-            <?php foreach ($quickCategories as $category): ?>
-                <button class="btn sheet-category" type="button" data-category-name="<?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8') ?>">
-                    <?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8') ?>
-                </button>
-            <?php endforeach; ?>
-        </div>
-    </div>
-</dialog>
-
 <div class="card" id="toast" role="status" aria-live="polite" hidden>
     <span id="toast-message">Updated</span>
     <button class="btn" type="button" id="toast-undo">Undo</button>
@@ -176,23 +147,19 @@ render_header('Review · Mini-Uiltje', 'review');
 
 <script>
 (() => {
-    const quickCategories = <?= json_encode($quickCategories, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    const allCategories = <?= json_encode($allCategories, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    const inlineCategoryLimit = 5;
     const chips = Array.from(document.querySelectorAll('.chip'));
     const cards = Array.from(document.querySelectorAll('[data-card]'));
     const groups = Array.from(document.querySelectorAll('[data-date-group]'));
     const cta = document.getElementById('sticky-footer');
     const approveAllAutoBtn = document.getElementById('approve-all-auto');
     const leftCount = document.getElementById('left-count');
-    const sheet = document.getElementById('category-sheet');
-    const sheetClose = document.getElementById('sheet-close');
-    const sheetSearch = document.getElementById('sheet-search');
-    const sheetButtons = Array.from(document.querySelectorAll('.sheet-category'));
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
     const toastUndo = document.getElementById('toast-undo');
 
     let currentFilter = 'needs';
-    let activeSheetCard = null;
     let undoState = null;
     let toastTimer = null;
 
@@ -213,15 +180,31 @@ render_header('Review · Mini-Uiltje', 'review');
                 </div>
             `;
         } else if (status === 'uncat') {
-            const chipsMarkup = quickCategories.slice(0, 5).map((name) =>
+            const showAllCategories = card.dataset.showAllCategories === '1';
+            const visibleCategories = allCategories.slice(0, inlineCategoryLimit);
+            const hiddenCategories = allCategories.slice(inlineCategoryLimit);
+            const chipsMarkup = visibleCategories.map((name) =>
                 `<button type="button" class="btn" data-select-category="${name}">${name}</button>`
             ).join('');
+            const extraMarkup = showAllCategories
+                ? hiddenCategories.map((name) =>
+                    `<button type="button" class="btn" data-select-category="${name}">${name}</button>`
+                ).join('')
+                : '';
+            const toggleMarkup = hiddenCategories.length === 0
+                ? ''
+                : showAllCategories
+                    ? '<button class="btn" type="button" data-hide-more>Show less</button>'
+                    : '<button class="btn" type="button" data-show-more>+ More</button>';
 
             area.innerHTML = `
                 <div class="badge">Uncategorized ⚠️</div>
                 <div class="inline-actions">
                     ${chipsMarkup}
-                    <button class="btn" type="button" data-open-sheet>+ More</button>
+                    ${toggleMarkup}
+                </div>
+                <div class="inline-actions">
+                    ${extraMarkup}
                 </div>
                 <div class="inline-actions">
                     <a class="btn" href="#" aria-label="Split transaction">✂ Split</a>
@@ -332,10 +315,23 @@ render_header('Review · Mini-Uiltje', 'review');
             return;
         }
 
-        const moreBtn = event.target.closest('[data-open-sheet]');
-        if (moreBtn) {
-            activeSheetCard = moreBtn.closest('[data-card]');
-            if (sheet && typeof sheet.showModal === 'function') sheet.showModal();
+        const showMoreBtn = event.target.closest('[data-show-more]');
+        if (showMoreBtn) {
+            const card = showMoreBtn.closest('[data-card]');
+            if (card) {
+                card.dataset.showAllCategories = '1';
+                formatCategoryArea(card);
+            }
+            return;
+        }
+
+        const hideMoreBtn = event.target.closest('[data-hide-more]');
+        if (hideMoreBtn) {
+            const card = hideMoreBtn.closest('[data-card]');
+            if (card) {
+                card.dataset.showAllCategories = '0';
+                formatCategoryArea(card);
+            }
         }
     });
 
@@ -357,33 +353,6 @@ render_header('Review · Mini-Uiltje', 'review');
             });
             renderCards();
         });
-    });
-
-    sheetButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            if (activeSheetCard) {
-                setCategory(activeSheetCard, button.dataset.categoryName || 'Overig');
-            }
-            if (sheet.open) sheet.close();
-        });
-    });
-
-    sheetSearch.addEventListener('input', () => {
-        const term = sheetSearch.value.trim().toLowerCase();
-        sheetButtons.forEach((button) => {
-            const match = button.dataset.categoryName.toLowerCase().includes(term);
-            button.hidden = !match;
-        });
-    });
-
-    sheetClose.addEventListener('click', () => {
-        if (sheet.open) sheet.close();
-    });
-
-    sheet.addEventListener('click', (event) => {
-        if (!event.target.closest('div')) {
-            sheet.close();
-        }
     });
 
     toastUndo.addEventListener('click', () => {
