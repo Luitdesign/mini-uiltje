@@ -391,19 +391,6 @@ function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int
     ]);
 }
 
-function repo_disapprove_auto_category(PDO $db, int $userId, int $txnId): void {
-    $stmt = $db->prepare(
-        "UPDATE transactions
-         SET approved = 0,
-             category_id = NULL
-         WHERE id = :id AND user_id = :uid"
-    );
-    $stmt->execute([
-        ':id' => $txnId,
-        ':uid' => $userId,
-    ]);
-}
-
 function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId, ?string $friendlyName): void {
     $friendlyName = $friendlyName !== null ? trim($friendlyName) : null;
     if ($friendlyName === '') {
