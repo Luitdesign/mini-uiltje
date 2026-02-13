@@ -170,7 +170,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 <div class="badge badge-savings">Auto: ${autoCategory || 'Suggested'}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
-                    <a class="btn" href="#" aria-label="Split transaction">Split</a>
+                    <a class="btn btn-split-action" href="#" aria-label="Split transaction">Split</a>
                 </div>
             `;
         } else if (status === 'uncat') {
@@ -188,8 +188,8 @@ render_header('Review · Mini-Uiltje', 'review');
             const toggleMarkup = hiddenCategories.length === 0
                 ? ''
                 : showAllCategories
-                    ? '<button class="btn" type="button" data-hide-more>Show less</button>'
-                    : '<button class="btn" type="button" data-show-more>+ More</button>';
+                    ? '<button class="btn btn-more-toggle" type="button" data-hide-more>Show less</button>'
+                    : '<button class="btn btn-more-toggle" type="button" data-show-more>+ More</button>';
 
             area.innerHTML = `
                 <div class="badge">Uncategorized</div>
@@ -201,14 +201,14 @@ render_header('Review · Mini-Uiltje', 'review');
                     ${extraMarkup}
                 </div>
                 <div class="inline-actions">
-                    <a class="btn" href="#" aria-label="Split transaction">Split</a>
+                    <a class="btn btn-split-action" href="#" aria-label="Split transaction">Split</a>
                 </div>
             `;
         } else {
             area.innerHTML = `
                 <div class="badge badge-savings">${category || 'Approved'}</div>
                 <div class="inline-actions">
-                    <a class="btn" href="#" aria-label="Split transaction">Split</a>
+                    <a class="btn btn-split-action" href="#" aria-label="Split transaction">Split</a>
                 </div>
             `;
         }
