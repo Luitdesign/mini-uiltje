@@ -82,11 +82,11 @@ function format_date_label(string $date): string
 render_header('Review · Mini-Uiltje', 'review');
 ?>
 
-<section class="card" aria-label="Review progress">
+<section class="card review-summary" aria-label="Review progress">
     <h1>Review</h1>
     <p class="small">Month: <?= htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8') ?></p>
     <p><strong><span id="left-count"><?= (int)$leftToReview ?></span> left</strong> · <span class="small">Needs review</span></p>
-    <div class="inline-actions" role="toolbar" aria-label="Review filters">
+    <div class="inline-actions review-filters" role="toolbar" aria-label="Review filters">
         <button class="btn chip" type="button" data-filter="needs" aria-pressed="true">Needs review</button>
         <button class="btn chip" type="button" data-filter="uncat" aria-pressed="false">Uncategorized</button>
         <button class="btn chip" type="button" data-filter="auto" aria-pressed="false">Auto suggested</button>
@@ -94,10 +94,10 @@ render_header('Review · Mini-Uiltje', 'review');
     </div>
 </section>
 
-<div id="review-groups">
+<div id="review-groups" class="review-groups">
 <?php foreach ($groupedTransactions as $date => $items): ?>
-    <section class="date-group" data-date-group>
-        <header class="row">
+    <section class="date-group review-date-group" data-date-group>
+        <header class="row review-date-header">
             <h2><?= htmlspecialchars(format_date_label($date), ENT_QUOTES, 'UTF-8') ?> (<?= count($items) ?>)</h2>
             <span class="small">Total <?= format_amount(array_sum(array_column($items, 'amount'))) ?></span>
         </header>
@@ -109,20 +109,24 @@ render_header('Review · Mini-Uiltje', 'review');
             $autoCategory = $transaction['auto_category'] ?? '';
             ?>
             <article
-                class="card"
+                class="card review-card"
                 data-card
                 data-id="<?= (int)$transaction['id'] ?>"
                 data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
                 data-category="<?= htmlspecialchars($categoryText, ENT_QUOTES, 'UTF-8') ?>"
                 data-auto-category="<?= htmlspecialchars($autoCategory, ENT_QUOTES, 'UTF-8') ?>"
             >
-                <div class="row">
+                <div class="row review-card-header">
                     <span class="small"><?= htmlspecialchars(format_date_label($transaction['date']), ENT_QUOTES, 'UTF-8') ?></span>
-                    <p><strong><?= format_amount((float)$transaction['amount']) ?></strong></p>
+                    <p>
+                        <strong class="<?= $transaction['amount'] < 0 ? 'money-neg' : 'money-pos' ?>">
+                            <?= format_amount((float)$transaction['amount']) ?>
+                        </strong>
+                    </p>
                 </div>
-                <p><?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                <p class="review-description"><?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?></p>
                 <?php if (!empty($transaction['note'])): ?>
-                    <p class="small"><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="small review-note"><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
                 <?php endif; ?>
 
                 <div class="category-area" data-category-area></div>
