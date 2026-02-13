@@ -8,6 +8,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
 
     $action = (string)($_POST['action'] ?? '');
+    if ($action === 'approve_auto') {
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        if ($txnId > 0) {
+            $stmt = $db->prepare(
+                "UPDATE transactions
+                 SET approved = 1,
+                     category_id = COALESCE(category_id, category_auto_id)
+                 WHERE id = :id AND user_id = :uid"
+            );
+            $stmt->execute([
+                ':id' => $txnId,
+                ':uid' => $userId,
+            ]);
+        }
+    }
+
+    if ($action === 'set_category') {
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        $categoryId = (int)($_POST['category_id'] ?? 0);
+        if ($txnId > 0 && $categoryId > 0) {
+            $stmt = $db->prepare(
+                "UPDATE transactions
+                 SET approved = 1,
+                     category_id = :category_id
+                 WHERE id = :id AND user_id = :uid"
+            );
+            $stmt->execute([
+                ':category_id' => $categoryId,
+                ':id' => $txnId,
+                ':uid' => $userId,
+            ]);
+        }
+    }
+
     if ($action === 'disapprove_auto') {
         $txnId = (int)($_POST['transaction_id'] ?? 0);
         if ($txnId > 0) {
@@ -88,13 +122,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('/review.php');
 }
 
+$assignableCategories = repo_list_assignable_categories($db);
+
 $allCategories = array_map(
-    static fn (array $category): string => (string)$category['name'],
-    repo_list_assignable_categories($db)
+    static fn (array $category): array => [
+        'id' => (int)$category['id'],
+        'name' => (string)$category['name'],
+    ],
+    $assignableCategories
 );
 
 if ($allCategories === []) {
-    $allCategories = ['Overig'];
+    $allCategories = [['id' => 0, 'name' => 'Overig']];
 }
 
 $stmt = $db->prepare(
@@ -268,6 +307,17 @@ render_header('Review · Mini-Uiltje', 'review');
         <input type="hidden" name="action" value="disapprove_auto">
         <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
     </form>
+    <form id="approve-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="approve_auto">
+        <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+    </form>
+    <form id="set-category-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="set_category">
+        <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+        <input type="hidden" name="category_id" value="">
+    </form>
 <?php endforeach; ?>
 
 <div class="card" id="toast" role="status" aria-live="polite" hidden>
@@ -312,12 +362,12 @@ render_header('Review · Mini-Uiltje', 'review');
             const showAllCategories = card.dataset.showAllCategories === '1';
             const visibleCategories = allCategories.slice(0, inlineCategoryLimit);
             const hiddenCategories = allCategories.slice(inlineCategoryLimit);
-            const chipsMarkup = visibleCategories.map((name) =>
-                `<button type="button" class="btn" data-select-category="${name}">${name}</button>`
+            const chipsMarkup = visibleCategories.map((category) =>
+                `<button type="button" class="btn" data-select-category-id="${category.id}">${category.name}</button>`
             ).join('');
             const extraMarkup = showAllCategories
-                ? hiddenCategories.map((name) =>
-                    `<button type="button" class="btn" data-select-category="${name}">${name}</button>`
+                ? hiddenCategories.map((category) =>
+                    `<button type="button" class="btn" data-select-category-id="${category.id}">${category.name}</button>`
                 ).join('')
                 : '';
             const toggleMarkup = hiddenCategories.length === 0
@@ -385,36 +435,21 @@ render_header('Review · Mini-Uiltje', 'review');
     }
 
     function approveCard(card, showUndo = true) {
-        const prevStatus = card.dataset.status;
-        const prevCategory = card.dataset.category;
-        const nextCategory = card.dataset.autoCategory || 'Overig';
-
-        card.dataset.status = 'approved';
-        card.dataset.category = nextCategory;
-        renderCards();
-
-        if (showUndo) {
-            showToast('Transaction approved.', () => {
-                card.dataset.status = prevStatus;
-                card.dataset.category = prevCategory;
-                renderCards();
-            });
+        const form = document.getElementById(`approve-form-${card.dataset.id}`);
+        if (form) {
+            form.submit();
         }
     }
 
-    function setCategory(card, categoryName) {
-        const prevStatus = card.dataset.status;
-        const prevCategory = card.dataset.category;
+    function setCategory(card, categoryId) {
+        const form = document.getElementById(`set-category-form-${card.dataset.id}`);
+        if (!form) return;
 
-        card.dataset.status = 'approved';
-        card.dataset.category = categoryName;
-        renderCards();
-
-        showToast(`Category set to ${categoryName}.`, () => {
-            card.dataset.status = prevStatus;
-            card.dataset.category = prevCategory;
-            renderCards();
-        });
+        const input = form.querySelector('input[name="category_id"]');
+        if (input) {
+            input.value = String(categoryId);
+            form.submit();
+        }
     }
 
     chips.forEach((chip) => {
@@ -454,10 +489,13 @@ render_header('Review · Mini-Uiltje', 'review');
             return;
         }
 
-        const quickCategoryBtn = event.target.closest('[data-select-category]');
+        const quickCategoryBtn = event.target.closest('[data-select-category-id]');
         if (quickCategoryBtn) {
             const card = quickCategoryBtn.closest('[data-card]');
-            if (card) setCategory(card, quickCategoryBtn.dataset.selectCategory || 'Overig');
+            const categoryId = Number(quickCategoryBtn.dataset.selectCategoryId || '0');
+            if (card && Number.isInteger(categoryId) && categoryId > 0) {
+                setCategory(card, categoryId);
+            }
             return;
         }
 
