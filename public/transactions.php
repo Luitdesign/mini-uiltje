@@ -104,6 +104,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'disapprove_auto_category') {
+        $savedFlag = true;
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        if ($txnId > 0) {
+            repo_disapprove_auto_category($db, $userId, $txnId);
+        }
+    }
     if ($action === 'apply_savings_topups') {
         $savings = repo_list_savings($db);
         $amounts = $_POST['savings_amounts'] ?? [];
@@ -475,6 +482,22 @@ function render_transactions_table(
             <td data-col="amount" class="money <?= $amtCls ?>"><?= number_format($amt, 2, ',', '.') ?></td>
             <td data-col="auto-category">
               <?= h((string)($t['auto_category_name'] ?? '—')) ?>
+              <?php
+              $isAutoCategorized = !empty($t['category_auto_id'])
+                  && !empty($t['category_id'])
+                  && (int)$t['category_id'] === (int)$t['category_auto_id'];
+              ?>
+              <?php if ($isAutoCategorized): ?>
+                <div style="margin-top: 8px;">
+                  <button
+                    class="btn btn-danger"
+                    type="submit"
+                    form="<?= h('disapprove-auto-form-' . (int)$t['id']) ?>"
+                  >
+                    Disapprove
+                  </button>
+                </div>
+              <?php endif; ?>
             </td>
             <td data-col="auto-rule">
               <?= h((string)($t['auto_rule_name'] ?? '—')) ?>
@@ -581,6 +604,24 @@ function render_split_forms(array $txns, array $actionQueryParams, array $config
             <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
           </form>
         <?php endif; ?>
+        <?php
+    }
+}
+
+function render_disapprove_forms(array $txns, array $actionQueryParams, array $config): void {
+    $action = '/transactions.php?' . http_build_query($actionQueryParams);
+    foreach ($txns as $txn) {
+        $txnId = (int)($txn['id'] ?? 0);
+        if ($txnId <= 0) {
+            continue;
+        }
+        $formId = 'disapprove-auto-form-' . $txnId;
+        ?>
+        <form id="<?= h($formId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
+          <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+          <input type="hidden" name="action" value="disapprove_auto_category">
+          <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
+        </form>
         <?php
     }
 }
@@ -812,6 +853,7 @@ render_header('Transactions', 'transactions');
 </div>
 
 <?php render_split_forms(array_merge($incomeTxns, $expenseTxns, $internalTxns), $actionQueryParams, $config); ?>
+<?php render_disapprove_forms(array_merge($incomeTxns, $expenseTxns, $internalTxns), $actionQueryParams, $config); ?>
 
 <script>
   (function () {
