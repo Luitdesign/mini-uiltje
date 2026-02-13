@@ -27,6 +27,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'split_transaction') {
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        $splitCount = (int)($_POST['split_count'] ?? 0);
+        $amountsRaw = $_POST['split_amounts'] ?? [];
+        $splitAmounts = [];
+
+        if ($txnId > 0 && $splitCount >= 2 && $splitCount <= 3 && is_array($amountsRaw)) {
+            $splitAmounts = array_fill(0, $splitCount, null);
+            $missingIndex = null;
+
+            for ($i = 0; $i < $splitCount; $i++) {
+                $amountRaw = trim((string)($amountsRaw[$i] ?? ''));
+                if ($amountRaw === '') {
+                    if ($missingIndex !== null) {
+                        $splitAmounts = [];
+                        break;
+                    }
+                    $missingIndex = $i;
+                    continue;
+                }
+                if (!is_numeric($amountRaw)) {
+                    $splitAmounts = [];
+                    break;
+                }
+                $splitAmounts[$i] = (float)$amountRaw;
+            }
+
+            if ($splitAmounts !== [] && $missingIndex !== null) {
+                $transaction = repo_get_transaction($db, $userId, $txnId);
+                if ($transaction) {
+                    $originalAbs = round(abs((float)$transaction['amount_signed']), 2);
+                    $sum = 0.0;
+                    foreach ($splitAmounts as $amountValue) {
+                        if ($amountValue !== null) {
+                            $sum += (float)$amountValue;
+                        }
+                    }
+                    $remaining = round($originalAbs - $sum, 2);
+                    if ($remaining > 0) {
+                        $splitAmounts[$missingIndex] = $remaining;
+                    } else {
+                        $splitAmounts = [];
+                    }
+                } else {
+                    $splitAmounts = [];
+                }
+            }
+        }
+
+        if ($splitAmounts !== []) {
+            try {
+                repo_split_transaction($db, $userId, $txnId, array_values($splitAmounts));
+            } catch (Throwable $e) {
+                // Ignore split failures and return to review state.
+            }
+        }
+    }
+
     redirect('/review.php');
 }
 
@@ -141,6 +199,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
                 data-category="<?= htmlspecialchars($categoryText, ENT_QUOTES, 'UTF-8') ?>"
                 data-auto-category="<?= htmlspecialchars($autoCategory, ENT_QUOTES, 'UTF-8') ?>"
+                data-amount-abs="<?= number_format(abs((float)$transaction['amount']), 2, '.', '') ?>"
             >
                 <div class="row review-card-header">
                     <span class="small"><?= htmlspecialchars(format_date_label($transaction['date']), ENT_QUOTES, 'UTF-8') ?></span>
@@ -156,9 +215,50 @@ render_header('Review · Mini-Uiltje', 'review');
                 <?php endif; ?>
 
                 <div class="category-area" data-category-area></div>
+
+                <div class="txn-split" data-split-panel hidden>
+                    <div class="txn-split-header">
+                        <strong>Split transaction</strong>
+                        <button type="button" class="txn-edit-link" data-split-close>Close</button>
+                    </div>
+                    <div class="review-split-fields">
+                        <label>
+                            Number of transactions
+                            <select class="input js-split-count" name="split_count" form="split-form-<?= (int)$transaction['id'] ?>">
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </label>
+                        <div class="review-split-amounts">
+                            <label>
+                                Amount 1
+                                <input class="input js-split-amount" type="number" inputmode="decimal" min="0.01" step="0.01" name="split_amounts[]" form="split-form-<?= (int)$transaction['id'] ?>" data-split-index="1">
+                            </label>
+                            <label>
+                                Amount 2
+                                <input class="input js-split-amount" type="number" inputmode="decimal" min="0.01" step="0.01" name="split_amounts[]" form="split-form-<?= (int)$transaction['id'] ?>" data-split-index="2">
+                            </label>
+                            <label>
+                                Amount 3
+                                <input class="input js-split-amount" type="number" inputmode="decimal" min="0.01" step="0.01" name="split_amounts[]" form="split-form-<?= (int)$transaction['id'] ?>" data-split-index="3" hidden>
+                            </label>
+                        </div>
+                        <div class="inline-actions">
+                            <button class="btn btn-split-action" type="submit" form="split-form-<?= (int)$transaction['id'] ?>">Split</button>
+                        </div>
+                    </div>
+                </div>
             </article>
         <?php endforeach; ?>
     </section>
+<?php endforeach; ?>
+
+<?php foreach ($transactions as $transaction): ?>
+    <form id="split-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="split_transaction">
+        <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+    </form>
 <?php endforeach; ?>
 </div>
 
@@ -205,7 +305,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
                     <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Disapprove</button>
-                    <a class="btn btn-split-action" href="#" aria-label="Split transaction">Split</a>
+                    <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
                 </div>
             `;
         } else if (status === 'uncat') {
@@ -236,14 +336,14 @@ render_header('Review · Mini-Uiltje', 'review');
                     ${extraMarkup}
                 </div>
                 <div class="inline-actions">
-                    <a class="btn btn-split-action" href="#" aria-label="Split transaction">Split</a>
+                    <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
                 </div>
             `;
         } else {
             area.innerHTML = `
                 <div class="badge badge-savings">${category || 'Approved'}</div>
                 <div class="inline-actions">
-                    <a class="btn btn-split-action" href="#" aria-label="Split transaction">Split</a>
+                    <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
                 </div>
             `;
         }
@@ -326,6 +426,27 @@ render_header('Review · Mini-Uiltje', 'review');
     });
 
     document.addEventListener('click', (event) => {
+        const splitToggleBtn = event.target.closest('[data-split-toggle]');
+        if (splitToggleBtn) {
+            const card = splitToggleBtn.closest('[data-card]');
+            if (card) {
+                const splitPanel = card.querySelector('[data-split-panel]');
+                if (splitPanel) {
+                    splitPanel.hidden = !splitPanel.hidden;
+                }
+            }
+            return;
+        }
+
+        const splitCloseBtn = event.target.closest('[data-split-close]');
+        if (splitCloseBtn) {
+            const splitPanel = splitCloseBtn.closest('[data-split-panel]');
+            if (splitPanel) {
+                splitPanel.hidden = true;
+            }
+            return;
+        }
+
         const approveBtn = event.target.closest('[data-approve]');
         if (approveBtn) {
             const card = approveBtn.closest('[data-card]');
@@ -358,6 +479,62 @@ render_header('Review · Mini-Uiltje', 'review');
                 formatCategoryArea(card);
             }
         }
+    });
+
+    const splitCountSelectors = Array.from(document.querySelectorAll('.js-split-count'));
+    splitCountSelectors.forEach((select) => {
+        const updateSplitInputs = () => {
+            const splitPanel = select.closest('[data-split-panel]');
+            if (!splitPanel) return;
+
+            const splitCount = Number(select.value || '2');
+            splitPanel.querySelectorAll('.js-split-amount').forEach((input) => {
+                const index = Number(input.dataset.splitIndex || '0');
+                const isActive = index <= splitCount;
+                input.hidden = !isActive;
+                if (!isActive) {
+                    input.value = '';
+                }
+            });
+        };
+
+        const autofillRemainingAmount = () => {
+            const card = select.closest('[data-card]');
+            if (!card) return;
+            const total = Number(card.dataset.amountAbs || '0');
+            if (!Number.isFinite(total) || total <= 0) return;
+
+            const splitPanel = select.closest('[data-split-panel]');
+            if (!splitPanel) return;
+
+            const inputs = Array.from(splitPanel.querySelectorAll('.js-split-amount')).filter((input) => !input.hidden);
+            const emptyInputs = inputs.filter((input) => input.value.trim() === '');
+            if (emptyInputs.length !== 1) return;
+
+            const sumFilled = inputs.reduce((sum, input) => {
+                if (input.value.trim() === '') return sum;
+                const parsed = Number(input.value);
+                return Number.isFinite(parsed) ? sum + parsed : sum;
+            }, 0);
+
+            const remaining = Math.round((total - sumFilled) * 100) / 100;
+            if (remaining > 0) {
+                emptyInputs[0].value = remaining.toFixed(2);
+            }
+        };
+
+        select.addEventListener('change', () => {
+            updateSplitInputs();
+            autofillRemainingAmount();
+        });
+
+        const splitInputs = Array.from(select.closest('[data-split-panel]')?.querySelectorAll('.js-split-amount') ?? []);
+        splitInputs.forEach((input) => {
+            input.addEventListener('change', autofillRemainingAmount);
+            input.addEventListener('blur', autofillRemainingAmount);
+        });
+
+        updateSplitInputs();
     });
 
     toastUndo.addEventListener('click', () => {
