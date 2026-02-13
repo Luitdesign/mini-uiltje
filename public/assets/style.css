@@ -87,6 +87,8 @@ h2 { font-size: 18px; margin: 14px 0 10px; }
 .inline-actions {
   display: flex;
   gap: 8px;
+  margin-top:4px;
+  margin-bottom:4px;
   align-items: center;
   flex-wrap: wrap;
 }
