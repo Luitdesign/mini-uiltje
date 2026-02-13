@@ -306,6 +306,18 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   margin: 0 0 10px;
 }
 
+.review-split-fields {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.review-split-amounts {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .txn-paid-from-savings {
   opacity: 0.8;
 }
@@ -428,6 +440,10 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   .table th,
   .table td {
     white-space: nowrap;
+  }
+
+  .review-split-amounts {
+    grid-template-columns: 1fr;
   }
 }
 
