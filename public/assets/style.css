@@ -236,6 +236,56 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   background: rgba(110, 231, 183, 0.12);
 }
 
+.review-summary {
+  background: linear-gradient(160deg, rgba(110,231,183,0.08), rgba(18,22,27,1) 45%);
+}
+
+.review-filters .chip[aria-pressed="true"] {
+  border-color: rgba(110, 231, 183, 0.65);
+  background: rgba(110, 231, 183, 0.26);
+  color: #d9fbe9;
+}
+
+.review-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.review-date-group {
+  margin-top: 0;
+}
+
+.review-date-header {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.review-date-header h2 {
+  margin: 0;
+}
+
+.review-card {
+  background: linear-gradient(180deg, rgba(20,26,33,0.96), rgba(18,22,27,0.96));
+}
+
+.review-card-header {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-card-header p {
+  margin: 0;
+}
+
+.review-description {
+  margin: 8px 0;
+  line-height: 1.35;
+}
+
+.review-note {
+  margin: 0 0 10px;
+}
+
 .txn-paid-from-savings {
   opacity: 0.8;
 }
