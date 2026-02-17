@@ -274,7 +274,7 @@ render_header('Review · Mini-Uiltje', 'review');
                     <?php endif; ?>
                 </p>
                 <?php if (!empty($transaction['note'])): ?>
-                    <p class="small review-note" data-review-note <?= $friendlyName !== '' ? 'hidden' : '' ?>><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="small review-note"><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
                 <?php endif; ?>
 
                 <div class="category-area" data-category-area></div>
