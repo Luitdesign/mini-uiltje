@@ -340,6 +340,12 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   cursor: pointer;
 }
 
+.txn-friendly-display .txn-toggle,
+.txn-original-display .txn-toggle {
+  display: block;
+  width: 100%;
+}
+
 .txn-toggle:hover {
   text-decoration: underline;
 }
