@@ -196,6 +196,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             direction, amount_signed, currency,
             mutation_type, notes, balance_after, tag
             , is_internal_transfer, created_source
+            , approved
             , category_id, category_auto_id, rule_auto_id, auto_reason
         ) VALUES(
             :uid, :import_id, :import_batch_id, :txn_hash,
@@ -204,6 +205,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
             :direction, :amount_signed, :currency,
             :mutation_type, :notes, :balance_after, :tag
             , :is_internal_transfer, :created_source
+            , :approved
             , :category_id, :category_auto_id, :rule_auto_id, :auto_reason
         )'
     );
@@ -262,11 +264,13 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
         $rec['friendly_name'] = $friendlyName !== '' ? $friendlyName : null;
 
         if ($rec['is_internal_transfer']) {
+            $rec['approved'] = 1;
             $rec['category_auto_id'] = null;
             $rec['category_id'] = null;
             $rec['rule_auto_id'] = null;
             $rec['auto_reason'] = null;
         } else {
+            $rec['approved'] = 0;
             if ($hasAutoCategoryColumn || $hasCategoryColumn) {
                 $rec['category_auto_id'] = $categoryAutoId;
                 $rec['category_id'] = $categoryId ?? $categoryAutoId;
@@ -316,6 +320,7 @@ function ing_import_csv(PDO $db, int $userId, string $tmpFile, string $originalF
                 ':tag' => $rec['tag'] ?: null,
                 ':is_internal_transfer' => $rec['is_internal_transfer'],
                 ':created_source' => $rec['created_source'],
+                ':approved' => $rec['approved'],
                 ':category_id' => $rec['category_id'],
                 ':category_auto_id' => $rec['category_auto_id'],
                 ':rule_auto_id' => $rec['rule_auto_id'],
