@@ -459,7 +459,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 <div class="badge badge-savings">Auto: ${autoCategory || 'Suggested'}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
-                    <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Disapprove</button>
+                    <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Decline</button>
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
                     <button class="btn btn-friendly-name" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
