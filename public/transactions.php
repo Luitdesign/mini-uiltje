@@ -319,11 +319,14 @@ if (empty($savingsFormAmounts)) {
 }
 $incomeTxns = [];
 $expenseTxns = [];
+$topoffTxns = [];
 
 foreach ($txns as $txn) {
     $amt = (float)$txn['amount_signed'];
     if ($amt >= 0) {
         $incomeTxns[] = $txn;
+    } elseif (!empty($txn['is_topup'])) {
+        $topoffTxns[] = $txn;
     } else {
         $expenseTxns[] = $txn;
     }
@@ -797,6 +800,14 @@ render_header('Transactions', 'transactions');
         'No expense transactions found for this period.'
     ); ?>
 
+    <h2>Top offs</h2>
+    <?php render_transactions_table(
+        $topoffTxns,
+        $categories,
+        $uncategorizedColor,
+        'No top off transactions found for this period.'
+    ); ?>
+
     <?php if ($showInternalSection): ?>
       <h2>Internal transfers</h2>
       <?php render_transactions_table(
@@ -811,7 +822,7 @@ render_header('Transactions', 'transactions');
   </form>
 </div>
 
-<?php render_split_forms(array_merge($incomeTxns, $expenseTxns, $internalTxns), $actionQueryParams, $config); ?>
+<?php render_split_forms(array_merge($incomeTxns, $expenseTxns, $topoffTxns, $internalTxns), $actionQueryParams, $config); ?>
 
 <script>
   (function () {
