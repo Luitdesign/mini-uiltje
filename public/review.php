@@ -177,8 +177,9 @@ $stmt->execute([':uid' => $userId]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $transactions = array_map(static function (array $row): array {
+    $hasCategory = !empty($row['category_name']);
     $hasAutoCategory = !empty($row['auto_category_name']);
-    $status = $hasAutoCategory ? 'auto' : 'uncat';
+    $status = $hasCategory ? 'category' : ($hasAutoCategory ? 'auto' : 'uncat');
 
     return [
         'id' => (int)$row['id'],
@@ -409,7 +410,7 @@ render_header('Review · Mini-Uiltje', 'review');
     let undoState = null;
     let toastTimer = null;
 
-    const statusNeedsReview = (status) => status === 'auto' || status === 'uncat';
+    const statusNeedsReview = (status) => status === 'auto' || status === 'uncat' || status === 'category';
 
     function formatCategoryArea(card) {
         const area = card.querySelector('[data-category-area]');
@@ -418,7 +419,16 @@ render_header('Review · Mini-Uiltje', 'review');
         const autoCategory = card.dataset.autoCategory;
         const editNameLabel = card.dataset.hasFriendly === '1' ? 'Edit name' : 'Add name';
 
-        if (status === 'auto') {
+        if (status === 'category') {
+            area.innerHTML = `
+                <div class="badge badge-savings">Category: ${category || 'Selected'}</div>
+                <div class="inline-actions">
+                    <button class="btn" type="button" data-approve>Approve</button>
+                    <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
+                    <button class="btn btn-friendly-name" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
+                </div>
+            `;
+        } else if (status === 'auto') {
             area.innerHTML = `
                 <div class="badge badge-savings">Auto: ${autoCategory || 'Suggested'}</div>
                 <div class="inline-actions">
