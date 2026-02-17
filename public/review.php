@@ -486,6 +486,18 @@ render_header('Review · Mini-Uiltje', 'review');
         }
     }
 
+    function toggleFriendlyDetails(card) {
+        if (!card || card.dataset.hasFriendly !== '1') return;
+
+        const details = card.querySelector('[data-original-details]');
+        const friendlyToggleBtn = card.querySelector('[data-friendly-toggle]');
+        if (!details || !friendlyToggleBtn) return;
+
+        const isExpanded = !details.hidden;
+        details.hidden = isExpanded;
+        friendlyToggleBtn.setAttribute('aria-expanded', String(!isExpanded));
+    }
+
     chips.forEach((chip) => {
         chip.addEventListener('click', () => {
             currentFilter = chip.dataset.filter;
@@ -564,14 +576,16 @@ render_header('Review · Mini-Uiltje', 'review');
         const friendlyToggleBtn = event.target.closest('[data-friendly-toggle]');
         if (friendlyToggleBtn) {
             const card = friendlyToggleBtn.closest('[data-card]');
-            if (!card || card.dataset.hasFriendly !== '1') return;
+            toggleFriendlyDetails(card);
+            return;
+        }
 
-            const details = card.querySelector('[data-original-details]');
-            if (!details) return;
-
-            const isExpanded = !details.hidden;
-            details.hidden = isExpanded;
-            friendlyToggleBtn.setAttribute('aria-expanded', String(!isExpanded));
+        const reviewCard = event.target.closest('[data-card]');
+        if (reviewCard) {
+            const interactiveTarget = event.target.closest('button, input, select, textarea, label, a');
+            if (!interactiveTarget) {
+                toggleFriendlyDetails(reviewCard);
+            }
         }
     });
 

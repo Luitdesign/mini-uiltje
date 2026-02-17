@@ -288,6 +288,10 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   background: linear-gradient(180deg, rgba(20,26,33,0.96), rgba(18,22,27,0.96));
 }
 
+.review-card[data-has-friendly="1"] {
+  cursor: pointer;
+}
+
 .review-card-header {
   align-items: center;
   justify-content: space-between;
