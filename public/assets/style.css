@@ -137,6 +137,14 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   background: rgba(244, 114, 182, 0.22);
 }
 
+.btn-friendly-name {
+  background: rgba(251, 146, 60, 0.18);
+}
+
+.btn-friendly-name:hover {
+  background: rgba(251, 146, 60, 0.28);
+}
+
 .btn-danger {
   background: rgba(251,113,133,0.12);
 }

@@ -425,7 +425,7 @@ render_header('Review · Mini-Uiltje', 'review');
                     <button class="btn" type="button" data-approve>Approve</button>
                     <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Disapprove</button>
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
-                    <button class="btn" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
+                    <button class="btn btn-friendly-name" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
             `;
         } else if (status === 'uncat') {
@@ -457,7 +457,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 </div>
                 <div class="inline-actions">
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
-                    <button class="btn" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
+                    <button class="btn btn-friendly-name" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
             `;
         } else {
@@ -465,7 +465,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 <div class="badge badge-savings">${category || 'Approved'}</div>
                 <div class="inline-actions">
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
-                    <button class="btn" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
+                    <button class="btn btn-friendly-name" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
             `;
         }
