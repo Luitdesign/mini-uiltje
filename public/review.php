@@ -152,6 +152,7 @@ $stmt = $db->prepare(
         t.id,
         t.txn_date,
         t.description,
+        t.friendly_name,
         t.amount_signed,
         t.notes,
         c.name AS category_name,
@@ -175,6 +176,7 @@ $transactions = array_map(static function (array $row): array {
         'id' => (int)$row['id'],
         'date' => (string)$row['txn_date'],
         'description' => (string)$row['description'],
+        'friendly_name' => $row['friendly_name'] !== null ? trim((string)$row['friendly_name']) : null,
         'amount' => (float)$row['amount_signed'],
         'category' => $row['category_name'] !== null ? (string)$row['category_name'] : null,
         'auto_category' => $row['auto_category_name'] !== null ? (string)$row['auto_category_name'] : null,
@@ -241,12 +243,17 @@ render_header('Review · Mini-Uiltje', 'review');
             $status = $transaction['status'];
             $categoryText = $transaction['category'] ?? '';
             $autoCategory = $transaction['auto_category'] ?? '';
+            $friendlyName = $transaction['friendly_name'] ?? '';
+            $noteText = $transaction['note'] ?? '';
             ?>
             <article
                 class="card review-card"
                 data-card
                 data-id="<?= (int)$transaction['id'] ?>"
                 data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
+                data-description="<?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?>"
+                data-friendly-name="<?= htmlspecialchars($friendlyName, ENT_QUOTES, 'UTF-8') ?>"
+                data-note="<?= htmlspecialchars($noteText, ENT_QUOTES, 'UTF-8') ?>"
                 data-category="<?= htmlspecialchars($categoryText, ENT_QUOTES, 'UTF-8') ?>"
                 data-auto-category="<?= htmlspecialchars($autoCategory, ENT_QUOTES, 'UTF-8') ?>"
                 data-amount-abs="<?= number_format(abs((float)$transaction['amount']), 2, '.', '') ?>"
@@ -259,9 +266,17 @@ render_header('Review · Mini-Uiltje', 'review');
                         </strong>
                     </p>
                 </div>
-                <p class="review-description"><?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                <p class="review-description" data-description-text>
+                    <?php if ($friendlyName !== ''): ?>
+                        <button type="button" class="txn-toggle" data-friendly-toggle="description" title="Show original description">
+                            <strong><?= htmlspecialchars($friendlyName, ENT_QUOTES, 'UTF-8') ?></strong>
+                        </button>
+                    <?php else: ?>
+                        <?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?>
+                    <?php endif; ?>
+                </p>
                 <?php if (!empty($transaction['note'])): ?>
-                    <p class="small review-note"><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="small review-note" data-review-note <?= $friendlyName !== '' ? 'hidden' : '' ?>><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
                 <?php endif; ?>
 
                 <div class="category-area" data-category-area></div>
@@ -471,6 +486,35 @@ render_header('Review · Mini-Uiltje', 'review');
         }
     }
 
+    function setDescriptionDisplay(card, showOriginal) {
+        const descriptionText = card.querySelector('[data-description-text]');
+        if (!descriptionText) return;
+
+        const friendlyName = card.dataset.friendlyName || '';
+        const description = card.dataset.description || '';
+        const note = card.dataset.note || '';
+        if (friendlyName === '') return;
+
+        descriptionText.textContent = '';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'txn-toggle';
+        button.dataset.friendlyToggle = showOriginal ? 'friendly' : 'description';
+        button.title = showOriginal ? 'Show friendly name' : 'Show original description';
+
+        const strong = document.createElement('strong');
+        strong.textContent = showOriginal ? (description || friendlyName) : friendlyName;
+        button.appendChild(strong);
+        descriptionText.appendChild(button);
+
+        const noteText = card.querySelector('[data-review-note]');
+        if (noteText) {
+            noteText.hidden = !(showOriginal && note !== '');
+        }
+
+        card.dataset.showOriginalDescription = showOriginal ? '1' : '0';
+    }
+
     chips.forEach((chip) => {
         chip.addEventListener('click', () => {
             currentFilter = chip.dataset.filter;
@@ -488,6 +532,16 @@ render_header('Review · Mini-Uiltje', 'review');
     });
 
     document.addEventListener('click', (event) => {
+        const friendlyToggleBtn = event.target.closest('[data-friendly-toggle]');
+        if (friendlyToggleBtn) {
+            const card = friendlyToggleBtn.closest('[data-card]');
+            if (card) {
+                const showOriginal = card.dataset.showOriginalDescription !== '1';
+                setDescriptionDisplay(card, showOriginal);
+            }
+            return;
+        }
+
         const splitToggleBtn = event.target.closest('[data-split-toggle]');
         if (splitToggleBtn) {
             const card = splitToggleBtn.closest('[data-card]');
