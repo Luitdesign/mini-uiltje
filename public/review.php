@@ -244,7 +244,6 @@ render_header('Review · Mini-Uiltje', 'review');
             $categoryText = $transaction['category'] ?? '';
             $autoCategory = $transaction['auto_category'] ?? '';
             $friendlyName = $transaction['friendly_name'] ?? '';
-            $noteText = $transaction['note'] ?? '';
             ?>
             <article
                 class="card review-card"
@@ -253,7 +252,6 @@ render_header('Review · Mini-Uiltje', 'review');
                 data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
                 data-description="<?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?>"
                 data-friendly-name="<?= htmlspecialchars($friendlyName, ENT_QUOTES, 'UTF-8') ?>"
-                data-note="<?= htmlspecialchars($noteText, ENT_QUOTES, 'UTF-8') ?>"
                 data-category="<?= htmlspecialchars($categoryText, ENT_QUOTES, 'UTF-8') ?>"
                 data-auto-category="<?= htmlspecialchars($autoCategory, ENT_QUOTES, 'UTF-8') ?>"
                 data-amount-abs="<?= number_format(abs((float)$transaction['amount']), 2, '.', '') ?>"
@@ -492,7 +490,6 @@ render_header('Review · Mini-Uiltje', 'review');
 
         const friendlyName = card.dataset.friendlyName || '';
         const description = card.dataset.description || '';
-        const note = card.dataset.note || '';
         if (friendlyName === '') return;
 
         descriptionText.textContent = '';
@@ -506,11 +503,6 @@ render_header('Review · Mini-Uiltje', 'review');
         strong.textContent = showOriginal ? (description || friendlyName) : friendlyName;
         button.appendChild(strong);
         descriptionText.appendChild(button);
-
-        const noteText = card.querySelector('[data-review-note]');
-        if (noteText) {
-            noteText.hidden = !(showOriginal && note !== '');
-        }
 
         card.dataset.showOriginalDescription = showOriginal ? '1' : '0';
     }
