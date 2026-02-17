@@ -340,6 +340,16 @@ function render_transactions_table(
 ): void {
     ?>
     <table class="table txn-table">
+      <colgroup>
+        <col style="width: 120px;">
+        <col style="width: 34%;">
+        <col style="width: 120px;">
+        <col style="width: 14%;">
+        <col style="width: 14%;">
+        <col style="width: 240px;">
+        <col style="width: 130px;">
+        <col style="width: 120px;">
+      </colgroup>
       <thead>
         <tr>
           <th data-col="date" style="min-width: 110px; white-space: nowrap;">Date</th>
