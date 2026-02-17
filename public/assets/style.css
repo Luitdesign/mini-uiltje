@@ -302,6 +302,15 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   line-height: 1.35;
 }
 
+.review-friendly-toggle {
+  margin: 8px 0;
+  line-height: 1.35;
+}
+
+.review-original {
+  margin-top: 4px;
+}
+
 .review-note {
   margin: 0 0 10px;
 }
