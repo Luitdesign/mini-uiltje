@@ -190,6 +190,8 @@ $stmt = $db->prepare(
      WHERE t.user_id = :uid
        AND t.is_split_active = 1
        AND t.is_internal_transfer = 0
+       AND LOWER(TRIM(t.description)) NOT LIKE 'top-up:%'
+       AND LOWER(TRIM(t.description)) NOT LIKE 'top up:%'
        AND t.approved = 0
      ORDER BY t.txn_date DESC, t.id DESC"
 );
