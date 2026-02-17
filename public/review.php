@@ -130,6 +130,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'update_friendly_name') {
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        $friendlyName = (string)($_POST['friendly_name'] ?? '');
+        if ($txnId > 0) {
+            repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
+        }
+    }
+
     redirect('/review.php?filter=' . urlencode($postedReviewFilter));
 }
 
@@ -249,6 +257,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 data-card
                 data-id="<?= (int)$transaction['id'] ?>"
                 data-has-friendly="<?= !empty($transaction['friendly_name']) ? '1' : '0' ?>"
+                data-friendly-name="<?= htmlspecialchars((string)($transaction['friendly_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                 data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
                 data-category="<?= htmlspecialchars($categoryText, ENT_QUOTES, 'UTF-8') ?>"
                 data-auto-category="<?= htmlspecialchars($autoCategory, ENT_QUOTES, 'UTF-8') ?>"
@@ -313,6 +322,24 @@ render_header('Review · Mini-Uiltje', 'review');
                         </div>
                     </div>
                 </div>
+
+                <div class="txn-friendly-editor" data-friendly-editor-panel hidden>
+                    <label for="friendly-name-<?= (int)$transaction['id'] ?>">Friendly name</label>
+                    <input
+                        id="friendly-name-<?= (int)$transaction['id'] ?>"
+                        class="input"
+                        type="text"
+                        maxlength="120"
+                        name="friendly_name"
+                        value="<?= htmlspecialchars((string)($transaction['friendly_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                        placeholder="Friendly name"
+                        form="friendly-form-<?= (int)$transaction['id'] ?>"
+                    >
+                    <div class="txn-friendly-actions">
+                        <button class="btn" type="submit" form="friendly-form-<?= (int)$transaction['id'] ?>">Save name</button>
+                        <button class="btn" type="button" data-friendly-cancel>Cancel</button>
+                    </div>
+                </div>
             </article>
         <?php endforeach; ?>
     </section>
@@ -329,6 +356,13 @@ render_header('Review · Mini-Uiltje', 'review');
 </div>
 
 <?php foreach ($transactions as $transaction): ?>
+    <form id="friendly-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="update_friendly_name">
+        <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+        <input type="hidden" name="review_filter" value="<?= htmlspecialchars($currentReviewFilter, ENT_QUOTES, 'UTF-8') ?>" data-review-filter-input>
+    </form>
+
     <form id="disapprove-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="action" value="disapprove_auto">
@@ -382,6 +416,7 @@ render_header('Review · Mini-Uiltje', 'review');
         const status = card.dataset.status;
         const category = card.dataset.category;
         const autoCategory = card.dataset.autoCategory;
+        const editNameLabel = card.dataset.hasFriendly === '1' ? 'Edit name' : 'Add name';
 
         if (status === 'auto') {
             area.innerHTML = `
@@ -390,6 +425,7 @@ render_header('Review · Mini-Uiltje', 'review');
                     <button class="btn" type="button" data-approve>Approve</button>
                     <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Disapprove</button>
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
+                    <button class="btn" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
             `;
         } else if (status === 'uncat') {
@@ -421,6 +457,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 </div>
                 <div class="inline-actions">
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
+                    <button class="btn" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
             `;
         } else {
@@ -428,6 +465,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 <div class="badge badge-savings">${category || 'Approved'}</div>
                 <div class="inline-actions">
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
+                    <button class="btn" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
             `;
         }
@@ -520,8 +558,50 @@ render_header('Review · Mini-Uiltje', 'review');
             const card = splitToggleBtn.closest('[data-card]');
             if (card) {
                 const splitPanel = card.querySelector('[data-split-panel]');
+                const friendlyEditorPanel = card.querySelector('[data-friendly-editor-panel]');
                 if (splitPanel) {
                     splitPanel.hidden = !splitPanel.hidden;
+                    if (!splitPanel.hidden && friendlyEditorPanel) {
+                        friendlyEditorPanel.hidden = true;
+                    }
+                }
+            }
+            return;
+        }
+
+        const friendlyEditToggleBtn = event.target.closest('[data-friendly-edit-toggle]');
+        if (friendlyEditToggleBtn) {
+            const card = friendlyEditToggleBtn.closest('[data-card]');
+            if (card) {
+                const friendlyEditorPanel = card.querySelector('[data-friendly-editor-panel]');
+                const splitPanel = card.querySelector('[data-split-panel]');
+                const input = card.querySelector('input[name="friendly_name"]');
+                if (friendlyEditorPanel) {
+                    const nextHidden = !friendlyEditorPanel.hidden;
+                    friendlyEditorPanel.hidden = nextHidden;
+                    if (!nextHidden && splitPanel) {
+                        splitPanel.hidden = true;
+                    }
+                    if (!nextHidden && input) {
+                        input.focus();
+                        input.select();
+                    }
+                }
+            }
+            return;
+        }
+
+        const friendlyCancelBtn = event.target.closest('[data-friendly-cancel]');
+        if (friendlyCancelBtn) {
+            const card = friendlyCancelBtn.closest('[data-card]');
+            if (card) {
+                const friendlyEditorPanel = card.querySelector('[data-friendly-editor-panel]');
+                const input = card.querySelector('input[name="friendly_name"]');
+                if (input) {
+                    input.value = card.dataset.friendlyName || '';
+                }
+                if (friendlyEditorPanel) {
+                    friendlyEditorPanel.hidden = true;
                 }
             }
             return;
