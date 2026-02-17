@@ -53,6 +53,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'clear_category') {
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        if ($txnId > 0) {
+            $stmt = $db->prepare(
+                "UPDATE transactions
+                 SET approved = 0,
+                     category_id = NULL
+                 WHERE id = :id AND user_id = :uid"
+            );
+            $stmt->execute([
+                ':id' => $txnId,
+                ':uid' => $userId,
+            ]);
+        }
+    }
+
     if ($action === 'disapprove_auto') {
         $txnId = (int)($_POST['transaction_id'] ?? 0);
         if ($txnId > 0) {
@@ -383,6 +399,12 @@ render_header('Review · Mini-Uiltje', 'review');
         <input type="hidden" name="category_id" value="">
         <input type="hidden" name="review_filter" value="<?= htmlspecialchars($currentReviewFilter, ENT_QUOTES, 'UTF-8') ?>" data-review-filter-input>
     </form>
+    <form id="clear-category-form-<?= (int)$transaction['id'] ?>" method="post" action="/review.php" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token($config), ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="action" value="clear_category">
+        <input type="hidden" name="transaction_id" value="<?= (int)$transaction['id'] ?>">
+        <input type="hidden" name="review_filter" value="<?= htmlspecialchars($currentReviewFilter, ENT_QUOTES, 'UTF-8') ?>" data-review-filter-input>
+    </form>
 <?php endforeach; ?>
 
 <div class="card" id="toast" role="status" aria-live="polite" hidden>
@@ -424,6 +446,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 <div class="badge badge-savings">Category: ${category || 'Selected'}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
+                    <button class="btn btn-danger" type="submit" form="clear-category-form-${card.dataset.id}">Decline</button>
                     <button class="btn btn-split-action" type="button" data-split-toggle>Split</button>
                     <button class="btn btn-friendly-name" type="button" data-friendly-edit-toggle>${editNameLabel}</button>
                 </div>
