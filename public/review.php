@@ -152,6 +152,7 @@ $stmt = $db->prepare(
         t.id,
         t.txn_date,
         t.description,
+        t.friendly_name,
         t.amount_signed,
         t.notes,
         c.name AS category_name,
@@ -175,6 +176,7 @@ $transactions = array_map(static function (array $row): array {
         'id' => (int)$row['id'],
         'date' => (string)$row['txn_date'],
         'description' => (string)$row['description'],
+        'friendly_name' => $row['friendly_name'] !== null ? trim((string)$row['friendly_name']) : null,
         'amount' => (float)$row['amount_signed'],
         'category' => $row['category_name'] !== null ? (string)$row['category_name'] : null,
         'auto_category' => $row['auto_category_name'] !== null ? (string)$row['auto_category_name'] : null,
@@ -246,6 +248,7 @@ render_header('Review · Mini-Uiltje', 'review');
                 class="card review-card"
                 data-card
                 data-id="<?= (int)$transaction['id'] ?>"
+                data-has-friendly="<?= !empty($transaction['friendly_name']) ? '1' : '0' ?>"
                 data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
                 data-category="<?= htmlspecialchars($categoryText, ENT_QUOTES, 'UTF-8') ?>"
                 data-auto-category="<?= htmlspecialchars($autoCategory, ENT_QUOTES, 'UTF-8') ?>"
@@ -259,9 +262,21 @@ render_header('Review · Mini-Uiltje', 'review');
                         </strong>
                     </p>
                 </div>
-                <p class="review-description"><?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?></p>
-                <?php if (!empty($transaction['note'])): ?>
-                    <p class="small review-note"><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
+                <?php if (!empty($transaction['friendly_name'])): ?>
+                    <button type="button" class="txn-toggle review-friendly-toggle" data-friendly-toggle aria-expanded="false">
+                        <strong><?= htmlspecialchars($transaction['friendly_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                    </button>
+                    <div class="review-original" data-original-details hidden>
+                        <p class="review-description"><?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                        <?php if (!empty($transaction['note'])): ?>
+                            <p class="small review-note"><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <p class="review-description"><?= htmlspecialchars($transaction['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <?php if (!empty($transaction['note'])): ?>
+                        <p class="small review-note"><?= htmlspecialchars($transaction['note'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <div class="category-area" data-category-area></div>
@@ -543,6 +558,20 @@ render_header('Review · Mini-Uiltje', 'review');
                 card.dataset.showAllCategories = '0';
                 formatCategoryArea(card);
             }
+            return;
+        }
+
+        const friendlyToggleBtn = event.target.closest('[data-friendly-toggle]');
+        if (friendlyToggleBtn) {
+            const card = friendlyToggleBtn.closest('[data-card]');
+            if (!card || card.dataset.hasFriendly !== '1') return;
+
+            const details = card.querySelector('[data-original-details]');
+            if (!details) return;
+
+            const isExpanded = !details.hidden;
+            details.hidden = isExpanded;
+            friendlyToggleBtn.setAttribute('aria-expanded', String(!isExpanded));
         }
     });
 
