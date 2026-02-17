@@ -364,6 +364,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
+        <th style="width: 110px;">Used</th>
         <th style="width: 220px;">Ledger</th>
         <th style="width: 220px;">Parent</th>
         <th style="width: 200px;">Color</th>
@@ -376,6 +377,7 @@ render_header('Categories', 'categories');
         <td style="height:44px;">
           <a href="/transactions.php?category_id=0&all_time=1">Uncategorized</a>
         </td>
+        <td><span class="small muted">—</span></td>
         <td><span class="small muted">None</span></td>
         <td><span class="small muted">None</span></td>
         <td>
@@ -398,6 +400,7 @@ render_header('Categories', 'categories');
               <a href="/transactions.php?category_id=<?= h((string)$cat['id']) ?>&all_time=1"><?= h($cat['name']) ?></a>
             <?php endif; ?>
           </td>
+          <td><?= h((string)((int)($cat['usage_count'] ?? 0))) ?></td>
           <td>
             <?php if ($editId === $catId): ?>
               <select class="input" name="savings_id" form="<?= h((string)$formId) ?>">
