@@ -59,7 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare(
                 "UPDATE transactions
                  SET approved = 0,
-                     category_id = NULL
+                     category_id = NULL,
+                     category_auto_id = NULL,
+                     rule_auto_id = NULL,
+                     auto_reason = NULL
                  WHERE id = :id AND user_id = :uid"
             );
             $stmt->execute([
