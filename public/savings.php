@@ -154,7 +154,7 @@ render_header('Savings', 'savings');
           <th>Current balance</th>
           <th>Default monthly amount</th>
           <th>Top-up category</th>
-          <th style="width:260px">Actions</th>
+          <th style="width:280px">Actions</th>
         </tr>
       </thead>
       <tbody>
