@@ -264,6 +264,10 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   background: rgba(110, 231, 183, 0.12);
 }
 
+.js-ledger-link {
+  cursor: pointer;
+}
+
 .review-summary {
   background: linear-gradient(160deg, rgba(110,231,183,0.08), rgba(18,22,27,1) 45%);
 }
