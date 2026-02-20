@@ -405,7 +405,13 @@ function render_transactions_table(
                     <span class="badge badge-transfer">Transfer</span>
                   <?php endif; ?>
                   <?php if ($hasSavingsLedger): ?>
-                    <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                    <span
+                      class="badge badge-savings js-ledger-link"
+                      role="link"
+                      tabindex="0"
+                      title="Open ledger"
+                      data-ledger-url="/savings_view.php?id=<?= (int)$t['savings_paid_id'] ?>"
+                    >Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                   <?php endif; ?>
                   <?php if (!empty($t['parent_transaction_id'])): ?>
                     <span class="badge">Split</span>
@@ -429,7 +435,13 @@ function render_transactions_table(
                           <span class="badge badge-transfer">Transfer</span>
                         <?php endif; ?>
                         <?php if ($hasSavingsLedger): ?>
-                          <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                          <span
+                            class="badge badge-savings js-ledger-link"
+                            role="link"
+                            tabindex="0"
+                            title="Open ledger"
+                            data-ledger-url="/savings_view.php?id=<?= (int)$t['savings_paid_id'] ?>"
+                          >Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                         <?php endif; ?>
                         <?php if (!empty($t['parent_transaction_id'])): ?>
                           <span class="badge">Split</span>
@@ -455,7 +467,13 @@ function render_transactions_table(
                         <span class="badge badge-transfer">Transfer</span>
                       <?php endif; ?>
                       <?php if ($hasSavingsLedger): ?>
-                        <span class="badge badge-savings">Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
+                        <span
+                          class="badge badge-savings js-ledger-link"
+                          role="link"
+                          tabindex="0"
+                          title="Open ledger"
+                          data-ledger-url="/savings_view.php?id=<?= (int)$t['savings_paid_id'] ?>"
+                        >Ledger<?= !empty($t['savings_paid_name']) ? ': ' . h((string)$t['savings_paid_name']) : '' ?></span>
                       <?php endif; ?>
                       <?php if (!empty($t['parent_transaction_id'])): ?>
                         <span class="badge">Split</span>
@@ -912,6 +930,27 @@ render_header('Transactions', 'transactions');
       toggle.addEventListener('change', () => {
         applyVisibility(toggle.dataset.column, toggle.checked);
         persist();
+      });
+    });
+
+    const ledgerBadges = Array.from(document.querySelectorAll('.js-ledger-link'));
+    ledgerBadges.forEach((badge) => {
+      const url = badge.dataset.ledgerUrl;
+      if (!url) {
+        return;
+      }
+
+      const openLedger = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.location.href = url;
+      };
+
+      badge.addEventListener('click', openLedger);
+      badge.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          openLedger(event);
+        }
       });
     });
 
