@@ -141,10 +141,11 @@ render_header('Saving details', 'savings');
           <?php endif; ?>
           <?php foreach ($entries as $entry): ?>
             <?php $entryAmount = (float)$entry['amount']; ?>
+            <?php $friendlyName = trim((string)($entry['friendly_name'] ?? '')); ?>
             <tr>
               <td><?= h((string)$entry['date']) ?></td>
               <td><span class="badge"><?= h((string)$entry['entry_type']) ?></span></td>
-              <td><?= h((string)($entry['transaction_description'] ?? $entry['note'] ?? '—')) ?></td>
+              <td><?= h($friendlyName !== '' ? $friendlyName : (string)($entry['transaction_description'] ?? $entry['note'] ?? '—')) ?></td>
               <td class="money <?= $entryAmount >= 0 ? 'money-pos' : 'money-neg' ?>">
                 <?= number_format($entryAmount, 2, ',', '.') ?>
               </td>

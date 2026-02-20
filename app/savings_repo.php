@@ -83,6 +83,7 @@ function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null):
                        ELSE "spend"
                    END AS entry_type,
                    t.notes AS note,
+                   t.friendly_name,
                    t.description AS transaction_description
             FROM transactions t
             WHERE t.savings_id = :sid
