@@ -426,6 +426,26 @@ function repo_get_transaction(PDO $db, int $userId, int $txnId): ?array {
     return $row ?: null;
 }
 
+function repo_delete_topoff_transaction(PDO $db, int $userId, int $txnId): bool {
+    if ($txnId <= 0) {
+        return false;
+    }
+
+    $stmt = $db->prepare(
+        'DELETE FROM transactions
+         WHERE id = :id
+           AND user_id = :uid
+           AND is_topup = 1
+           AND is_split_active = 1'
+    );
+    $stmt->execute([
+        ':id' => $txnId,
+        ':uid' => $userId,
+    ]);
+
+    return $stmt->rowCount() > 0;
+}
+
 function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts): void {
     $transaction = repo_get_transaction($db, $userId, $txnId);
     if (!$transaction) {

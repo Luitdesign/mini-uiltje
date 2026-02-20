@@ -16,6 +16,7 @@ $allTime = (string)($_GET['all_time'] ?? '') === '1';
 $saved = isset($_GET['saved']);
 $autoUpdated = (int)($_GET['auto_updated'] ?? 0);
 $savingsAppliedCount = (int)($_GET['savings_applied'] ?? 0);
+$topoffRemoved = (string)($_GET['topoff_removed'] ?? '') === '1';
 $hasDateRange = $startDate !== '' || $endDate !== '';
 if ($allTime) {
     $year = 0;
@@ -225,6 +226,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    if ($action === 'remove_topoff_transaction') {
+        $txnId = (int)($_POST['transaction_id'] ?? 0);
+        if ($txnId <= 0) {
+            $error = 'Please select a top off transaction to remove.';
+        } elseif (!repo_delete_topoff_transaction($db, $userId, $txnId)) {
+            $error = 'Top off transaction not found or already removed.';
+        } else {
+            $topoffRemoved = true;
+        }
+    }
     if ($action === 'restore_split') {
         $savedFlag = true;
         $txnId = (int)($_POST['transaction_id'] ?? 0);
@@ -272,6 +283,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($savingsAppliedCount > 0) {
             $qsParams['savings_applied'] = $savingsAppliedCount;
+        }
+        if ($topoffRemoved) {
+            $qsParams['topoff_removed'] = 1;
         }
         $qs = http_build_query($qsParams);
         redirect('/transactions.php?' . $qs);
@@ -390,6 +404,7 @@ function render_transactions_table(
           if ($isUncategorized) {
               $rowClasses[] = 'txn-uncategorized';
           }
+          $isTopoff = !empty($t['is_topup']) && $amt < 0;
           $rowClass = $rowClasses ? ' class="' . implode(' ', $rowClasses) . '"' : '';
         ?>
           <tr<?= $rowClass ?><?= $rowStyle ?>>
@@ -423,6 +438,10 @@ function render_transactions_table(
                       <button class="txn-edit-link" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
                     <?php else: ?>
                       <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
+                    <?php endif; ?>
+                    <?php if ($isTopoff): ?>
+                      <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
+                      <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                     <?php endif; ?>
                   </div>
                 </div>
@@ -459,6 +478,10 @@ function render_transactions_table(
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
+                      <?php if ($isTopoff): ?>
+                        <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
+                        <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
+                      <?php endif; ?>
                     </div>
                   <?php else: ?>
                     <div class="txn-flags">
@@ -489,6 +512,10 @@ function render_transactions_table(
                         <button class="txn-edit-link" type="submit" form="<?= h($restoreFormId) ?>">Restore split</button>
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
+                      <?php endif; ?>
+                      <?php if ($isTopoff): ?>
+                        <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
+                        <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                       <?php endif; ?>
                     </div>
                   <?php endif; ?>
@@ -609,6 +636,14 @@ function render_split_forms(array $txns, array $actionQueryParams, array $config
           <form id="<?= h($restoreFormId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
             <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
             <input type="hidden" name="action" value="restore_split">
+            <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
+          </form>
+        <?php endif; ?>
+        <?php if (!empty($txn['is_topup'])): ?>
+          <?php $removeTopoffFormId = 'remove-topoff-form-' . $txnId; ?>
+          <form id="<?= h($removeTopoffFormId) ?>" method="post" action="<?= h($action) ?>" style="display: none;">
+            <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+            <input type="hidden" name="action" value="remove_topoff_transaction">
             <input type="hidden" name="transaction_id" value="<?= $txnId ?>">
           </form>
         <?php endif; ?>
@@ -733,6 +768,11 @@ render_header('Transactions', 'transactions');
   <?php if ($savingsAppliedCount > 0): ?>
     <div class="small" style="margin-top: 10px; color: var(--accent);">
       Savings top-ups applied to <?= (int)$savingsAppliedCount ?> ledgers.
+    </div>
+  <?php endif; ?>
+  <?php if ($topoffRemoved): ?>
+    <div class="small" style="margin-top: 10px; color: var(--accent);">
+      Top off transaction removed.
     </div>
   <?php endif; ?>
   <?php if ($error !== ''): ?>
