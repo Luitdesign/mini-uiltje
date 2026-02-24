@@ -38,21 +38,6 @@ function constraint_exists(PDO $db, string $table, string $constraint): bool {
     return ((int)$stmt->fetchColumn() > 0);
 }
 
-function index_matches_columns(PDO $db, string $table, string $index, array $columns): bool {
-    $stmt = $db->prepare(
-        'SELECT column_name
-         FROM information_schema.statistics
-         WHERE table_schema = DATABASE()
-           AND table_name = :table
-           AND index_name = :index
-         ORDER BY seq_in_index ASC'
-    );
-    $stmt->execute([':table' => $table, ':index' => $index]);
-    $foundColumns = array_map(static fn($name) => strtolower((string)$name), $stmt->fetchAll(PDO::FETCH_COLUMN));
-    $expectedColumns = array_map(static fn($name) => strtolower((string)$name), $columns);
-    return $foundColumns === $expectedColumns;
-}
-
 function ensure_transaction_extensions(PDO $db): void {
     if (!table_exists($db, 'transactions')) {
         return;
@@ -91,16 +76,6 @@ function ensure_transaction_extensions(PDO $db): void {
     }
     if (!index_exists($db, 'transactions', 'idx_transactions_internal_transfer')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_internal_transfer (is_internal_transfer)');
-    }
-
-    if (index_exists($db, 'transactions', 'uq_transactions_hash')) {
-        $db->exec('ALTER TABLE transactions DROP INDEX uq_transactions_hash');
-    }
-    if (!index_exists($db, 'transactions', 'uq_transactions_user_hash')) {
-        $db->exec('ALTER TABLE transactions ADD UNIQUE KEY uq_transactions_user_hash (user_id, txn_hash)');
-    } elseif (!index_matches_columns($db, 'transactions', 'uq_transactions_user_hash', ['user_id', 'txn_hash'])) {
-        $db->exec('ALTER TABLE transactions DROP INDEX uq_transactions_user_hash');
-        $db->exec('ALTER TABLE transactions ADD UNIQUE KEY uq_transactions_user_hash (user_id, txn_hash)');
     }
 
     if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {

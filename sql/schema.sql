@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
-  UNIQUE KEY uq_transactions_user_hash (user_id, txn_hash),
+  UNIQUE KEY uq_transactions_hash (txn_hash),
   KEY idx_transactions_user_date (user_id, txn_date),
   KEY idx_transactions_category (category_id),
   KEY idx_transactions_category_auto (category_auto_id),
