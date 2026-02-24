@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $amount = (float)$amountRaw;
             try {
-                repo_add_savings_topup($db, current_user_id(), $savingId, $date, $amount);
+                repo_add_savings_topup($db, current_data_user_id($db), $savingId, $date, $amount);
                 redirect('/savings_view.php?id=' . $savingId . '&saved=updated');
             } catch (Throwable $e) {
                 $error = $e->getMessage();

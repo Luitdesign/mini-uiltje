@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = current_user_id();
+$userId = current_data_user_id($db);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
     $action = $_POST['action'] ?? '';

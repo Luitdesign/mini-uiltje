@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = current_user_id();
+$userId = current_data_user_id($db);
 
 $allowedReviewFilters = ['needs', 'uncat', 'auto', 'all'];
 $currentReviewFilter = (string)($_GET['filter'] ?? 'needs');
