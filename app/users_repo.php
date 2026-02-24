@@ -14,7 +14,7 @@ function users_find_by_id(PDO $db, int $id): ?array {
 }
 
 function users_normalize_role(string $role): string {
-    return $role === 'admin' ? 'admin' : 'user';
+    return strtolower(trim($role)) === 'admin' ? 'admin' : 'user';
 }
 
 function users_create(PDO $db, string $username, string $password): void {

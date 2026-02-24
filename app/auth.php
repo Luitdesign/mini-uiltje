@@ -20,7 +20,8 @@ function current_username(): string {
 }
 
 function current_user_role(): string {
-    return (string)($_SESSION['role'] ?? 'user');
+    $role = strtolower(trim((string)($_SESSION['role'] ?? 'user')));
+    return $role === 'admin' ? 'admin' : 'user';
 }
 
 function is_admin_user(): bool {
@@ -38,7 +39,7 @@ function auth_attempt_login(PDO $db, string $username, string $password): bool {
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$user['id'];
     $_SESSION['username'] = $username;
-    $_SESSION['role'] = ($user['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
+    $_SESSION['role'] = strtolower(trim((string)($user['role'] ?? 'user'))) === 'admin' ? 'admin' : 'user';
     return true;
 }
 
