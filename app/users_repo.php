@@ -72,3 +72,27 @@ function users_change_password(PDO $db, int $id, string $currentPassword, string
         ':id' => $id,
     ]);
 }
+
+function users_change_username(PDO $db, int $id, string $newUsername): void {
+    $newUsername = trim($newUsername);
+    if ($newUsername === '') {
+        throw new RuntimeException('Username is required.');
+    }
+    if (strlen($newUsername) > 50) {
+        throw new RuntimeException('Username must be 50 characters or fewer.');
+    }
+
+    $stmt = $db->prepare('UPDATE users SET username = :u WHERE id = :id');
+    try {
+        $stmt->execute([':u' => $newUsername, ':id' => $id]);
+    } catch (PDOException $e) {
+        if ((int)$e->getCode() === 23000) {
+            throw new RuntimeException('Username already exists.');
+        }
+        throw $e;
+    }
+
+    if ($stmt->rowCount() < 1 && !users_find_by_id($db, $id)) {
+        throw new RuntimeException('User not found.');
+    }
+}

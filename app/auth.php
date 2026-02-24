@@ -15,6 +15,14 @@ function current_user_id(): int {
     return (int)($_SESSION['user_id'] ?? 0);
 }
 
+function current_username(): string {
+    return (string)($_SESSION['username'] ?? '');
+}
+
+function is_admin_user(): bool {
+    return strtolower(current_username()) === 'admin';
+}
+
 function auth_attempt_login(PDO $db, string $username, string $password): bool {
     $stmt = $db->prepare('SELECT id, password_hash FROM users WHERE username = :u LIMIT 1');
     $stmt->execute([':u' => $username]);
