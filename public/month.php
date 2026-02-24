@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = users_shared_data_user_id($db);
+$userId = current_user_id();
 
 $year = (int)($_GET['year'] ?? 0);
 $month = (int)($_GET['month'] ?? 0);

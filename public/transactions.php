@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = users_shared_data_user_id($db);
+$userId = current_user_id();
 
 $latest = repo_get_latest_month($db, $userId);
 $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
