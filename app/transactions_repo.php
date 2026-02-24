@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-function repo_list_months(PDO $db, int $userId): array {
+function repo_list_months(PDO $db): array {
     $sql = "
         SELECT
             YEAR(txn_date) AS y,
@@ -12,7 +12,7 @@ function repo_list_months(PDO $db, int $userId): array {
             SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
         FROM transactions
-        WHERE user_id = :uid
+        WHERE 1=1
           AND is_split_active = 1
           AND is_internal_transfer = 0
           AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
@@ -20,20 +20,20 @@ function repo_list_months(PDO $db, int $userId): array {
         ORDER BY y DESC, m DESC
     ";
     $stmt = $db->prepare($sql);
-    $stmt->execute([':uid' => $userId]);
+    $stmt->execute();
     return $stmt->fetchAll();
 }
 
-function repo_get_latest_month(PDO $db, int $userId): ?array {
+function repo_get_latest_month(PDO $db): ?array {
     $stmt = $db->prepare(
         "SELECT txn_date
          FROM transactions
-         WHERE user_id = :uid
+         WHERE 1=1
            AND is_split_active = 1
          ORDER BY txn_date DESC
          LIMIT 1"
     );
-    $stmt->execute([':uid' => $userId]);
+    $stmt->execute();
     $row = $stmt->fetch();
     if (!$row) return null;
     [$y, $m] = current_year_month_from_txn_date($row['txn_date']);
@@ -285,7 +285,6 @@ function repo_bulk_update_categories(PDO $db, array $categories): void {
 
 function repo_list_transactions(
     PDO $db,
-    int $userId,
     int $year,
     int $month,
     string $q = '',
@@ -295,7 +294,7 @@ function repo_list_transactions(
     ?string $startDate = null,
     ?string $endDate = null
 ): array {
-    $params = [':uid' => $userId];
+    $params = [];
     $whereQ = '';
     if ($q !== '') {
         $whereQ = " AND (description LIKE :q OR notes LIKE :q)";
@@ -349,8 +348,7 @@ function repo_list_transactions(
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
         LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
         LEFT JOIN savings s ON s.id = t.savings_id
-        WHERE t.user_id = :uid
-          AND t.is_split_active = 1
+        WHERE t.is_split_active = 1
           {$whereDate}
           {$whereQ}
           {$whereCategory}
@@ -364,34 +362,32 @@ function repo_list_transactions(
     return $stmt->fetchAll();
 }
 
-function repo_list_transactions_for_month(PDO $db, int $userId, int $year, int $month): array {
+function repo_list_transactions_for_month(PDO $db, int $year, int $month): array {
     $stmt = $db->prepare(
         'SELECT *
          FROM transactions
-         WHERE user_id = :uid
+         WHERE 1=1
            AND is_split_active = 1
            AND YEAR(txn_date) = :y
            AND MONTH(txn_date) = :m
          ORDER BY txn_date DESC, id DESC'
     );
     $stmt->execute([
-        ':uid' => $userId,
         ':y' => $year,
         ':m' => $month,
     ]);
     return $stmt->fetchAll();
 }
 
-function repo_update_transaction_category(PDO $db, int $userId, int $txnId, ?int $categoryId): void {
-    $stmt = $db->prepare("UPDATE transactions SET category_id = :cid WHERE id = :id AND user_id = :uid");
+function repo_update_transaction_category(PDO $db, int $txnId, ?int $categoryId): void {
+    $stmt = $db->prepare("UPDATE transactions SET category_id = :cid WHERE id = :id");
     $stmt->execute([
         ':cid' => $categoryId,
         ':id' => $txnId,
-        ':uid' => $userId,
     ]);
 }
 
-function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId, ?string $friendlyName): void {
+function repo_update_transaction_friendly_name(PDO $db, int $txnId, ?string $friendlyName): void {
     $friendlyName = $friendlyName !== null ? trim($friendlyName) : null;
     if ($friendlyName === '') {
         $friendlyName = null;
@@ -399,34 +395,32 @@ function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId,
     $stmt = $db->prepare(
         "UPDATE transactions
          SET friendly_name = :friendly_name
-         WHERE id = :id AND user_id = :uid"
+         WHERE id = :id"
     );
     $stmt->execute([
         ':friendly_name' => $friendlyName,
         ':id' => $txnId,
-        ':uid' => $userId,
     ]);
 }
 
-function repo_get_transaction(PDO $db, int $userId, int $txnId): ?array {
+function repo_get_transaction(PDO $db, int $txnId): ?array {
     if ($txnId <= 0) {
         return null;
     }
     $stmt = $db->prepare(
         'SELECT *
          FROM transactions
-         WHERE id = :id AND user_id = :uid
+         WHERE id = :id
          LIMIT 1'
     );
     $stmt->execute([
         ':id' => $txnId,
-        ':uid' => $userId,
     ]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
-function repo_delete_topoff_transaction(PDO $db, int $userId, int $txnId): bool {
+function repo_delete_topoff_transaction(PDO $db, int $txnId): bool {
     if ($txnId <= 0) {
         return false;
     }
@@ -434,20 +428,18 @@ function repo_delete_topoff_transaction(PDO $db, int $userId, int $txnId): bool 
     $stmt = $db->prepare(
         'DELETE FROM transactions
          WHERE id = :id
-           AND user_id = :uid
            AND is_topup = 1
            AND is_split_active = 1'
     );
     $stmt->execute([
         ':id' => $txnId,
-        ':uid' => $userId,
     ]);
 
     return $stmt->rowCount() > 0;
 }
 
-function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts): void {
-    $transaction = repo_get_transaction($db, $userId, $txnId);
+function repo_split_transaction(PDO $db, int $txnId, array $amounts): void {
+    $transaction = repo_get_transaction($db, $txnId);
     if (!$transaction) {
         throw new RuntimeException('Transaction not found.');
     }
@@ -516,7 +508,7 @@ function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts
          SET is_split_source = 1,
              is_split_active = 0,
              split_group_id = :split_group_id
-         WHERE id = :id AND user_id = :uid'
+         WHERE id = :id'
     );
 
     $db->beginTransaction();
@@ -525,8 +517,7 @@ function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts
             $hashSeed = sprintf('split|%d|%d|%s', $txnId, $index + 1, uniqid('', true));
             $txnHash = sha1($hashSeed);
             $stmtInsert->execute([
-                ':uid' => $userId,
-                ':txn_hash' => $txnHash,
+                        ':txn_hash' => $txnHash,
                 ':txn_date' => $transaction['txn_date'],
                 ':description' => $transaction['description'],
                 ':friendly_name' => $transaction['friendly_name'],
@@ -555,8 +546,7 @@ function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts
         $stmtUpdate->execute([
             ':split_group_id' => $splitGroupId,
             ':id' => $txnId,
-            ':uid' => $userId,
-        ]);
+            ]);
 
         $db->commit();
     } catch (Throwable $e) {
@@ -565,8 +555,8 @@ function repo_split_transaction(PDO $db, int $userId, int $txnId, array $amounts
     }
 }
 
-function repo_restore_split_transaction(PDO $db, int $userId, int $txnId): void {
-    $transaction = repo_get_transaction($db, $userId, $txnId);
+function repo_restore_split_transaction(PDO $db, int $txnId): void {
+    $transaction = repo_get_transaction($db, $txnId);
     if (!$transaction) {
         throw new RuntimeException('Transaction not found.');
     }
@@ -582,14 +572,14 @@ function repo_restore_split_transaction(PDO $db, int $userId, int $txnId): void 
         throw new RuntimeException('This transaction is not part of a split.');
     }
 
-    $parentTransaction = repo_get_transaction($db, $userId, $parentId);
+    $parentTransaction = repo_get_transaction($db, $parentId);
     if (!$parentTransaction || empty($parentTransaction['is_split_source'])) {
         throw new RuntimeException('Split source transaction not found.');
     }
 
     $stmtDelete = $db->prepare(
         'DELETE FROM transactions
-         WHERE user_id = :uid
+         WHERE 1=1
            AND parent_transaction_id = :parent_id'
     );
     $stmtUpdate = $db->prepare(
@@ -598,19 +588,17 @@ function repo_restore_split_transaction(PDO $db, int $userId, int $txnId): void 
              is_split_active = 1,
              split_group_id = NULL,
              parent_transaction_id = NULL
-         WHERE id = :id AND user_id = :uid'
+         WHERE id = :id'
     );
 
     $db->beginTransaction();
     try {
         $stmtDelete->execute([
-            ':uid' => $userId,
-            ':parent_id' => $parentId,
+                ':parent_id' => $parentId,
         ]);
         $stmtUpdate->execute([
             ':id' => $parentId,
-            ':uid' => $userId,
-        ]);
+            ]);
         $db->commit();
     } catch (Throwable $e) {
         $db->rollBack();
@@ -618,25 +606,25 @@ function repo_restore_split_transaction(PDO $db, int $userId, int $txnId): void 
     }
 }
 
-function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $month): int {
+function repo_reapply_auto_categories(PDO $db, int $year, int $month): int {
     $stmtRules = $db->prepare(
         'SELECT *
          FROM rules
-         WHERE user_id = :uid AND active = 1
+         WHERE active = 1
          ORDER BY priority ASC, id ASC'
     );
-    $stmtRules->execute([':uid' => $userId]);
+    $stmtRules->execute();
     $rules = $stmtRules->fetchAll();
 
     $stmtTxns = $db->prepare(
         'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer
          FROM transactions
-         WHERE user_id = :uid
+         WHERE 1=1
            AND is_split_active = 1
            AND YEAR(txn_date) = :y
            AND MONTH(txn_date) = :m'
     );
-    $stmtTxns->execute([':uid' => $userId, ':y' => $year, ':m' => $month]);
+    $stmtTxns->execute([':y' => $year, ':m' => $month]);
     $transactions = $stmtTxns->fetchAll();
 
     if ($transactions === []) {
@@ -649,7 +637,7 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
              rule_auto_id = :rule_id,
              auto_reason = :auto_reason,
              category_id = :category_id
-         WHERE id = :id AND user_id = :uid'
+         WHERE id = :id'
     );
 
     $updated = 0;
@@ -672,8 +660,7 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
                 ':auto_reason' => $auto['auto_reason'],
                 ':category_id' => $categoryId,
                 ':id' => (int)$txn['id'],
-                ':uid' => $userId,
-            ]);
+                    ]);
             $updated++;
         }
         $db->commit();
@@ -687,13 +674,12 @@ function repo_reapply_auto_categories(PDO $db, int $userId, int $year, int $mont
 
 function repo_period_summary(
     PDO $db,
-    int $userId,
     int $year,
     int $month,
     ?string $startDate = null,
     ?string $endDate = null
 ): array {
-    $params = [':uid' => $userId];
+    $params = [];
     $whereDate = '';
     if ($startDate !== null) {
         $whereDate .= ' AND txn_date >= :start_date';
@@ -718,7 +704,7 @@ function repo_period_summary(
             ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending,
             SUM(amount_signed) AS net
         FROM transactions
-        WHERE user_id = :uid
+        WHERE 1=1
           {$whereDate}
           AND is_split_active = 1
           AND is_internal_transfer = 0
@@ -736,14 +722,13 @@ function repo_period_summary(
 
 function repo_period_breakdown_by_category(
     PDO $db,
-    int $userId,
     int $year,
     int $month,
     ?string $startDate = null,
     ?string $endDate = null,
     bool $groupByParentCategory = false
 ): array {
-    $params = [':uid' => $userId];
+    $params = [];
     $whereDate = '';
     if ($startDate !== null) {
         $whereDate .= ' AND t.txn_date >= :start_date';
@@ -775,7 +760,7 @@ function repo_period_breakdown_by_category(
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories p ON p.id = c.parent_id
-        WHERE t.user_id = :uid
+        WHERE 1=1
           {$whereDate}
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
@@ -796,7 +781,7 @@ function repo_period_paid_from_savings_total(
     ?string $startDate = null,
     ?string $endDate = null
 ): float {
-    $params = [':uid' => $userId];
+    $params = [];
     $whereDate = '';
     if ($startDate !== null) {
         $whereDate .= ' AND t.txn_date >= :start_date';
@@ -818,7 +803,7 @@ function repo_period_paid_from_savings_total(
     $sql = "
         SELECT ABS(SUM(t.amount_signed)) AS total
         FROM transactions t
-        WHERE t.user_id = :uid
+        WHERE 1=1
           {$whereDate}
           AND t.is_split_active = 1
           AND t.amount_signed < 0
@@ -840,7 +825,7 @@ function repo_period_paid_from_savings_breakdown(
     ?string $startDate = null,
     ?string $endDate = null
 ): array {
-    $params = [':uid' => $userId];
+    $params = [];
     $whereDate = '';
     if ($startDate !== null) {
         $whereDate .= ' AND t.txn_date >= :start_date';
@@ -865,7 +850,7 @@ function repo_period_paid_from_savings_breakdown(
             ABS(SUM(t.amount_signed)) AS spending
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
-        WHERE t.user_id = :uid
+        WHERE 1=1
           {$whereDate}
           AND t.is_split_active = 1
           AND t.amount_signed < 0
@@ -888,7 +873,7 @@ function repo_period_paid_from_savings_transactions(
     ?string $startDate = null,
     ?string $endDate = null
 ): array {
-    $params = [':uid' => $userId];
+    $params = [];
     $whereDate = '';
     if ($startDate !== null) {
         $whereDate .= ' AND t.txn_date >= :start_date';
@@ -918,7 +903,7 @@ function repo_period_paid_from_savings_transactions(
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN savings s ON s.id = t.savings_id
-        WHERE t.user_id = :uid
+        WHERE 1=1
           {$whereDate}
           AND t.is_split_active = 1
           AND t.amount_signed < 0

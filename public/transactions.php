@@ -2,9 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = current_user_id();
-
-$latest = repo_get_latest_month($db, $userId);
+$latest = repo_get_latest_month($db);
 $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
 $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
@@ -56,16 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $categoryIdRaw = (string)$categoryIdRaw;
                 $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
                 if ($txnId > 0) {
-                    repo_update_transaction_category($db, $userId, $txnId, $categoryId);
+                    repo_update_transaction_category($db, $txnId, $categoryId);
                     $ledgerSavingsId = null;
                     if ($categoryId !== null) {
                         $category = repo_get_category($db, $categoryId);
                         $ledgerSavingsId = $category ? (int)($category['savings_id'] ?? 0) : null;
                     }
                     if ($ledgerSavingsId !== null && $ledgerSavingsId > 0) {
-                        repo_set_transaction_ledger($db, $userId, $txnId, $ledgerSavingsId);
+                        repo_set_transaction_ledger($db, $txnId, $ledgerSavingsId);
                     } else {
-                        repo_set_transaction_ledger($db, $userId, $txnId, null);
+                        repo_set_transaction_ledger($db, $txnId, null);
                     }
                 }
             }
@@ -77,14 +75,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $friendlyNames = $_POST['friendly_names'] ?? [];
         if ($txnId > 0 && is_array($friendlyNames)) {
             $friendlyName = (string)($friendlyNames[$txnId] ?? '');
-            repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
+            repo_update_transaction_friendly_name($db, $txnId, $friendlyName);
         }
     }
     if ($action === 'rerun_auto') {
         if ($isYearView || $hasDateRange) {
             $error = 'Auto categorie opnieuw toepassen kan alleen voor een enkele maand.';
         } else {
-            $autoUpdated = repo_reapply_auto_categories($db, $userId, $year, $month);
+            $autoUpdated = repo_reapply_auto_categories($db, $year, $month);
         }
     }
     if ($action === 'update_paid_from_savings') {
@@ -93,11 +91,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $savingsIdRaw = (string)($_POST['savings_id'] ?? '');
         if ($txnId > 0) {
             if ($savingsIdRaw === '' || $savingsIdRaw === '0') {
-                repo_set_transaction_ledger($db, $userId, $txnId, null);
+                repo_set_transaction_ledger($db, $txnId, null);
             } else {
                 $savingsId = (int)$savingsIdRaw;
                 if ($savingsId > 0) {
-                    $ok = repo_set_transaction_ledger($db, $userId, $txnId, $savingsId);
+                    $ok = repo_set_transaction_ledger($db, $txnId, $savingsId);
                     if (!$ok) {
                         $error = 'Unable to update the ledger for this transaction.';
                     }
@@ -197,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($error === '' && $missingIndex !== null) {
-                $transaction = repo_get_transaction($db, $userId, $txnId);
+                $transaction = repo_get_transaction($db, $txnId);
                 if (!$transaction) {
                     $error = 'Transaction not found.';
                 } else {
@@ -220,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($error === '') {
             try {
-                repo_split_transaction($db, $userId, $txnId, array_values($splitAmounts));
+                repo_split_transaction($db, $txnId, array_values($splitAmounts));
             } catch (Throwable $e) {
                 $error = $e->getMessage();
             }
@@ -230,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $txnId = (int)($_POST['transaction_id'] ?? 0);
         if ($txnId <= 0) {
             $error = 'Please select a top off transaction to remove.';
-        } elseif (!repo_delete_topoff_transaction($db, $userId, $txnId)) {
+        } elseif (!repo_delete_topoff_transaction($db, $txnId)) {
             $error = 'Top off transaction not found or already removed.';
         } else {
             $topoffRemoved = true;
@@ -246,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($error === '') {
             try {
-                repo_restore_split_transaction($db, $userId, $txnId);
+                repo_restore_split_transaction($db, $txnId);
             } catch (Throwable $e) {
                 $error = $e->getMessage();
             }
@@ -299,7 +297,6 @@ $rangeEnd = $endDate !== '' ? $endDate : null;
 $showInternalSection = true;
 $txns = repo_list_transactions(
     $db,
-    $userId,
     $year,
     $month,
     $q,
@@ -311,7 +308,6 @@ $txns = repo_list_transactions(
 );
 $internalTxns = repo_list_transactions(
     $db,
-    $userId,
     $year,
     $month,
     $q,

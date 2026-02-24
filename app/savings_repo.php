@@ -201,29 +201,27 @@ function repo_mark_transaction_paid_from_savings(
     int $transactionId,
     int $savingsId
 ): bool {
-    return repo_set_transaction_ledger($db, $userId, $transactionId, $savingsId);
+    return repo_set_transaction_ledger($db, $transactionId, $savingsId);
 }
 
 function repo_unmark_transaction_paid_from_savings(PDO $db, int $userId, int $transactionId): void {
-    repo_set_transaction_ledger($db, $userId, $transactionId, null);
+    repo_set_transaction_ledger($db, $transactionId, null);
 }
 
 function repo_set_transaction_ledger(
     PDO $db,
-    int $userId,
     int $transactionId,
     ?int $savingsId
 ): bool {
     $stmt = $db->prepare(
         'SELECT id, amount_signed, txn_date, is_topup
          FROM transactions
-         WHERE id = :id AND user_id = :uid
+         WHERE id = :id
            AND is_split_active = 1
          LIMIT 1'
     );
     $stmt->execute([
         ':id' => $transactionId,
-        ':uid' => $userId,
     ]);
     $txn = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$txn) {
@@ -237,11 +235,10 @@ function repo_set_transaction_ledger(
                 'UPDATE transactions
                  SET savings_id = NULL,
                      is_topup = 0
-                 WHERE id = :id AND user_id = :uid'
+                 WHERE id = :id'
             );
             $stmtUpdate->execute([
                 ':id' => $transactionId,
-                ':uid' => $userId,
             ]);
 
             $db->commit();
@@ -264,11 +261,10 @@ function repo_set_transaction_ledger(
             'UPDATE transactions
              SET savings_id = :savings_id,
                  is_topup = :is_topup
-             WHERE id = :id AND user_id = :uid'
+             WHERE id = :id'
         );
         $stmtUpdate->execute([
             ':id' => $transactionId,
-            ':uid' => $userId,
             ':savings_id' => $savingsId,
             ':is_topup' => (int)($txn['is_topup'] ?? 0),
         ]);
@@ -305,7 +301,7 @@ function repo_apply_category_ledger(
     $txnIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
     $updated = 0;
     foreach ($txnIds as $txnId) {
-        if (repo_set_transaction_ledger($db, $userId, (int)$txnId, $savingsId)) {
+        if (repo_set_transaction_ledger($db, (int)$txnId, $savingsId)) {
             $updated++;
         }
     }

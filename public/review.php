@@ -2,8 +2,6 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = current_user_id();
-
 $allowedReviewFilters = ['needs', 'uncat', 'auto', 'all'];
 $currentReviewFilter = (string)($_GET['filter'] ?? 'needs');
 if (!in_array($currentReviewFilter, $allowedReviewFilters, true)) {
@@ -26,11 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 "UPDATE transactions
                  SET approved = 1,
                      category_id = COALESCE(category_id, category_auto_id)
-                 WHERE id = :id AND user_id = :uid"
+                 WHERE id = :id"
             );
             $stmt->execute([
                 ':id' => $txnId,
-                ':uid' => $userId,
             ]);
         }
     }
@@ -43,12 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 "UPDATE transactions
                  SET approved = 1,
                      category_id = :category_id
-                 WHERE id = :id AND user_id = :uid"
+                 WHERE id = :id"
             );
             $stmt->execute([
                 ':category_id' => $categoryId,
                 ':id' => $txnId,
-                ':uid' => $userId,
             ]);
         }
     }
@@ -63,11 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      category_auto_id = NULL,
                      rule_auto_id = NULL,
                      auto_reason = NULL
-                 WHERE id = :id AND user_id = :uid"
+                 WHERE id = :id"
             );
             $stmt->execute([
                 ':id' => $txnId,
-                ':uid' => $userId,
             ]);
         }
     }
@@ -82,11 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      category_auto_id = NULL,
                      rule_auto_id = NULL,
                      auto_reason = NULL
-                 WHERE id = :id AND user_id = :uid"
+                 WHERE id = :id"
             );
             $stmt->execute([
                 ':id' => $txnId,
-                ':uid' => $userId,
             ]);
         }
     }
@@ -119,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($splitAmounts !== [] && $missingIndex !== null) {
-                $transaction = repo_get_transaction($db, $userId, $txnId);
+                $transaction = repo_get_transaction($db, $txnId);
                 if ($transaction) {
                     $originalAbs = round(abs((float)$transaction['amount_signed']), 2);
                     $sum = 0.0;
@@ -142,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($splitAmounts !== []) {
             try {
-                repo_split_transaction($db, $userId, $txnId, array_values($splitAmounts));
+                repo_split_transaction($db, $txnId, array_values($splitAmounts));
             } catch (Throwable $e) {
                 // Ignore split failures and return to review state.
             }
@@ -153,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $txnId = (int)($_POST['transaction_id'] ?? 0);
         $friendlyName = (string)($_POST['friendly_name'] ?? '');
         if ($txnId > 0) {
-            repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
+            repo_update_transaction_friendly_name($db, $txnId, $friendlyName);
         }
     }
 
@@ -187,7 +181,7 @@ $stmt = $db->prepare(
      FROM transactions t
      LEFT JOIN categories c ON c.id = t.category_id
      LEFT JOIN categories ca ON ca.id = t.category_auto_id
-     WHERE t.user_id = :uid
+     WHERE 1=1
        AND t.is_split_active = 1
        AND t.is_internal_transfer = 0
        AND LOWER(TRIM(t.description)) NOT LIKE 'top-up:%'
@@ -195,7 +189,7 @@ $stmt = $db->prepare(
        AND t.approved = 0
      ORDER BY t.txn_date DESC, t.id DESC"
 );
-$stmt->execute([':uid' => $userId]);
+$stmt->execute();
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $transactions = array_map(static function (array $row): array {

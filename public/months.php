@@ -2,7 +2,6 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = current_user_id();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
     $action = $_POST['action'] ?? '';
@@ -10,14 +9,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $year = (int)($_POST['year'] ?? 0);
         $month = (int)($_POST['month'] ?? 0);
         if ($year > 0 && $month > 0) {
-            repo_reapply_auto_categories($db, $userId, $year, $month);
+            repo_reapply_auto_categories($db, $year, $month);
         }
         header('Location: /months.php');
         exit;
     }
 }
 
-$months = repo_list_months($db, $userId);
+$months = repo_list_months($db);
 
 render_header('Months', 'months');
 ?>

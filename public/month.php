@@ -2,8 +2,6 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = current_user_id();
-
 $year = (int)($_GET['year'] ?? 0);
 $month = (int)($_GET['month'] ?? 0);
 $m = (string)($_GET['m'] ?? '');
@@ -13,14 +11,14 @@ if ($m !== '' && preg_match('/^(?<year>\d{4})-(?<month>\d{2})$/', $m, $matches))
 }
 
 if ($year <= 0 || $month <= 0) {
-    $latest = repo_get_latest_month($db, $userId);
+    $latest = repo_get_latest_month($db);
     $year = $year > 0 ? $year : (int)($latest['y'] ?? date('Y'));
     $month = $month > 0 ? $month : (int)($latest['m'] ?? date('n'));
 }
 
 $export = strtolower((string)($_GET['export'] ?? ''));
 if ($export === 'csv') {
-    $txns = repo_list_transactions_for_month($db, $userId, $year, $month);
+    $txns = repo_list_transactions_for_month($db, $year, $month);
     $filename = sprintf('transactions-%04d-%02d.csv', $year, $month);
 
     header('Content-Type: text/csv; charset=UTF-8');

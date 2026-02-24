@@ -2,8 +2,7 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_login();
 
-$userId = current_user_id();
-$latest = repo_get_latest_month($db, $userId);
+$latest = repo_get_latest_month($db);
 $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
 $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $startDate = trim((string)($_GET['start_date'] ?? ''));
@@ -33,10 +32,9 @@ $periodValue = $allTime
 
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
-$sum = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd);
+$sum = repo_period_summary($db, $year, $month, $rangeStart, $rangeEnd);
 $breakdown = repo_period_breakdown_by_category(
     $db,
-    $userId,
     $year,
     $month,
     $rangeStart,
