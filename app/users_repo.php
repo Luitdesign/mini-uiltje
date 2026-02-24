@@ -30,9 +30,11 @@ function users_create(PDO $db, string $username, string $password): void {
     }
 
     $hash = password_hash($password, PASSWORD_DEFAULT);
+    $role = ((int)$db->query('SELECT COUNT(*) FROM users')->fetchColumn()) === 0 ? 'admin' : 'user';
+
     $stmt = $db->prepare('INSERT INTO users(username, password_hash, role) VALUES(:u, :p, :r)');
     try {
-        $stmt->execute([':u' => $username, ':p' => $hash, ':r' => 'user']);
+        $stmt->execute([':u' => $username, ':p' => $hash, ':r' => $role]);
     } catch (PDOException $e) {
         if ((int)$e->getCode() === 23000) {
             throw new RuntimeException('Username already exists.');
