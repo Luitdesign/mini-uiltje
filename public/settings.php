@@ -52,6 +52,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $success = 'Username updated successfully.';
+        } elseif ($action === 'change_role') {
+            if (!is_admin_user()) {
+                throw new RuntimeException('Only admins can change user roles.');
+            }
+
+            $targetUserId = (int)($_POST['target_user_id'] ?? 0);
+            $targetRole = (string)($_POST['target_role'] ?? 'user');
+            users_change_role($db, $targetUserId, $targetRole);
+
+            if ($targetUserId === current_user_id()) {
+                $_SESSION['role'] = users_normalize_role($targetRole);
+            }
+
+            $success = 'Role updated successfully.';
         } else {
             throw new RuntimeException('Unknown settings action.');
         }
@@ -83,13 +97,14 @@ render_header('Settings', 'settings');
 
   <div class="card" style="margin-top: 12px;">
     <h2>Users</h2>
-    <p class="small">Edit username, change your own password, delete users, and (for admin only) manage roles later.</p>
+    <p class="small">Edit username, change your own password, delete users, and manage roles.</p>
 
     <div style="overflow-x: auto;">
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr>
             <th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Username</th>
+            <th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Role</th>
             <th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Created</th>
             <th style="text-align: left; padding: 8px; border-bottom: 1px solid var(--border);">Actions</th>
           </tr>
@@ -103,6 +118,9 @@ render_header('Settings', 'settings');
             <tr>
               <td style="padding: 8px; border-bottom: 1px solid var(--border);">
                 <?= h($user['username']) ?><?= $isCurrentUser ? ' <span class="small">(you)</span>' : '' ?>
+              </td>
+              <td style="padding: 8px; border-bottom: 1px solid var(--border);">
+                <?= ($user['role'] ?? 'user') === 'admin' ? 'Admin' : 'Normal user' ?>
               </td>
               <td style="padding: 8px; border-bottom: 1px solid var(--border);">
                 <?= h((string)$user['created_at']) ?>
@@ -146,7 +164,20 @@ render_header('Settings', 'settings');
                   </form>
 
                   <?php if (is_admin_user()): ?>
-                    <button class="btn" type="button" disabled title="Role management will be added later.">Change role (soon)</button>
+                    <details>
+                      <summary class="btn" style="cursor: pointer;">Change role</summary>
+                      <form method="post" action="/settings.php" style="margin-top: 8px; min-width: 220px;">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                        <input type="hidden" name="action" value="change_role">
+                        <input type="hidden" name="target_user_id" value="<?= $userId ?>">
+                        <label>Role</label>
+                        <select class="input" name="target_role">
+                          <option value="user" <?= ($user['role'] ?? 'user') === 'user' ? 'selected' : '' ?>>Normal user</option>
+                          <option value="admin" <?= ($user['role'] ?? 'user') === 'admin' ? 'selected' : '' ?>>Admin</option>
+                        </select>
+                        <button class="btn" type="submit" style="margin-top: 8px;">Save role</button>
+                      </form>
+                    </details>
                   <?php endif; ?>
                 </div>
               </td>
