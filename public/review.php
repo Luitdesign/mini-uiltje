@@ -181,8 +181,7 @@ $stmt = $db->prepare(
      FROM transactions t
      LEFT JOIN categories c ON c.id = t.category_id
      LEFT JOIN categories ca ON ca.id = t.category_auto_id
-     WHERE 1=1
-       AND t.is_split_active = 1
+     WHERE t.is_split_active = 1
        AND t.is_internal_transfer = 0
        AND LOWER(TRIM(t.description)) NOT LIKE 'top-up:%'
        AND LOWER(TRIM(t.description)) NOT LIKE 'top up:%'

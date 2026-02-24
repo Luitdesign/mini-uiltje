@@ -12,8 +12,7 @@ function repo_list_months(PDO $db): array {
             SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
         FROM transactions
-        WHERE 1=1
-          AND is_split_active = 1
+        WHERE is_split_active = 1
           AND is_internal_transfer = 0
           AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
         GROUP BY YEAR(txn_date), MONTH(txn_date)
@@ -28,8 +27,7 @@ function repo_get_latest_month(PDO $db): ?array {
     $stmt = $db->prepare(
         "SELECT txn_date
          FROM transactions
-         WHERE 1=1
-           AND is_split_active = 1
+         WHERE is_split_active = 1
          ORDER BY txn_date DESC
          LIMIT 1"
     );
@@ -366,8 +364,7 @@ function repo_list_transactions_for_month(PDO $db, int $year, int $month): array
     $stmt = $db->prepare(
         'SELECT *
          FROM transactions
-         WHERE 1=1
-           AND is_split_active = 1
+         WHERE is_split_active = 1
            AND YEAR(txn_date) = :y
            AND MONTH(txn_date) = :m
          ORDER BY txn_date DESC, id DESC'
@@ -579,8 +576,7 @@ function repo_restore_split_transaction(PDO $db, int $txnId): void {
 
     $stmtDelete = $db->prepare(
         'DELETE FROM transactions
-         WHERE 1=1
-           AND parent_transaction_id = :parent_id'
+         WHERE parent_transaction_id = :parent_id'
     );
     $stmtUpdate = $db->prepare(
         'UPDATE transactions
@@ -619,8 +615,7 @@ function repo_reapply_auto_categories(PDO $db, int $year, int $month): int {
     $stmtTxns = $db->prepare(
         'SELECT id, description, notes, amount_signed, counter_iban, account_iban, category_id, category_auto_id, is_internal_transfer
          FROM transactions
-         WHERE 1=1
-           AND is_split_active = 1
+         WHERE is_split_active = 1
            AND YEAR(txn_date) = :y
            AND MONTH(txn_date) = :m'
     );
@@ -704,9 +699,8 @@ function repo_period_summary(
             ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending,
             SUM(amount_signed) AS net
         FROM transactions
-        WHERE 1=1
+        WHERE is_split_active = 1
           {$whereDate}
-          AND is_split_active = 1
           AND is_internal_transfer = 0
           AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
     ";
@@ -760,9 +754,8 @@ function repo_period_breakdown_by_category(
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories p ON p.id = c.parent_id
-        WHERE 1=1
+        WHERE t.is_split_active = 1
           {$whereDate}
-          AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
           AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)
         GROUP BY category
@@ -803,9 +796,8 @@ function repo_period_paid_from_savings_total(
     $sql = "
         SELECT ABS(SUM(t.amount_signed)) AS total
         FROM transactions t
-        WHERE 1=1
+        WHERE t.is_split_active = 1
           {$whereDate}
-          AND t.is_split_active = 1
           AND t.amount_signed < 0
           AND t.savings_id IS NOT NULL
           AND t.is_topup = 0
@@ -850,9 +842,8 @@ function repo_period_paid_from_savings_breakdown(
             ABS(SUM(t.amount_signed)) AS spending
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
-        WHERE 1=1
+        WHERE t.is_split_active = 1
           {$whereDate}
-          AND t.is_split_active = 1
           AND t.amount_signed < 0
           AND t.savings_id IS NOT NULL
           AND t.is_topup = 0
@@ -903,9 +894,8 @@ function repo_period_paid_from_savings_transactions(
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN savings s ON s.id = t.savings_id
-        WHERE 1=1
+        WHERE t.is_split_active = 1
           {$whereDate}
-          AND t.is_split_active = 1
           AND t.amount_signed < 0
           AND t.savings_id IS NOT NULL
           AND t.is_topup = 0
