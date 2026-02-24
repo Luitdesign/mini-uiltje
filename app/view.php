@@ -2,6 +2,13 @@
 declare(strict_types=1);
 
 function render_header(string $title, ?string $active = null): void {
+    if (is_logged_in()) {
+        global $db;
+        if (($db ?? null) instanceof PDO) {
+            auth_refresh_session_user($db);
+        }
+    }
+
     $username = $_SESSION['username'] ?? '';
     $nav = is_logged_in() ? [
         ['Months', '/months.php', 'months'],
