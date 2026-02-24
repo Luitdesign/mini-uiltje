@@ -7,6 +7,7 @@ $schemaFile = __DIR__ . '/../sql/schema.sql';
 
 $ok = false;
 $error = '';
+$successMessage = '';
 
 function table_exists(PDO $db, string $name): bool {
     $stmt = $db->prepare('SHOW TABLES LIKE :t');
@@ -36,6 +37,21 @@ function constraint_exists(PDO $db, string $table, string $constraint): bool {
     );
     $stmt->execute([':table' => $table, ':constraint' => $constraint]);
     return ((int)$stmt->fetchColumn() > 0);
+}
+
+function index_matches_columns(PDO $db, string $table, string $index, array $columns): bool {
+    $stmt = $db->prepare(
+        'SELECT column_name
+         FROM information_schema.statistics
+         WHERE table_schema = DATABASE()
+           AND table_name = :table
+           AND index_name = :index
+         ORDER BY seq_in_index ASC'
+    );
+    $stmt->execute([':table' => $table, ':index' => $index]);
+    $foundColumns = array_map(static fn($name) => strtolower((string)$name), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    $expectedColumns = array_map(static fn($name) => strtolower((string)$name), $columns);
+    return $foundColumns === $expectedColumns;
 }
 
 function ensure_transaction_extensions(PDO $db): void {
@@ -76,6 +92,16 @@ function ensure_transaction_extensions(PDO $db): void {
     }
     if (!index_exists($db, 'transactions', 'idx_transactions_internal_transfer')) {
         $db->exec('ALTER TABLE transactions ADD KEY idx_transactions_internal_transfer (is_internal_transfer)');
+    }
+
+    if (index_exists($db, 'transactions', 'uq_transactions_hash')) {
+        $db->exec('ALTER TABLE transactions DROP INDEX uq_transactions_hash');
+    }
+    if (!index_exists($db, 'transactions', 'uq_transactions_user_hash')) {
+        $db->exec('ALTER TABLE transactions ADD UNIQUE KEY uq_transactions_user_hash (user_id, txn_hash)');
+    } elseif (!index_matches_columns($db, 'transactions', 'uq_transactions_user_hash', ['user_id', 'txn_hash'])) {
+        $db->exec('ALTER TABLE transactions DROP INDEX uq_transactions_user_hash');
+        $db->exec('ALTER TABLE transactions ADD UNIQUE KEY uq_transactions_user_hash (user_id, txn_hash)');
     }
 
     if (!constraint_exists($db, 'transactions', 'fk_transactions_import_batch')) {
@@ -132,49 +158,55 @@ function has_any_users(PDO $db): bool {
     }
 }
 
+function run_schema_statements(PDO $db, string $schemaFile): void {
+    $sql = file_get_contents($schemaFile);
+    if ($sql === false) {
+        throw new RuntimeException('Could not read schema file.');
+    }
+
+    $sql = preg_replace('/^\s*(--|#).*$/m', '', $sql);
+    $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
+
+    $statements = preg_split('/;\s*(\r?\n|$)/', $sql);
+    foreach ($statements as $stmtSql) {
+        $stmtSql = trim($stmtSql);
+        if ($stmtSql === '') {
+            continue;
+        }
+        $db->exec($stmtSql);
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
 
+    $action = (string)($_POST['action'] ?? 'install');
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
 
     if (!file_exists($schemaFile)) {
         $error = 'Missing sql/schema.sql.';
-    } elseif ($username === '' || $password === '') {
+    } elseif ($action !== 'install' && $action !== 'update') {
+        $error = 'Unknown action.';
+    } elseif ($action === 'install' && ($username === '' || $password === '')) {
         $error = 'Please enter a username and password.';
     } else {
         try {
-            $sql = file_get_contents($schemaFile);
-            if ($sql === false) throw new RuntimeException('Could not read schema file.');
-
-            // Strip SQL comments so we don't accidentally skip CREATE statements
-            // that are preceded by header comments.
-            // Supports:
-            //  - "-- comment" lines
-            //  - "# comment" lines
-            //  - "/* block comments */"
-            $sql = preg_replace('/^\s*(--|#).*$/m', '', $sql);
-            $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
-
-            // Execute each statement separately.
-            $statements = preg_split('/;\s*(\r?\n|$)/', $sql);
-            foreach ($statements as $stmtSql) {
-                $stmtSql = trim($stmtSql);
-                if ($stmtSql === '') continue;
-                $db->exec($stmtSql);
-            }
-
+            run_schema_statements($db, $schemaFile);
             ensure_transaction_extensions($db);
             ensure_savings_extensions($db);
             ensure_savings_topup_category($db);
 
-            if (!has_any_users($db)) {
+            if ($action === 'install' && !has_any_users($db)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $db->prepare('INSERT INTO users(username, password_hash) VALUES(:u, :p)');
                 $stmt->execute([':u' => $username, ':p' => $hash]);
             }
 
             $ok = true;
+            $successMessage = $action === 'update'
+                ? 'Database update completed.'
+                : 'Installed. You can now log in.';
         } catch (Throwable $e) {
             $error = $e->getMessage();
         }
@@ -187,13 +219,16 @@ render_header('Install');
 <div class="card" style="max-width: 720px; margin: 30px auto;">
   <h1>Install</h1>
   <p class="small">
-    This page creates the database tables and the first user.<br>
+    This page creates or updates the database schema and can create the first user.<br>
     After success, <strong>delete <code>public/install.php</code></strong>.
   </p>
 
   <?php if ($ok): ?>
     <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
-      ✅ Installed. You can now <a href="/login.php">log in</a>.
+      ✅ <?= h($successMessage) ?>
+      <?php if ($successMessage === 'Installed. You can now log in.'): ?>
+        <a href="/login.php">Login</a>
+      <?php endif; ?>
     </div>
   <?php endif; ?>
 
@@ -203,17 +238,16 @@ render_header('Install');
     </div>
   <?php endif; ?>
 
-  <h2>1) Create tables</h2>
-  <p class="small">Schema file: <code>sql/schema.sql</code></p>
-
-  <h2>2) Create first user</h2>
+  <h2>Install (new environment)</h2>
+  <p class="small">Creates missing tables and inserts the first user if none exists.</p>
 
   <?php if (has_any_users($db)): ?>
-    <p class="small">A user already exists. If you want to reset, drop the tables and run install again.</p>
+    <p class="small">A user already exists. Use the update action below for live installs.</p>
   <?php endif; ?>
 
-  <form method="post" action="/install.php">
+  <form method="post" action="/install.php" style="margin-bottom: 16px;">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="action" value="install">
 
     <div class="grid-2" style="margin-bottom: 12px;">
       <div>
@@ -227,6 +261,15 @@ render_header('Install');
     </div>
 
     <button class="btn" type="submit">Run install</button>
+  </form>
+
+  <h2>Update current database (live install)</h2>
+  <p class="small">Runs safe schema updates and migrations on the current database without creating a user.</p>
+
+  <form method="post" action="/install.php">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="action" value="update">
+    <button class="btn" type="submit">Update current database</button>
   </form>
 </div>
 
