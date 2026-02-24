@@ -28,6 +28,25 @@ function is_admin_user(): bool {
     return current_user_role() === 'admin';
 }
 
+function auth_refresh_session_user(PDO $db): void {
+    $userId = current_user_id();
+    if ($userId <= 0) {
+        return;
+    }
+
+    $stmt = $db->prepare('SELECT username, role FROM users WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        auth_logout();
+        return;
+    }
+
+    $_SESSION['username'] = (string)($user['username'] ?? '');
+    $_SESSION['role'] = strtolower(trim((string)($user['role'] ?? 'user'))) === 'admin' ? 'admin' : 'user';
+}
+
 function auth_attempt_login(PDO $db, string $username, string $password): bool {
     $stmt = $db->prepare('SELECT id, password_hash, role FROM users WHERE username = :u LIMIT 1');
     $stmt->execute([':u' => $username]);
