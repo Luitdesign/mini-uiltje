@@ -19,12 +19,16 @@ function current_username(): string {
     return (string)($_SESSION['username'] ?? '');
 }
 
+function current_user_role(): string {
+    return (string)($_SESSION['role'] ?? 'user');
+}
+
 function is_admin_user(): bool {
-    return strtolower(current_username()) === 'admin';
+    return current_user_role() === 'admin';
 }
 
 function auth_attempt_login(PDO $db, string $username, string $password): bool {
-    $stmt = $db->prepare('SELECT id, password_hash FROM users WHERE username = :u LIMIT 1');
+    $stmt = $db->prepare('SELECT id, password_hash, role FROM users WHERE username = :u LIMIT 1');
     $stmt->execute([':u' => $username]);
     $user = $stmt->fetch();
     if (!$user) return false;
@@ -34,6 +38,7 @@ function auth_attempt_login(PDO $db, string $username, string $password): bool {
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$user['id'];
     $_SESSION['username'] = $username;
+    $_SESSION['role'] = ($user['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
     return true;
 }
 

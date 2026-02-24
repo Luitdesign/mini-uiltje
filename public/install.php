@@ -121,6 +121,18 @@ function ensure_savings_topup_category(PDO $db): void {
     }
 }
 
+function ensure_user_extensions(PDO $db): void {
+    if (!table_exists($db, 'users')) {
+        return;
+    }
+
+    if (!column_exists($db, 'users', 'role')) {
+        $db->exec("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'user' AFTER password_hash");
+    }
+
+    $db->exec("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'admin'");
+}
+
 function has_any_users(PDO $db): bool {
     if (!table_exists($db, 'users')) return false;
     try {
@@ -167,10 +179,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ensure_transaction_extensions($db);
             ensure_savings_extensions($db);
             ensure_savings_topup_category($db);
+            ensure_user_extensions($db);
 
             if (!has_any_users($db)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $db->prepare('INSERT INTO users(username, password_hash) VALUES(:u, :p)');
+                $stmt = $db->prepare("INSERT INTO users(username, password_hash, role) VALUES(:u, :p, 'admin')");
                 $stmt->execute([':u' => $username, ':p' => $hash]);
             }
 

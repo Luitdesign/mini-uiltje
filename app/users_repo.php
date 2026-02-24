@@ -2,15 +2,19 @@
 declare(strict_types=1);
 
 function users_list(PDO $db): array {
-    $stmt = $db->query('SELECT id, username, created_at FROM users ORDER BY username ASC');
+    $stmt = $db->query('SELECT id, username, role, created_at FROM users ORDER BY username ASC');
     return $stmt->fetchAll();
 }
 
 function users_find_by_id(PDO $db, int $id): ?array {
-    $stmt = $db->prepare('SELECT id, username, password_hash, created_at FROM users WHERE id = :id LIMIT 1');
+    $stmt = $db->prepare('SELECT id, username, password_hash, role, created_at FROM users WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $id]);
     $user = $stmt->fetch();
     return $user ?: null;
+}
+
+function users_normalize_role(string $role): string {
+    return $role === 'admin' ? 'admin' : 'user';
 }
 
 function users_create(PDO $db, string $username, string $password): void {
@@ -26,14 +30,28 @@ function users_create(PDO $db, string $username, string $password): void {
     }
 
     $hash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $db->prepare('INSERT INTO users(username, password_hash) VALUES(:u, :p)');
+    $stmt = $db->prepare('INSERT INTO users(username, password_hash, role) VALUES(:u, :p, :r)');
     try {
-        $stmt->execute([':u' => $username, ':p' => $hash]);
+        $stmt->execute([':u' => $username, ':p' => $hash, ':r' => 'user']);
     } catch (PDOException $e) {
         if ((int)$e->getCode() === 23000) {
             throw new RuntimeException('Username already exists.');
         }
         throw $e;
+    }
+}
+
+function users_change_role(PDO $db, int $id, string $role): void {
+    $role = users_normalize_role($role);
+
+    $stmt = $db->prepare('UPDATE users SET role = :role WHERE id = :id');
+    $stmt->execute([
+        ':role' => $role,
+        ':id' => $id,
+    ]);
+
+    if ($stmt->rowCount() < 1 && !users_find_by_id($db, $id)) {
+        throw new RuntimeException('User not found.');
     }
 }
 
