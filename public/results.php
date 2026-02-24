@@ -11,7 +11,7 @@ if ($m !== '' && preg_match('/^(?<year>\d{4})-(?<month>\d{2})$/', $m, $matches))
 }
 
 if ($year <= 0 || $month <= 0) {
-    $latest = repo_get_latest_month($db, current_user_id());
+    $latest = repo_get_latest_month($db, current_data_user_id($db));
     $year = $year > 0 ? $year : (int)($latest['y'] ?? date('Y'));
     $month = $month > 0 ? $month : (int)($latest['m'] ?? date('n'));
 }
