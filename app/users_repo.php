@@ -96,9 +96,3 @@ function users_change_username(PDO $db, int $id, string $newUsername): void {
         throw new RuntimeException('User not found.');
     }
 }
-
-function users_shared_data_user_id(PDO $db): int {
-    $stmt = $db->query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
-    $id = $stmt->fetchColumn();
-    return $id !== false ? (int)$id : 0;
-}
