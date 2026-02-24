@@ -25,6 +25,7 @@ require_once __DIR__ . '/transactions_repo.php';
 require_once __DIR__ . '/rules_repo.php';
 require_once __DIR__ . '/savings_repo.php';
 require_once __DIR__ . '/csv_ing_import.php';
+require_once __DIR__ . '/users_repo.php';
 
 header('X-App-Version: ' . app_version());
 
