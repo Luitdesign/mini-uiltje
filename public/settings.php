@@ -53,10 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $success = 'Username updated successfully.';
         } elseif ($action === 'change_role') {
-            if (!is_admin_user()) {
-                throw new RuntimeException('Only admins can change user roles.');
-            }
-
             $targetUserId = (int)($_POST['target_user_id'] ?? 0);
             $targetRole = (string)($_POST['target_role'] ?? 'user');
             users_change_role($db, $targetUserId, $targetRole);
@@ -163,22 +159,20 @@ render_header('Settings', 'settings');
                     <button class="btn btn-danger" type="submit" <?= $isCurrentUser ? 'disabled' : '' ?>>Delete</button>
                   </form>
 
-                  <?php if (is_admin_user()): ?>
-                    <details>
-                      <summary class="btn" style="cursor: pointer;">Change role</summary>
-                      <form method="post" action="/settings.php" style="margin-top: 8px; min-width: 220px;">
-                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-                        <input type="hidden" name="action" value="change_role">
-                        <input type="hidden" name="target_user_id" value="<?= $userId ?>">
-                        <label>Role</label>
-                        <select class="input" name="target_role">
-                          <option value="user" <?= ($user['role'] ?? 'user') === 'user' ? 'selected' : '' ?>>Normal user</option>
-                          <option value="admin" <?= ($user['role'] ?? 'user') === 'admin' ? 'selected' : '' ?>>Admin</option>
-                        </select>
-                        <button class="btn" type="submit" style="margin-top: 8px;">Save role</button>
-                      </form>
-                    </details>
-                  <?php endif; ?>
+                  <details>
+                    <summary class="btn" style="cursor: pointer;">Change role</summary>
+                    <form method="post" action="/settings.php" style="margin-top: 8px; min-width: 220px;">
+                      <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+                      <input type="hidden" name="action" value="change_role">
+                      <input type="hidden" name="target_user_id" value="<?= $userId ?>">
+                      <label>Role</label>
+                      <select class="input" name="target_role">
+                        <option value="user" <?= ($user['role'] ?? 'user') === 'user' ? 'selected' : '' ?>>Normal user</option>
+                        <option value="admin" <?= ($user['role'] ?? 'user') === 'admin' ? 'selected' : '' ?>>Admin</option>
+                      </select>
+                      <button class="btn" type="submit" style="margin-top: 8px;">Save role</button>
+                    </form>
+                  </details>
                 </div>
               </td>
             </tr>
