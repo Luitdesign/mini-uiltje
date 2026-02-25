@@ -141,7 +141,11 @@ render_header('Settings', 'settings');
       <?= h($error) ?>
     </div>
   <?php endif; ?>
-
+ <div class="card" style="margin-top: 12px;">
+    <h2>Logout</h2>
+    <p class="small">End your current session.</p>
+    <a class="btn" href="/logout.php">Logout</a>
+  </div>
   <div class="card" style="margin-top: 12px;">
     <h2>Users</h2>
     <p class="small">Edit username, change your own password, delete users, and manage roles.</p>
@@ -317,11 +321,7 @@ render_header('Settings', 'settings');
     </div>
   <?php endif; ?>
 
-  <div class="card" style="margin-top: 12px;">
-    <h2>Logout</h2>
-    <p class="small">End your current session.</p>
-    <a class="btn" href="/logout.php">Logout</a>
-  </div>
+ 
 </div>
 
 <?php render_footer(); ?>
