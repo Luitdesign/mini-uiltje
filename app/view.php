@@ -11,7 +11,7 @@ function render_header(string $title, ?string $active = null): void {
 
     $username = $_SESSION['username'] ?? '';
     $nav = is_logged_in() ? [
-        ['Months', '/months.php', 'months'],
+        ['Months', '/overview.php', 'months'],
         ['Upload', '/upload.php', 'upload'],
         ['Transactions', '/transactions.php', 'transactions'],
         ['Review', '/review.php', 'review'],
@@ -30,7 +30,7 @@ function render_header(string $title, ?string $active = null): void {
     echo "</head>\n<body>\n";
 
     echo "<header class=\"topbar\">";
-    echo "<div class=\"brand\"><a href=\"/months.php\">Mini Uiltje</a></div>";
+    echo "<div class=\"brand\"><a href=\"/overview.php\">Mini Uiltje</a></div>";
     if ($username !== '') {
         echo "<div class=\"user\">Logged in as <strong>" . h($username) . "</strong></div>";
     }

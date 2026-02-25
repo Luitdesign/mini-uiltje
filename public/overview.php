@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($year > 0 && $month > 0) {
             repo_reapply_auto_categories($db, $userId, $year, $month);
         }
-        header('Location: /months.php');
+        header('Location: /overview.php');
         exit;
     }
 }
@@ -64,7 +64,7 @@ render_header('Months', 'months');
             &nbsp;|&nbsp;
             <a href="/summary.php?year=<?= $y ?>&month=<?= $mo ?>">Summary</a>
             &nbsp;|&nbsp;
-            <form method="post" action="/months.php" style="display:inline">
+            <form method="post" action="/overview.php" style="display:inline">
               <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
               <input type="hidden" name="action" value="rerun_auto">
               <input type="hidden" name="year" value="<?= $y ?>">
