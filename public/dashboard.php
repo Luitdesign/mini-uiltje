@@ -5,4 +5,4 @@ if (!is_logged_in()) {
     redirect('/login.php');
 }
 
-redirect('/months.php');
+redirect('/overview.php');

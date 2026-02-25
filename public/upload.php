@@ -36,7 +36,7 @@ render_header('Upload', 'upload');
     <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
       ✅ <?= h($okMsg) ?>
       <div class="small" style="margin-top: 8px;">
-        Go to <a href="/months.php">Months</a>
+        Go to <a href="/overview.php">Months</a>
       </div>
     </div>
   <?php endif; ?>
