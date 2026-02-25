@@ -196,7 +196,7 @@ render_header('Saving details', 'savings');
           <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="<?= h($polyline) ?>" />
           <text x="<?= $paddingLeft ?>" y="<?= $paddingTop - 2 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMax, 2, ',', '.')) ?></text>
           <text x="<?= $paddingLeft ?>" y="<?= $paddingTop + $plotHeight + 18 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMin, 2, ',', '.')) ?></text>
-          <text x="<?= $paddingLeft ?>" y="<?= $chartHeight - 8 ?>" class="small" fill="currentColor">Start</text>
+          
           <text x="<?= $paddingLeft + $plotWidth ?>" y="<?= $chartHeight - 8 ?>" text-anchor="end" class="small" fill="currentColor">
             <?= h((string)($latestPoint['label'] !== '' ? $latestPoint['label'] : 'Now')) ?>
           </text>
