@@ -245,6 +245,7 @@ render_header('Categories', 'categories');
       <p class="small">Create categories that you can assign to transactions.</p>
     </div>
     <div class="row" style="gap: 8px; flex-wrap: wrap;">
+      <a class="btn" href="/rules.php">Manage rules</a>
       <form method="post" action="/categories.php">
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
         <input type="hidden" name="action" value="export_rules_categories">
