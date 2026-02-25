@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $months = repo_list_months($db, $userId);
 $years = repo_list_years($db, $userId);
 
-render_header('Months', 'months');
+render_header('Overview', 'overview');
 ?>
 
 <div class="card">
