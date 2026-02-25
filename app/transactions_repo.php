@@ -24,6 +24,28 @@ function repo_list_months(PDO $db, int $userId): array {
     return $stmt->fetchAll();
 }
 
+function repo_list_years(PDO $db, int $userId): array {
+    $sql = "
+        SELECT
+            YEAR(txn_date) AS y,
+            COUNT(*) AS cnt,
+            SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
+            SUM(amount_signed) AS net,
+            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
+        FROM transactions
+        WHERE user_id = :uid
+          AND is_split_active = 1
+          AND is_internal_transfer = 0
+          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
+        GROUP BY YEAR(txn_date)
+        ORDER BY y DESC
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute([':uid' => $userId]);
+    return $stmt->fetchAll();
+}
+
 function repo_get_latest_month(PDO $db, int $userId): ?array {
     $stmt = $db->prepare(
         "SELECT txn_date
