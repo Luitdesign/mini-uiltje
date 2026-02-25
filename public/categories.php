@@ -204,6 +204,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $cats = repo_list_categories($db);
+$rules = repo_list_rules($db, current_user_id());
+$rulesByCategory = [];
+foreach ($rules as $rule) {
+    $targetCategoryId = isset($rule['target_category_id']) ? (int)$rule['target_category_id'] : 0;
+    if ($targetCategoryId <= 0) {
+        continue;
+    }
+
+    if (!isset($rulesByCategory[$targetCategoryId])) {
+        $rulesByCategory[$targetCategoryId] = [
+            'total' => 0,
+            'active' => 0,
+        ];
+    }
+
+    $rulesByCategory[$targetCategoryId]['total']++;
+    if (!empty($rule['active'])) {
+        $rulesByCategory[$targetCategoryId]['active']++;
+    }
+}
 $parentCats = repo_list_parent_categories($db);
 $savings = repo_list_savings($db);
 $editId = isset($_GET['edit']) ? (int)$_GET['edit'] : 0;
@@ -365,6 +385,7 @@ render_header('Categories', 'categories');
       <tr>
         <th>Name</th>
         <th style="width: 110px;">Used</th>
+        <th style="width: 140px;">Rules</th>
         <th style="width: 220px;">Ledger</th>
         <th style="width: 220px;">Parent</th>
         <th style="width: 200px;">Color</th>
@@ -377,6 +398,7 @@ render_header('Categories', 'categories');
         <td style="height:44px;">
           <a href="/transactions.php?category_id=0&all_time=1">Uncategorized</a>
         </td>
+        <td><span class="small muted">—</span></td>
         <td><span class="small muted">—</span></td>
         <td><span class="small muted">None</span></td>
         <td><span class="small muted">None</span></td>
@@ -401,6 +423,13 @@ render_header('Categories', 'categories');
             <?php endif; ?>
           </td>
           <td><?= h((string)((int)($cat['usage_count'] ?? 0))) ?></td>
+          <td>
+            <?php
+              $catRuleSummary = $rulesByCategory[$catId] ?? ['active' => 0, 'total' => 0];
+              $catRuleLabel = sprintf('%d active / %d total', (int)$catRuleSummary['active'], (int)$catRuleSummary['total']);
+            ?>
+            <span class="small"><?= h($catRuleLabel) ?></span>
+          </td>
           <td>
             <?php if ($editId === $catId): ?>
               <select class="input" name="savings_id" form="<?= h((string)$formId) ?>">
