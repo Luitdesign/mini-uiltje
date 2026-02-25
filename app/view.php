@@ -50,6 +50,6 @@ function render_header(string $title, ?string $active = null): void {
 
 function render_footer(): void {
     echo "</main>\n";
-    echo "<footer class=\"footer\">MVP build</footer>";
+    echo "<footer class=\"footer\">Made by Luit|Design</footer>";
     echo "</body></html>";
 }
