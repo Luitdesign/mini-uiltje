@@ -4,6 +4,11 @@ require_login();
 
 $success = '';
 $error = '';
+$syncTargetHost = '';
+$syncTargetName = '';
+$syncTargetUser = '';
+$syncTargetCharset = 'utf8mb4';
+$syncParts = ['savings', 'categories', 'settings', 'rules'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
@@ -79,6 +84,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             users_change_role($db, $targetUserId, $targetRole);
 
             $success = 'Role updated successfully.';
+        } elseif ($action === 'push_configuration') {
+            if (!is_admin_user()) {
+                throw new RuntimeException('Only admin users can push configuration to another database.');
+            }
+
+            $syncTargetHost = trim((string)($_POST['target_db_host'] ?? ''));
+            $syncTargetName = trim((string)($_POST['target_db_name'] ?? ''));
+            $syncTargetUser = trim((string)($_POST['target_db_user'] ?? ''));
+            $syncTargetPass = (string)($_POST['target_db_pass'] ?? '');
+            $syncTargetCharset = trim((string)($_POST['target_db_charset'] ?? 'utf8mb4'));
+            $syncParts = array_values(array_filter(array_map('strval', (array)($_POST['sync_parts'] ?? []))));
+
+            $targetDb = sync_connect_target_db([
+                'host' => $syncTargetHost,
+                'name' => $syncTargetName,
+                'user' => $syncTargetUser,
+                'pass' => $syncTargetPass,
+                'charset' => $syncTargetCharset,
+            ]);
+
+            $syncResult = sync_push_configuration_to_target($db, $targetDb, $syncParts);
+
+            $success = sprintf(
+                'Configuration pushed successfully. Savings: %d, categories: %d, settings: %d, rules: %d.',
+                $syncResult['savings'],
+                $syncResult['categories'],
+                $syncResult['settings'],
+                $syncResult['rules']
+            );
         } else {
             throw new RuntimeException('Unknown settings action.');
         }
@@ -237,6 +271,49 @@ render_header('Settings', 'settings');
         <a class="btn" href="/schema.php">Schema</a>
         <a class="btn btn-danger" href="/reset.php">Reset DB</a>
       </div>
+    </div>
+
+    <div class="card" style="margin-top: 12px;">
+      <h2>Push configuration to another database</h2>
+      <p class="small">Copy selected data (savings, categories, app settings, rules) to a second MySQL database. Existing rows in selected target tables are replaced.</p>
+
+      <form method="post" action="/settings.php">
+        <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+        <input type="hidden" name="action" value="push_configuration">
+
+        <div class="grid-2" style="margin-bottom: 12px;">
+          <div>
+            <label>Target DB host</label>
+            <input class="input" name="target_db_host" value="<?= h($syncTargetHost) ?>" placeholder="localhost" required>
+          </div>
+          <div>
+            <label>Target DB name</label>
+            <input class="input" name="target_db_name" value="<?= h($syncTargetName) ?>" required>
+          </div>
+          <div>
+            <label>Target DB user</label>
+            <input class="input" name="target_db_user" value="<?= h($syncTargetUser) ?>" required>
+          </div>
+          <div>
+            <label>Target DB password</label>
+            <input class="input" type="password" name="target_db_pass" autocomplete="new-password">
+          </div>
+          <div>
+            <label>Target DB charset</label>
+            <input class="input" name="target_db_charset" value="<?= h($syncTargetCharset) ?>" placeholder="utf8mb4">
+          </div>
+        </div>
+
+        <label>Copy these parts</label>
+        <div class="row" style="gap: 16px; flex-wrap: wrap; margin-top: 8px; margin-bottom: 12px;">
+          <label><input type="checkbox" name="sync_parts[]" value="savings" <?= in_array('savings', $syncParts, true) ? 'checked' : '' ?>> Savings</label>
+          <label><input type="checkbox" name="sync_parts[]" value="categories" <?= in_array('categories', $syncParts, true) ? 'checked' : '' ?>> Categories</label>
+          <label><input type="checkbox" name="sync_parts[]" value="settings" <?= in_array('settings', $syncParts, true) ? 'checked' : '' ?>> Settings</label>
+          <label><input type="checkbox" name="sync_parts[]" value="rules" <?= in_array('rules', $syncParts, true) ? 'checked' : '' ?>> Rules</label>
+        </div>
+
+        <button class="btn" type="submit" onclick="return confirm('Push selected configuration to the target database? Existing target rows in selected tables will be replaced.');">Push configuration</button>
+      </form>
     </div>
   <?php endif; ?>
 
