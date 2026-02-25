@@ -19,11 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $months = repo_list_months($db, $userId);
 
-render_header('Months', 'months');
+render_header('Overview', 'overview');
 ?>
 
 <div class="card">
-  <h1>Months</h1>
+  <h1>Overview</h1>
   <p class="small">Start here: pick a month to categorize and view the summary.</p>
 </div>
 
