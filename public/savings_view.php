@@ -56,6 +56,7 @@ $timelineEntries = $saving ? repo_list_savings_entries($db, (int)$saving['id']) 
 $chartPoints = [];
 $chartMin = null;
 $chartMax = null;
+$showZeroLine = false;
 if ($saving) {
     $runningBalance = (float)$saving['start_amount'];
     $orderedTimelineEntries = $timelineEntries;
@@ -89,6 +90,10 @@ if ($saving) {
     if (!empty($balances)) {
         $chartMin = (float)min($balances);
         $chartMax = (float)max($balances);
+        $showZeroLine = $chartMin < 0.0;
+        if ($showZeroLine && $chartMax < 0.0) {
+            $chartMax = 0.0;
+        }
     }
 }
 
@@ -189,10 +194,18 @@ render_header('Saving details', 'savings');
           }
           $polyline = implode(' ', $polylinePoints);
           $latestPoint = $chartPoints[$pointCount - 1];
+          $zeroLineY = null;
+          if ($showZeroLine) {
+              $zeroNormalized = (0.0 - (float)$chartMin) / $range;
+              $zeroLineY = $paddingTop + ($plotHeight - ($zeroNormalized * $plotHeight));
+          }
         ?>
         <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" aria-label="Savings balance development" role="img" style="display: block; background: rgba(148,163,184,0.08); border-radius: 10px;">
           <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop ?>" x2="<?= $paddingLeft ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
           <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop + $plotHeight ?>" x2="<?= $paddingLeft + $plotWidth ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
+          <?php if ($showZeroLine && $zeroLineY !== null): ?>
+            <line x1="<?= $paddingLeft ?>" y1="<?= $zeroLineY ?>" x2="<?= $paddingLeft + $plotWidth ?>" y2="<?= $zeroLineY ?>" stroke="rgba(220,38,38,0.9)" stroke-width="2" stroke-dasharray="5 4" />
+          <?php endif; ?>
           <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="<?= h($polyline) ?>" />
           <text x="<?= $paddingLeft ?>" y="<?= $paddingTop - 2 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMax, 2, ',', '.')) ?></text>
           <text x="<?= $paddingLeft ?>" y="<?= $paddingTop + $plotHeight + 18 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMin, 2, ',', '.')) ?></text>
