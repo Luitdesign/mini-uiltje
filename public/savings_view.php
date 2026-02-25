@@ -51,6 +51,46 @@ $ledgerToggleParams['ledger_view'] = $ledgerView === 'latest' ? 'all' : 'latest'
 $ledgerToggleUrl = '/savings_view.php' . ($ledgerToggleParams ? '?' . http_build_query($ledgerToggleParams) : '');
 $ledgerToggleLabel = $ledgerView === 'latest' ? 'Show all ledger entries' : 'Show latest 5 entries';
 $entries = $saving ? repo_list_savings_entries($db, (int)$saving['id'], $ledgerLimit) : [];
+$timelineEntries = $saving ? repo_list_savings_entries($db, (int)$saving['id']) : [];
+
+$chartPoints = [];
+$chartMin = null;
+$chartMax = null;
+if ($saving) {
+    $runningBalance = (float)$saving['start_amount'];
+    $orderedTimelineEntries = $timelineEntries;
+    usort(
+        $orderedTimelineEntries,
+        static function (array $left, array $right): int {
+            $leftDate = (string)($left['date'] ?? '');
+            $rightDate = (string)($right['date'] ?? '');
+            if ($leftDate === $rightDate) {
+                return ((int)($left['id'] ?? 0)) <=> ((int)($right['id'] ?? 0));
+            }
+            return $leftDate <=> $rightDate;
+        }
+    );
+
+    $chartPoints[] = [
+        'label' => 'Start',
+        'date' => '',
+        'balance' => $runningBalance,
+    ];
+    foreach ($orderedTimelineEntries as $timelineEntry) {
+        $runningBalance += (float)($timelineEntry['amount'] ?? 0);
+        $chartPoints[] = [
+            'label' => (string)($timelineEntry['date'] ?? ''),
+            'date' => (string)($timelineEntry['date'] ?? ''),
+            'balance' => $runningBalance,
+        ];
+    }
+
+    $balances = array_column($chartPoints, 'balance');
+    if (!empty($balances)) {
+        $chartMin = (float)min($balances);
+        $chartMax = (float)max($balances);
+    }
+}
 
 render_header('Saving details', 'savings');
 ?>
@@ -120,6 +160,49 @@ render_header('Saving details', 'savings');
         <button class="btn" type="submit">Add top-up</button>
       </div>
     </form>
+
+    <div class="card" style="margin-top: 12px;">
+      <div class="small" style="margin-bottom: 8px;">Savings development over time</div>
+      <?php if (count($chartPoints) <= 1): ?>
+        <div class="small">No ledger activity yet. Add a top-up or link transactions to see a graph.</div>
+      <?php else: ?>
+        <?php
+          $chartWidth = 720;
+          $chartHeight = 220;
+          $paddingLeft = 52;
+          $paddingRight = 16;
+          $paddingTop = 16;
+          $paddingBottom = 34;
+          $plotWidth = $chartWidth - $paddingLeft - $paddingRight;
+          $plotHeight = $chartHeight - $paddingTop - $paddingBottom;
+          $pointCount = count($chartPoints);
+          $range = (float)(($chartMax ?? 0) - ($chartMin ?? 0));
+          if ($range <= 0.0) {
+              $range = 1.0;
+          }
+          $polylinePoints = [];
+          foreach ($chartPoints as $index => $point) {
+              $x = $paddingLeft + ($pointCount === 1 ? 0 : ($index / ($pointCount - 1)) * $plotWidth);
+              $normalized = (((float)$point['balance'] - (float)$chartMin) / $range);
+              $y = $paddingTop + ($plotHeight - ($normalized * $plotHeight));
+              $polylinePoints[] = sprintf('%.2f,%.2f', $x, $y);
+          }
+          $polyline = implode(' ', $polylinePoints);
+          $latestPoint = $chartPoints[$pointCount - 1];
+        ?>
+        <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" aria-label="Savings balance development" role="img" style="display: block; background: rgba(148,163,184,0.08); border-radius: 10px;">
+          <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop ?>" x2="<?= $paddingLeft ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
+          <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop + $plotHeight ?>" x2="<?= $paddingLeft + $plotWidth ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
+          <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="<?= h($polyline) ?>" />
+          <text x="<?= $paddingLeft ?>" y="<?= $paddingTop - 2 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMax, 2, ',', '.')) ?></text>
+          <text x="<?= $paddingLeft ?>" y="<?= $paddingTop + $plotHeight + 18 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMin, 2, ',', '.')) ?></text>
+          <text x="<?= $paddingLeft ?>" y="<?= $chartHeight - 8 ?>" class="small" fill="currentColor">Start</text>
+          <text x="<?= $paddingLeft + $plotWidth ?>" y="<?= $chartHeight - 8 ?>" text-anchor="end" class="small" fill="currentColor">
+            <?= h((string)($latestPoint['label'] !== '' ? $latestPoint['label'] : 'Now')) ?>
+          </text>
+        </svg>
+      <?php endif; ?>
+    </div>
 
     <div style="margin-top: 12px;">
       <div class="row" style="justify-content: space-between; align-items: center;">
