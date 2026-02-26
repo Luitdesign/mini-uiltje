@@ -43,6 +43,15 @@ $breakdown = repo_period_breakdown_by_category(
     $rangeEnd,
     $groupByParentCategory
 );
+$monthlySpendingByCategory = [];
+if ($isYearView && $year > 0) {
+    $monthlySpendingByCategory = repo_year_category_monthly_spending(
+        $db,
+        $userId,
+        $year,
+        $groupByParentCategory
+    );
+}
 
 render_header('Summary', 'summary');
 $yearInputValue = $year > 0 ? (string)$year : '';
@@ -168,5 +177,34 @@ $linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
     </tbody>
   </table>
 </div>
+
+<?php if (!empty($monthlySpendingByCategory)): ?>
+  <div class="card">
+    <h2>Monthly spending bars (<?= h((string)$year) ?>)</h2>
+    <p class="small">Each row shows spending per month for one <?= $groupByParentCategory ? 'parent category' : 'category' ?>.</p>
+    <?php foreach ($monthlySpendingByCategory as $categoryName => $monthlyValues):
+      $maxAmount = max($monthlyValues);
+    ?>
+      <div class="summary-category-chart">
+        <div class="summary-category-chart__name"><?= h($categoryName) ?></div>
+        <div class="summary-category-chart__bars">
+          <?php for ($m = 1; $m <= 12; $m++):
+            $amount = (float)$monthlyValues[$m];
+            $height = $maxAmount > 0 ? max(6.0, ($amount / $maxAmount) * 100.0) : 0.0;
+          ?>
+            <div class="summary-category-chart__month">
+              <div
+                class="summary-category-chart__bar"
+                style="height: <?= number_format($height, 2, '.', '') ?>%;"
+                title="<?= h(date('M', mktime(0, 0, 0, $m, 1)) . ': ' . number_format($amount, 2, ',', '.')) ?>"
+              ></div>
+              <div class="summary-category-chart__label"><?= h(date('M', mktime(0, 0, 0, $m, 1))) ?></div>
+            </div>
+          <?php endfor; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+<?php endif; ?>
 
 <?php render_footer(); ?>

@@ -810,6 +810,58 @@ function repo_period_breakdown_by_category(
     return $stmt->fetchAll();
 }
 
+function repo_year_category_monthly_spending(
+    PDO $db,
+    int $userId,
+    int $year,
+    bool $groupByParentCategory = false
+): array {
+    if ($year <= 0) {
+        return [];
+    }
+
+    $categoryExpression = $groupByParentCategory
+        ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
+        : "COALESCE(c.name, 'Niet ingedeeld')";
+
+    $sql = "
+        SELECT
+            {$categoryExpression} AS category,
+            MONTH(t.txn_date) AS month_nr,
+            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending
+        FROM transactions t
+        LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN categories p ON p.id = c.parent_id
+        WHERE t.user_id = :uid
+          AND YEAR(t.txn_date) = :y
+          AND t.is_split_active = 1
+          AND t.is_internal_transfer = 0
+          AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)
+        GROUP BY category, month_nr
+        ORDER BY category ASC, month_nr ASC
+    ";
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute([
+        ':uid' => $userId,
+        ':y' => $year,
+    ]);
+
+    $seriesByCategory = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $category = (string)$row['category'];
+        if (!isset($seriesByCategory[$category])) {
+            $seriesByCategory[$category] = array_fill(1, 12, 0.0);
+        }
+        $month = (int)$row['month_nr'];
+        if ($month >= 1 && $month <= 12) {
+            $seriesByCategory[$category][$month] = (float)$row['spending'];
+        }
+    }
+
+    return $seriesByCategory;
+}
+
 function repo_period_paid_from_savings_total(
     PDO $db,
     int $userId,
