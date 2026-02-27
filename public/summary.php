@@ -45,7 +45,7 @@ $breakdown = repo_period_breakdown_by_category(
 );
 
 $chartCategory = trim((string)($_GET['chart_category'] ?? ''));
-$monthlyCategoryNet = [];
+$monthlyCategoryTotals = [];
 if ($isYearView && $year > 0) {
     $chartCategoryOptions = array_values(array_map(
         static fn(array $row): string => (string)$row['category'],
@@ -55,7 +55,7 @@ if ($isYearView && $year > 0) {
         $chartCategory = $chartCategoryOptions[0] ?? '';
     }
     if ($chartCategory !== '') {
-        $monthlyCategoryNet = repo_year_monthly_totals_for_category(
+        $monthlyCategoryTotals = repo_year_monthly_totals_for_category(
             $db,
             $userId,
             $year,
@@ -173,44 +173,47 @@ if ($chartCategory !== '') {
     </form>
 
     <?php
-      $chartValues = [];
+      $incomeValues = [];
+      $spendingValues = [];
       for ($m = 1; $m <= 12; $m++) {
-          $chartValues[$m] = (float)($monthlyCategoryNet[$m] ?? 0.0);
+          $incomeValues[$m] = (float)($monthlyCategoryTotals[$m]['income'] ?? 0.0);
+          $spendingValues[$m] = (float)($monthlyCategoryTotals[$m]['spending'] ?? 0.0);
       }
-      $chartMin = min(0.0, min($chartValues));
-      $chartMax = max(0.0, max($chartValues));
-      $chartRange = $chartMax - $chartMin;
-      if ($chartRange <= 0) {
-          $chartRange = 1.0;
-      }
+      $chartMax = max(1.0, max($incomeValues), max($spendingValues));
       $chartHeight = 260;
-      $zeroY = 20 + (($chartMax / $chartRange) * ($chartHeight - 60));
-      $barWidth = 28;
+      $zeroY = $chartHeight - 30;
+      $barWidth = 12;
+      $barInnerGap = 4;
       $barGap = 14;
-      $chartWidth = 60 + (12 * ($barWidth + $barGap));
+      $monthGroupWidth = ($barWidth * 2) + $barInnerGap;
+      $chartWidth = 60 + (12 * ($monthGroupWidth + $barGap));
     ?>
 
     <?php if ($chartCategory === ''): ?>
       <p class="small">No categories available for this year.</p>
     <?php else: ?>
-      <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" role="img" aria-label="Monthly totals for <?= h($chartCategory) ?>" style="display:block; background: rgba(148,163,184,0.08); border-radius: 10px;">
+      <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" role="img" aria-label="Monthly income and spending totals for <?= h($chartCategory) ?>" style="display:block; background: rgba(148,163,184,0.08); border-radius: 10px;">
         <line x1="40" y1="<?= $zeroY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $zeroY ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
         <?php for ($m = 1; $m <= 12; $m++): ?>
           <?php
-            $value = $chartValues[$m];
-            $x = 50 + (($m - 1) * ($barWidth + $barGap));
-            $yValue = 20 + ((($chartMax - $value) / $chartRange) * ($chartHeight - 60));
-            $y = min($yValue, $zeroY);
-            $height = max(2, abs($zeroY - $yValue));
-            $isPositive = $value >= 0;
+            $income = $incomeValues[$m];
+            $spending = $spendingValues[$m];
+            $groupX = 50 + (($m - 1) * ($monthGroupWidth + $barGap));
+            $incomeHeight = max(2, ($income / $chartMax) * ($chartHeight - 60));
+            $spendingHeight = max(2, ($spending / $chartMax) * ($chartHeight - 60));
+            $incomeY = $zeroY - $incomeHeight;
+            $spendingY = $zeroY - $spendingHeight;
           ?>
-          <rect x="<?= $x ?>" y="<?= $y ?>" width="<?= $barWidth ?>" height="<?= $height ?>" rx="4" fill="<?= $isPositive ? 'var(--ok)' : 'var(--bad)' ?>">
-            <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?>: <?= number_format($value, 2, ',', '.') ?></title>
+          <rect x="<?= $groupX ?>" y="<?= $incomeY ?>" width="<?= $barWidth ?>" height="<?= $incomeHeight ?>" rx="3" fill="var(--ok)">
+            <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> income: <?= number_format($income, 2, ',', '.') ?></title>
           </rect>
-          <text x="<?= $x + ($barWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h(date('M', mktime(0, 0, 0, $m, 1))) ?></text>
+          <rect x="<?= $groupX + $barWidth + $barInnerGap ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="3" fill="var(--bad)">
+            <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> spending: <?= number_format($spending, 2, ',', '.') ?></title>
+          </rect>
+          <text x="<?= $groupX + ($monthGroupWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h(date('M', mktime(0, 0, 0, $m, 1))) ?></text>
         <?php endfor; ?>
       </svg>
-      <p class="small" style="margin-top:8px;">Income months are shown above zero, expense months below zero.</p>
+      <p class="small" style="margin-top:8px;">Green bar = income, red bar = spending for the same month.</p>
     <?php endif; ?>
   </div>
 <?php endif; ?>
