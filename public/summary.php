@@ -44,6 +44,27 @@ $breakdown = repo_period_breakdown_by_category(
     $groupByParentCategory
 );
 
+$chartCategory = trim((string)($_GET['chart_category'] ?? ''));
+$monthlyCategoryNet = [];
+if ($isYearView && $year > 0) {
+    $chartCategoryOptions = array_values(array_map(
+        static fn(array $row): string => (string)$row['category'],
+        $breakdown
+    ));
+    if ($chartCategory === '' || !in_array($chartCategory, $chartCategoryOptions, true)) {
+        $chartCategory = $chartCategoryOptions[0] ?? '';
+    }
+    if ($chartCategory !== '') {
+        $monthlyCategoryNet = repo_year_monthly_totals_for_category(
+            $db,
+            $userId,
+            $year,
+            $chartCategory,
+            $groupByParentCategory
+        );
+    }
+}
+
 render_header('Summary', 'summary');
 $yearInputValue = $year > 0 ? (string)$year : '';
 $disableYearMonth = $hasDateRange || $allTime;
@@ -62,6 +83,9 @@ if ($endDate !== '') {
     $linkParams['end_date'] = $endDate;
 }
 $linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
+if ($chartCategory !== '') {
+    $linkParams['chart_category'] = $chartCategory;
+}
 ?>
 
 <div class="card">
@@ -112,6 +136,7 @@ $linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
     <input type="hidden" name="start_date" value="<?= h($startDate) ?>">
     <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
     <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
+    <input type="hidden" name="chart_category" value="<?= h($chartCategory) ?>">
     <div style="display:flex; gap:12px; align-items:center;">
       <span class="small">Group by:</span>
       <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
@@ -125,6 +150,70 @@ $linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
     </div>
   </form>
 </div>
+
+<?php if ($isYearView && $year > 0): ?>
+  <div class="card">
+    <h2>Monthly bars by <?= $groupByParentCategory ? 'parent category' : 'category' ?></h2>
+
+    <form method="get" action="/summary.php" class="row" style="align-items:flex-end; margin-bottom:12px;">
+      <input type="hidden" name="year" value="<?= h((string)$year) ?>">
+      <input type="hidden" name="month" value="0">
+      <input type="hidden" name="start_date" value="<?= h($startDate) ?>">
+      <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
+      <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
+      <input type="hidden" name="category_view" value="<?= $groupByParentCategory ? 'parent' : 'category' ?>">
+      <div style="min-width:280px;">
+        <label>Category for chart</label>
+        <select class="input" name="chart_category" onchange="this.form.submit()">
+          <?php foreach (($chartCategoryOptions ?? []) as $option): ?>
+            <option value="<?= h($option) ?>" <?= $chartCategory === $option ? 'selected' : '' ?>><?= h($option) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </form>
+
+    <?php
+      $chartValues = [];
+      for ($m = 1; $m <= 12; $m++) {
+          $chartValues[$m] = (float)($monthlyCategoryNet[$m] ?? 0.0);
+      }
+      $chartMin = min(0.0, min($chartValues));
+      $chartMax = max(0.0, max($chartValues));
+      $chartRange = $chartMax - $chartMin;
+      if ($chartRange <= 0) {
+          $chartRange = 1.0;
+      }
+      $chartHeight = 260;
+      $zeroY = 20 + (($chartMax / $chartRange) * ($chartHeight - 60));
+      $barWidth = 28;
+      $barGap = 14;
+      $chartWidth = 60 + (12 * ($barWidth + $barGap));
+    ?>
+
+    <?php if ($chartCategory === ''): ?>
+      <p class="small">No categories available for this year.</p>
+    <?php else: ?>
+      <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" role="img" aria-label="Monthly totals for <?= h($chartCategory) ?>" style="display:block; background: rgba(148,163,184,0.08); border-radius: 10px;">
+        <line x1="40" y1="<?= $zeroY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $zeroY ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
+        <?php for ($m = 1; $m <= 12; $m++): ?>
+          <?php
+            $value = $chartValues[$m];
+            $x = 50 + (($m - 1) * ($barWidth + $barGap));
+            $yValue = 20 + ((($chartMax - $value) / $chartRange) * ($chartHeight - 60));
+            $y = min($yValue, $zeroY);
+            $height = max(2, abs($zeroY - $yValue));
+            $isPositive = $value >= 0;
+          ?>
+          <rect x="<?= $x ?>" y="<?= $y ?>" width="<?= $barWidth ?>" height="<?= $height ?>" rx="4" fill="<?= $isPositive ? 'var(--ok)' : 'var(--bad)' ?>">
+            <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?>: <?= number_format($value, 2, ',', '.') ?></title>
+          </rect>
+          <text x="<?= $x + ($barWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h(date('M', mktime(0, 0, 0, $m, 1))) ?></text>
+        <?php endfor; ?>
+      </svg>
+      <p class="small" style="margin-top:8px;">Income months are shown above zero, expense months below zero.</p>
+    <?php endif; ?>
+  </div>
+<?php endif; ?>
 
 <div class="card">
   <div class="grid-2">
