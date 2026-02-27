@@ -872,7 +872,8 @@ function repo_year_monthly_totals_for_category(
     $sql = "
         SELECT
             MONTH(t.txn_date) AS month_number,
-            SUM(t.amount_signed) AS net
+            SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories p ON p.id = c.parent_id
@@ -896,7 +897,10 @@ function repo_year_monthly_totals_for_category(
     $rows = $stmt->fetchAll();
     $monthly = [];
     foreach ($rows as $row) {
-        $monthly[(int)$row['month_number']] = (float)$row['net'];
+        $monthly[(int)$row['month_number']] = [
+            'income' => (float)($row['income'] ?? 0),
+            'spending' => (float)($row['spending'] ?? 0),
+        ];
     }
 
     return $monthly;
