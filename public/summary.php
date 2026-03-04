@@ -206,10 +206,10 @@ if ($chartCategory !== '') {
             $incomeY = $zeroY - $incomeHeight;
             $spendingY = $zeroY;
           ?>
-          <rect x="<?= $groupX ?>" y="<?= $incomeY ?>" width="<?= $barWidth ?>" height="<?= $incomeHeight ?>" rx="3" fill="var(--ok)">
+          <rect x="<?= $groupX ?>" y="<?= $incomeY ?>" width="<?= $barWidth ?>" height="<?= $incomeHeight ?>" rx="3" fill="var(--accent)">
             <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> income: <?= number_format($income, 2, ',', '.') ?></title>
           </rect>
-          <rect x="<?= $groupX ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="3" fill="var(--bad)">
+          <rect x="<?= $groupX ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="3" fill="var(--danger)">
             <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> spending: <?= number_format($spending, 2, ',', '.') ?></title>
           </rect>
           <text x="<?= $groupX + ($monthGroupWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h(date('M', mktime(0, 0, 0, $m, 1))) ?></text>
