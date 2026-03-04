@@ -180,12 +180,14 @@ if ($chartCategory !== '') {
           $spendingValues[$m] = (float)($monthlyCategoryTotals[$m]['spending'] ?? 0.0);
       }
       $chartMax = max(1.0, max($incomeValues), max($spendingValues));
-      $chartHeight = 260;
-      $zeroY = $chartHeight - 30;
-      $barWidth = 12;
-      $barInnerGap = 4;
+      $chartHeight = 280;
+      $topPadding = 18;
+      $bottomPadding = 30;
+      $zeroY = (int)(($chartHeight - $bottomPadding + $topPadding) / 2);
+      $barAreaHeight = min($zeroY - $topPadding, ($chartHeight - $bottomPadding) - $zeroY);
+      $barWidth = 14;
       $barGap = 14;
-      $monthGroupWidth = ($barWidth * 2) + $barInnerGap;
+      $monthGroupWidth = $barWidth;
       $chartWidth = 60 + (12 * ($monthGroupWidth + $barGap));
     ?>
 
@@ -199,21 +201,21 @@ if ($chartCategory !== '') {
             $income = $incomeValues[$m];
             $spending = $spendingValues[$m];
             $groupX = 50 + (($m - 1) * ($monthGroupWidth + $barGap));
-            $incomeHeight = max(2, ($income / $chartMax) * ($chartHeight - 60));
-            $spendingHeight = max(2, ($spending / $chartMax) * ($chartHeight - 60));
+            $incomeHeight = $income > 0 ? max(2, ($income / $chartMax) * $barAreaHeight) : 0;
+            $spendingHeight = $spending > 0 ? max(2, ($spending / $chartMax) * $barAreaHeight) : 0;
             $incomeY = $zeroY - $incomeHeight;
-            $spendingY = $zeroY - $spendingHeight;
+            $spendingY = $zeroY;
           ?>
           <rect x="<?= $groupX ?>" y="<?= $incomeY ?>" width="<?= $barWidth ?>" height="<?= $incomeHeight ?>" rx="3" fill="var(--ok)">
             <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> income: <?= number_format($income, 2, ',', '.') ?></title>
           </rect>
-          <rect x="<?= $groupX + $barWidth + $barInnerGap ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="3" fill="var(--bad)">
+          <rect x="<?= $groupX ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="3" fill="var(--bad)">
             <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> spending: <?= number_format($spending, 2, ',', '.') ?></title>
           </rect>
           <text x="<?= $groupX + ($monthGroupWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h(date('M', mktime(0, 0, 0, $m, 1))) ?></text>
         <?php endfor; ?>
       </svg>
-      <p class="small" style="margin-top:8px;">Green bar = income, red bar = spending for the same month.</p>
+      <p class="small" style="margin-top:8px;">Green bar = income above the baseline, red bar = spending below the baseline for the same month.</p>
 
       <h3 style="margin-top:16px;"><?= h($chartCategory) ?> by month</h3>
       <table class="table">
