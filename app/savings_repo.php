@@ -15,7 +15,9 @@ function repo_list_savings_with_balance(PDO $db): array {
     $sql = "
         SELECT s.id, s.name, s.active, s.sort_order, s.start_amount, s.monthly_amount, s.topup_category_id,
                c.name AS topup_category_name,
-               (s.start_amount + COALESCE(st.total_amount, 0)) AS balance
+               (s.start_amount + COALESCE(st.total_amount, 0)) AS balance,
+               COALESCE(ma.avg_monthly_income, 0) AS avg_monthly_income,
+               COALESCE(ma.avg_monthly_spending, 0) AS avg_monthly_spending
         FROM savings s
         LEFT JOIN categories c ON c.id = s.topup_category_id
         LEFT JOIN (
@@ -31,6 +33,63 @@ function repo_list_savings_with_balance(PDO $db): array {
               AND is_split_active = 1
             GROUP BY savings_id
         ) st ON st.savings_id = s.id
+        LEFT JOIN (
+            SELECT monthly.savings_id,
+                   AVG(monthly.income_total) AS avg_monthly_income,
+                   AVG(monthly.spending_total) AS avg_monthly_spending
+            FROM (
+                SELECT t.savings_id,
+                       DATE_FORMAT(t.txn_date, '%Y-%m') AS ledger_month,
+                       SUM(
+                           CASE
+                               WHEN (
+                                   CASE
+                                       WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
+                                       ELSE t.amount_signed
+                                   END
+                               ) > 0
+                               THEN (
+                                   CASE
+                                       WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
+                                       ELSE t.amount_signed
+                                   END
+                               )
+                               ELSE 0
+                           END
+                       ) AS income_total,
+                       SUM(
+                           CASE
+                               WHEN (
+                                   CASE
+                                       WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
+                                       ELSE t.amount_signed
+                                   END
+                               ) < 0
+                               THEN ABS(
+                                   CASE
+                                       WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
+                                       ELSE t.amount_signed
+                                   END
+                               )
+                               ELSE 0
+                           END
+                       ) AS spending_total
+                FROM transactions t
+                WHERE t.savings_id IS NOT NULL
+                  AND t.is_split_active = 1
+                GROUP BY t.savings_id, DATE_FORMAT(t.txn_date, '%Y-%m')
+            ) monthly
+            LEFT JOIN (
+                SELECT savings_id,
+                       MAX(DATE_FORMAT(txn_date, '%Y-%m')) AS latest_month
+                FROM transactions
+                WHERE savings_id IS NOT NULL
+                  AND is_split_active = 1
+                GROUP BY savings_id
+            ) lm ON lm.savings_id = monthly.savings_id
+            WHERE monthly.ledger_month < COALESCE(lm.latest_month, '0000-00')
+            GROUP BY monthly.savings_id
+        ) ma ON ma.savings_id = s.id
         ORDER BY s.active DESC, s.sort_order ASC, s.name ASC, s.id ASC
     ";
     $stmt = $db->query($sql);

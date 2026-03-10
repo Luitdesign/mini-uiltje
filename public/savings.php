@@ -153,6 +153,8 @@ render_header('Savings', 'savings');
           <th>Name</th>
           <th>Current balance</th>
           <th>Default monthly amount</th>
+          <th>Avg monthly income*</th>
+          <th>Avg monthly spending*</th>
           <th>Top-up category</th>
           <th style="width:280px">Actions</th>
         </tr>
@@ -172,6 +174,8 @@ render_header('Savings', 'savings');
             </td>
             <td class="money"><?= number_format((float)$saving['balance'], 2, ',', '.') ?></td>
             <td class="money"><?= number_format((float)$saving['monthly_amount'], 2, ',', '.') ?></td>
+            <td class="money money-pos"><?= number_format((float)($saving['avg_monthly_income'] ?? 0), 2, ',', '.') ?></td>
+            <td class="money money-neg"><?= number_format((float)($saving['avg_monthly_spending'] ?? 0), 2, ',', '.') ?></td>
             <td><?= !empty($saving['topup_category_name']) ? h((string)$saving['topup_category_name']) : '—' ?></td>
             <td>
               <div class="row" style="gap: 6px; flex-wrap: wrap;">
@@ -199,6 +203,9 @@ render_header('Savings', 'savings');
         <?php endforeach; ?>
       </tbody>
     </table>
+    <p class="small muted" style="margin-top: 8px;">
+      * Average uses all ledger months except the latest month that has transactions.
+    </p>
   <?php endif; ?>
 </div>
 
