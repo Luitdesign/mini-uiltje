@@ -79,15 +79,6 @@ function repo_list_savings_with_balance(PDO $db): array {
                   AND t.is_split_active = 1
                 GROUP BY t.savings_id, DATE_FORMAT(t.txn_date, '%Y-%m')
             ) monthly
-            LEFT JOIN (
-                SELECT savings_id,
-                       MAX(DATE_FORMAT(txn_date, '%Y-%m')) AS latest_month
-                FROM transactions
-                WHERE savings_id IS NOT NULL
-                  AND is_split_active = 1
-                GROUP BY savings_id
-            ) lm ON lm.savings_id = monthly.savings_id
-            WHERE monthly.ledger_month < COALESCE(lm.latest_month, '0000-00')
             GROUP BY monthly.savings_id
         ) ma ON ma.savings_id = s.id
         ORDER BY s.active DESC, s.sort_order ASC, s.name ASC, s.id ASC

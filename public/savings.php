@@ -204,7 +204,7 @@ render_header('Savings', 'savings');
       </tbody>
     </table>
     <p class="small muted" style="margin-top: 8px;">
-      * Average uses all ledger months except the latest month that has transactions.
+      * Average uses all ledger months, including the latest month that has transactions.
     </p>
   <?php endif; ?>
 </div>
