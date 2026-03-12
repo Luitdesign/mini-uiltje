@@ -268,25 +268,27 @@ if ($chartCategory !== '') {
       </svg>
       <p class="small" style="margin-top:8px;">Green bar = income above the baseline, red bar = spending below the baseline for the same month.</p>
 
-      <h3 style="margin-top:16px;"><?= h($chartCategory) ?> by month</h3>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Income</th>
-            <th>Spending</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($chartPoints as $point): ?>
+      <details style="margin-top:16px;">
+        <summary style="cursor:pointer; user-select:none;"><?= h($chartCategory) ?> by month</summary>
+        <table class="table" style="margin-top:10px;">
+          <thead>
             <tr>
-              <td><?= h((string)$point['full_label']) ?></td>
-              <td class="money money-pos"><?= number_format((float)$point['income'], 2, ',', '.') ?></td>
-              <td class="money money-neg"><?= number_format((float)$point['spending'], 2, ',', '.') ?></td>
+              <th>Month</th>
+              <th>Income</th>
+              <th>Spending</th>
             </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <?php foreach ($chartPoints as $point): ?>
+              <tr>
+                <td><?= h((string)$point['full_label']) ?></td>
+                <td class="money money-pos"><?= number_format((float)$point['income'], 2, ',', '.') ?></td>
+                <td class="money money-neg"><?= number_format((float)$point['spending'], 2, ',', '.') ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </details>
     <?php endif; ?>
   </div>
 <?php endif; ?>
