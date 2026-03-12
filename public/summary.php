@@ -221,10 +221,14 @@ if ($chartCategory !== '') {
       $bottomPadding = 30;
       $zeroY = (int)(($chartHeight - $bottomPadding + $topPadding) / 2);
       $barAreaHeight = min($zeroY - $topPadding, ($chartHeight - $bottomPadding) - $zeroY);
-      $barWidth = 14;
-      $barGap = 14;
       $pointCount = max(1, count($chartPoints));
-      $chartWidth = 60 + ($pointCount * ($barWidth + $barGap));
+      $chartWidth = 1000;
+      $chartLeftPadding = 44;
+      $chartRightPadding = 8;
+      $chartPlotWidth = max(120.0, $chartWidth - $chartLeftPadding - $chartRightPadding);
+      $barSlotWidth = $chartPlotWidth / $pointCount;
+      $barWidth = max(6.0, min(24.0, $barSlotWidth * 0.55));
+      $barRx = min(3.0, $barWidth / 2);
       $yAxisTicks = [0.0, 0.25, 0.5, 0.75, 1.0];
     ?>
 
@@ -232,38 +236,39 @@ if ($chartCategory !== '') {
       <p class="small">No categories available for this year.</p>
     <?php else: ?>
       <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" role="img" aria-label="Monthly income and spending totals for <?= h($chartCategory) ?>" style="display:block; background: rgba(148,163,184,0.08); border-radius: 10px;">
-        <line x1="40" y1="<?= $topPadding ?>" x2="40" y2="<?= $chartHeight - $bottomPadding ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
+        <line x1="<?= $chartLeftPadding ?>" y1="<?= $topPadding ?>" x2="<?= $chartLeftPadding ?>" y2="<?= $chartHeight - $bottomPadding ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
         <?php foreach ($yAxisTicks as $tick): ?>
           <?php
             $positiveY = $zeroY - ($tick * $barAreaHeight);
             $negativeY = $zeroY + ($tick * $barAreaHeight);
             $tickValue = $chartMax * $tick;
           ?>
-          <line x1="40" y1="<?= $positiveY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $positiveY ?>" stroke="rgba(148,163,184,<?= $tick === 0.0 ? '0.7' : '0.25' ?>)" stroke-width="1" />
-          <text x="36" y="<?= $positiveY + 3 ?>" text-anchor="end" font-size="10" fill="currentColor"><?= number_format($tickValue, 0, ',', '.') ?></text>
+          <line x1="<?= $chartLeftPadding ?>" y1="<?= $positiveY ?>" x2="<?= $chartWidth - $chartRightPadding ?>" y2="<?= $positiveY ?>" stroke="rgba(148,163,184,<?= $tick === 0.0 ? '0.7' : '0.25' ?>)" stroke-width="1" />
+          <text x="<?= $chartLeftPadding - 4 ?>" y="<?= $positiveY + 3 ?>" text-anchor="end" font-size="10" fill="currentColor"><?= number_format($tickValue, 0, ',', '.') ?></text>
           <?php if ($tick > 0.0): ?>
-            <line x1="40" y1="<?= $negativeY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $negativeY ?>" stroke="rgba(148,163,184,0.25)" stroke-width="1" />
-            <text x="36" y="<?= $negativeY + 3 ?>" text-anchor="end" font-size="10" fill="currentColor">-<?= number_format($tickValue, 0, ',', '.') ?></text>
+            <line x1="<?= $chartLeftPadding ?>" y1="<?= $negativeY ?>" x2="<?= $chartWidth - $chartRightPadding ?>" y2="<?= $negativeY ?>" stroke="rgba(148,163,184,0.25)" stroke-width="1" />
+            <text x="<?= $chartLeftPadding - 4 ?>" y="<?= $negativeY + 3 ?>" text-anchor="end" font-size="10" fill="currentColor">-<?= number_format($tickValue, 0, ',', '.') ?></text>
           <?php endif; ?>
         <?php endforeach; ?>
-        <line x1="40" y1="<?= $zeroY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $zeroY ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
+        <line x1="<?= $chartLeftPadding ?>" y1="<?= $zeroY ?>" x2="<?= $chartWidth - $chartRightPadding ?>" y2="<?= $zeroY ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
         <?php foreach ($chartPoints as $index => $point): ?>
           <?php
             $income = (float)$point['income'];
             $spending = (float)$point['spending'];
-            $groupX = 50 + ($index * ($barWidth + $barGap));
+            $groupX = $chartLeftPadding + ($index * $barSlotWidth) + (($barSlotWidth - $barWidth) / 2);
             $incomeHeight = $income > 0 ? max(2, ($income / $chartMax) * $barAreaHeight) : 0;
             $spendingHeight = $spending > 0 ? max(2, ($spending / $chartMax) * $barAreaHeight) : 0;
             $incomeY = $zeroY - $incomeHeight;
             $spendingY = $zeroY;
+            $labelX = $chartLeftPadding + ($index * $barSlotWidth) + ($barSlotWidth / 2);
           ?>
-          <rect x="<?= $groupX ?>" y="<?= $incomeY ?>" width="<?= $barWidth ?>" height="<?= $incomeHeight ?>" rx="3" fill="var(--accent)">
+          <rect x="<?= $groupX ?>" y="<?= $incomeY ?>" width="<?= $barWidth ?>" height="<?= $incomeHeight ?>" rx="<?= $barRx ?>" fill="var(--accent)">
             <title><?= h((string)$point['full_label']) ?> income: <?= number_format($income, 2, ',', '.') ?></title>
           </rect>
-          <rect x="<?= $groupX ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="3" fill="var(--danger)">
+          <rect x="<?= $groupX ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="<?= $barRx ?>" fill="var(--danger)">
             <title><?= h((string)$point['full_label']) ?> spending: <?= number_format($spending, 2, ',', '.') ?></title>
           </rect>
-          <text x="<?= $groupX + ($barWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h((string)$point['label']) ?></text>
+          <text x="<?= $labelX ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h((string)$point['label']) ?></text>
         <?php endforeach; ?>
       </svg>
       <p class="small" style="margin-top:8px;">Green bar = income above the baseline, red bar = spending below the baseline for the same month.</p>
