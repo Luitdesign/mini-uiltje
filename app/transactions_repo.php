@@ -906,6 +906,70 @@ function repo_year_monthly_totals_for_category(
     return $monthly;
 }
 
+function repo_period_monthly_totals_for_category(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate,
+    ?string $endDate,
+    string $categoryName,
+    bool $groupByParentCategory = false
+): array {
+    if (trim($categoryName) === '') {
+        return [];
+    }
+
+    $params = [
+        ':uid' => $userId,
+        ':category_name' => $categoryName,
+    ];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $categoryExpression = $groupByParentCategory
+        ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
+        : "COALESCE(c.name, 'Niet ingedeeld')";
+
+    $sql = "
+        SELECT
+            YEAR(t.txn_date) AS year_number,
+            MONTH(t.txn_date) AS month_number,
+            SUM(CASE WHEN t.amount_signed > 0 THEN t.amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending
+        FROM transactions t
+        LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN categories p ON p.id = c.parent_id
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND {$categoryExpression} = :category_name
+          AND t.is_split_active = 1
+          AND t.is_internal_transfer = 0
+          AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)
+        GROUP BY YEAR(t.txn_date), MONTH(t.txn_date)
+        ORDER BY year_number ASC, month_number ASC
+    ";
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
 function repo_period_paid_from_savings_breakdown(
     PDO $db,
     int $userId,
