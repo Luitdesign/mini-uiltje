@@ -200,7 +200,7 @@ render_header('Saving details', 'savings');
               $zeroLineY = $paddingTop + ($plotHeight - ($zeroNormalized * $plotHeight));
           }
         ?>
-        <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" aria-label="Savings balance development" role="img" style="display: block; background: rgba(148,163,184,0.08); border-radius: 10px;">
+        <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" aria-label="Savings balance development" role="img" style="display: block; width: 100%; height: auto; background: rgba(148,163,184,0.08); border-radius: 10px;">
           <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop ?>" x2="<?= $paddingLeft ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
           <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop + $plotHeight ?>" x2="<?= $paddingLeft + $plotWidth ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
           <?php if ($showZeroLine && $zeroLineY !== null): ?>
