@@ -189,12 +189,27 @@ if ($chartCategory !== '') {
       $barGap = 14;
       $monthGroupWidth = $barWidth;
       $chartWidth = 60 + (12 * ($monthGroupWidth + $barGap));
+      $yAxisTicks = [0.0, 0.25, 0.5, 0.75, 1.0];
     ?>
 
     <?php if ($chartCategory === ''): ?>
       <p class="small">No categories available for this year.</p>
     <?php else: ?>
       <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" height="<?= $chartHeight ?>" role="img" aria-label="Monthly income and spending totals for <?= h($chartCategory) ?>" style="display:block; background: rgba(148,163,184,0.08); border-radius: 10px;">
+        <line x1="40" y1="<?= $topPadding ?>" x2="40" y2="<?= $chartHeight - $bottomPadding ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
+        <?php foreach ($yAxisTicks as $tick): ?>
+          <?php
+            $positiveY = $zeroY - ($tick * $barAreaHeight);
+            $negativeY = $zeroY + ($tick * $barAreaHeight);
+            $tickValue = $chartMax * $tick;
+          ?>
+          <line x1="40" y1="<?= $positiveY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $positiveY ?>" stroke="rgba(148,163,184,<?= $tick === 0.0 ? '0.7' : '0.25' ?>)" stroke-width="1" />
+          <text x="36" y="<?= $positiveY + 3 ?>" text-anchor="end" font-size="10" fill="currentColor"><?= number_format($tickValue, 0, ',', '.') ?></text>
+          <?php if ($tick > 0.0): ?>
+            <line x1="40" y1="<?= $negativeY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $negativeY ?>" stroke="rgba(148,163,184,0.25)" stroke-width="1" />
+            <text x="36" y="<?= $negativeY + 3 ?>" text-anchor="end" font-size="10" fill="currentColor">-<?= number_format($tickValue, 0, ',', '.') ?></text>
+          <?php endif; ?>
+        <?php endforeach; ?>
         <line x1="40" y1="<?= $zeroY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $zeroY ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
         <?php for ($m = 1; $m <= 12; $m++): ?>
           <?php
