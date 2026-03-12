@@ -7,6 +7,25 @@ $userId = current_data_user_id($db);
 $okMsg = '';
 $errMsg = '';
 
+$stmtLatestImport = $db->prepare(
+    'SELECT imported_at
+     FROM imports
+     WHERE user_id = :uid
+     ORDER BY imported_at DESC
+     LIMIT 1'
+);
+$stmtLatestImport->execute([':uid' => $userId]);
+$latestImportAt = $stmtLatestImport->fetchColumn();
+
+$stmtLatestTxn = $db->prepare(
+    'SELECT MAX(txn_date)
+     FROM transactions
+     WHERE user_id = :uid
+       AND import_id IS NOT NULL'
+);
+$stmtLatestTxn->execute([':uid' => $userId]);
+$latestUploadedTxnDate = $stmtLatestTxn->fetchColumn();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
 
@@ -31,6 +50,11 @@ render_header('Upload', 'upload');
 <div class="card">
   <h1>Upload CSV</h1>
   <p class="small">Upload an ING CSV export (semicolon separated). Import is idempotent: duplicates are skipped.</p>
+
+  <div class="small" style="margin-bottom: 12px;">
+    <div>Latest file upload: <strong><?= h($latestImportAt !== false && $latestImportAt !== null ? (string)$latestImportAt : '—') ?></strong></div>
+    <div>Latest uploaded transaction date: <strong><?= h($latestUploadedTxnDate !== false && $latestUploadedTxnDate !== null ? (string)$latestUploadedTxnDate : '—') ?></strong></div>
+  </div>
 
   <?php if ($okMsg !== ''): ?>
     <div class="card" style="border-color: var(--accent); background: rgba(110,231,183,0.08);">
