@@ -232,25 +232,27 @@ if ($chartCategory !== '') {
       </svg>
       <p class="small" style="margin-top:8px;">Green bar = income above the baseline, red bar = spending below the baseline for the same month.</p>
 
-      <h3 style="margin-top:16px;"><?= h($chartCategory) ?> by month</h3>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Income</th>
-            <th>Spending</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php for ($m = 1; $m <= 12; $m++): ?>
+      <details class="foldout" style="margin-top:16px;">
+        <summary><?= h($chartCategory) ?> by month</summary>
+        <table class="table" style="margin-top:10px;">
+          <thead>
             <tr>
-              <td><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?></td>
-              <td class="money money-pos"><?= number_format($incomeValues[$m], 2, ',', '.') ?></td>
-              <td class="money money-neg"><?= number_format($spendingValues[$m], 2, ',', '.') ?></td>
+              <th>Month</th>
+              <th>Income</th>
+              <th>Spending</th>
             </tr>
-          <?php endfor; ?>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <?php for ($m = 1; $m <= 12; $m++): ?>
+              <tr>
+                <td><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?></td>
+                <td class="money money-pos"><?= number_format($incomeValues[$m], 2, ',', '.') ?></td>
+                <td class="money money-neg"><?= number_format($spendingValues[$m], 2, ',', '.') ?></td>
+              </tr>
+            <?php endfor; ?>
+          </tbody>
+        </table>
+      </details>
     <?php endif; ?>
   </div>
 <?php endif; ?>
