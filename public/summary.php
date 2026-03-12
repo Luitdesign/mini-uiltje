@@ -46,7 +46,9 @@ $breakdown = repo_period_breakdown_by_category(
 
 $chartCategory = trim((string)($_GET['chart_category'] ?? ''));
 $monthlyCategoryTotals = [];
-if ($isYearView && $year > 0) {
+$chartCategoryOptions = [];
+$showMonthlyCategoryBars = !$hasDateRange ? ($month === 0) : true;
+if ($showMonthlyCategoryBars) {
     $chartCategoryOptions = array_values(array_map(
         static fn(array $row): string => (string)$row['category'],
         $breakdown
@@ -55,13 +57,26 @@ if ($isYearView && $year > 0) {
         $chartCategory = $chartCategoryOptions[0] ?? '';
     }
     if ($chartCategory !== '') {
-        $monthlyCategoryTotals = repo_year_monthly_totals_for_category(
-            $db,
-            $userId,
-            $year,
-            $chartCategory,
-            $groupByParentCategory
-        );
+        if ($isYearView && $year > 0) {
+            $monthlyCategoryTotals = repo_year_monthly_totals_for_category(
+                $db,
+                $userId,
+                $year,
+                $chartCategory,
+                $groupByParentCategory
+            );
+        } else {
+            $monthlyCategoryTotals = repo_period_monthly_totals_for_category(
+                $db,
+                $userId,
+                $year,
+                $month,
+                $rangeStart,
+                $rangeEnd,
+                $chartCategory,
+                $groupByParentCategory
+            );
+        }
     }
 }
 
@@ -151,7 +166,7 @@ if ($chartCategory !== '') {
   </form>
 </div>
 
-<?php if ($isYearView && $year > 0): ?>
+<?php if ($showMonthlyCategoryBars): ?>
   <div class="card">
     <h2>Monthly bars by <?= $groupByParentCategory ? 'parent category' : 'category' ?></h2>
 
@@ -173,13 +188,34 @@ if ($chartCategory !== '') {
     </form>
 
     <?php
-      $incomeValues = [];
-      $spendingValues = [];
-      for ($m = 1; $m <= 12; $m++) {
-          $incomeValues[$m] = (float)($monthlyCategoryTotals[$m]['income'] ?? 0.0);
-          $spendingValues[$m] = (float)($monthlyCategoryTotals[$m]['spending'] ?? 0.0);
+      $chartPoints = [];
+      if ($isYearView && $year > 0) {
+          for ($m = 1; $m <= 12; $m++) {
+              $chartPoints[] = [
+                  'label' => date('M', mktime(0, 0, 0, $m, 1)),
+                  'full_label' => date('F', mktime(0, 0, 0, $m, 1)),
+                  'income' => (float)($monthlyCategoryTotals[$m]['income'] ?? 0.0),
+                  'spending' => (float)($monthlyCategoryTotals[$m]['spending'] ?? 0.0),
+              ];
+          }
+      } else {
+          foreach ($monthlyCategoryTotals as $row) {
+              $rowYear = (int)($row['year_number'] ?? 0);
+              $rowMonth = (int)($row['month_number'] ?? 0);
+              if ($rowYear <= 0 || $rowMonth <= 0) {
+                  continue;
+              }
+              $chartPoints[] = [
+                  'label' => sprintf('%02d/%02d', $rowMonth, $rowYear % 100),
+                  'full_label' => sprintf('%04d-%02d', $rowYear, $rowMonth),
+                  'income' => (float)($row['income'] ?? 0.0),
+                  'spending' => (float)($row['spending'] ?? 0.0),
+              ];
+          }
       }
-      $chartMax = max(1.0, max($incomeValues), max($spendingValues));
+      $incomeValues = array_map(static fn(array $point): float => (float)$point['income'], $chartPoints);
+      $spendingValues = array_map(static fn(array $point): float => (float)$point['spending'], $chartPoints);
+      $chartMax = max(1.0, !empty($incomeValues) ? max($incomeValues) : 0.0, !empty($spendingValues) ? max($spendingValues) : 0.0);
       $chartHeight = 280;
       $topPadding = 18;
       $bottomPadding = 30;
@@ -187,8 +223,8 @@ if ($chartCategory !== '') {
       $barAreaHeight = min($zeroY - $topPadding, ($chartHeight - $bottomPadding) - $zeroY);
       $barWidth = 14;
       $barGap = 14;
-      $monthGroupWidth = $barWidth;
-      $chartWidth = 60 + (12 * ($monthGroupWidth + $barGap));
+      $pointCount = max(1, count($chartPoints));
+      $chartWidth = 60 + ($pointCount * ($barWidth + $barGap));
       $yAxisTicks = [0.0, 0.25, 0.5, 0.75, 1.0];
     ?>
 
@@ -211,24 +247,24 @@ if ($chartCategory !== '') {
           <?php endif; ?>
         <?php endforeach; ?>
         <line x1="40" y1="<?= $zeroY ?>" x2="<?= $chartWidth - 8 ?>" y2="<?= $zeroY ?>" stroke="rgba(148,163,184,0.7)" stroke-width="1" />
-        <?php for ($m = 1; $m <= 12; $m++): ?>
+        <?php foreach ($chartPoints as $index => $point): ?>
           <?php
-            $income = $incomeValues[$m];
-            $spending = $spendingValues[$m];
-            $groupX = 50 + (($m - 1) * ($monthGroupWidth + $barGap));
+            $income = (float)$point['income'];
+            $spending = (float)$point['spending'];
+            $groupX = 50 + ($index * ($barWidth + $barGap));
             $incomeHeight = $income > 0 ? max(2, ($income / $chartMax) * $barAreaHeight) : 0;
             $spendingHeight = $spending > 0 ? max(2, ($spending / $chartMax) * $barAreaHeight) : 0;
             $incomeY = $zeroY - $incomeHeight;
             $spendingY = $zeroY;
           ?>
           <rect x="<?= $groupX ?>" y="<?= $incomeY ?>" width="<?= $barWidth ?>" height="<?= $incomeHeight ?>" rx="3" fill="var(--accent)">
-            <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> income: <?= number_format($income, 2, ',', '.') ?></title>
+            <title><?= h((string)$point['full_label']) ?> income: <?= number_format($income, 2, ',', '.') ?></title>
           </rect>
           <rect x="<?= $groupX ?>" y="<?= $spendingY ?>" width="<?= $barWidth ?>" height="<?= $spendingHeight ?>" rx="3" fill="var(--danger)">
-            <title><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?> spending: <?= number_format($spending, 2, ',', '.') ?></title>
+            <title><?= h((string)$point['full_label']) ?> spending: <?= number_format($spending, 2, ',', '.') ?></title>
           </rect>
-          <text x="<?= $groupX + ($monthGroupWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h(date('M', mktime(0, 0, 0, $m, 1))) ?></text>
-        <?php endfor; ?>
+          <text x="<?= $groupX + ($barWidth / 2) ?>" y="<?= $chartHeight - 10 ?>" text-anchor="middle" font-size="10" fill="currentColor"><?= h((string)$point['label']) ?></text>
+        <?php endforeach; ?>
       </svg>
       <p class="small" style="margin-top:8px;">Green bar = income above the baseline, red bar = spending below the baseline for the same month.</p>
 
@@ -242,13 +278,13 @@ if ($chartCategory !== '') {
           </tr>
         </thead>
         <tbody>
-          <?php for ($m = 1; $m <= 12; $m++): ?>
+          <?php foreach ($chartPoints as $point): ?>
             <tr>
-              <td><?= h(date('F', mktime(0, 0, 0, $m, 1))) ?></td>
-              <td class="money money-pos"><?= number_format($incomeValues[$m], 2, ',', '.') ?></td>
-              <td class="money money-neg"><?= number_format($spendingValues[$m], 2, ',', '.') ?></td>
+              <td><?= h((string)$point['full_label']) ?></td>
+              <td class="money money-pos"><?= number_format((float)$point['income'], 2, ',', '.') ?></td>
+              <td class="money money-neg"><?= number_format((float)$point['spending'], 2, ',', '.') ?></td>
             </tr>
-          <?php endfor; ?>
+          <?php endforeach; ?>
         </tbody>
       </table>
     <?php endif; ?>
