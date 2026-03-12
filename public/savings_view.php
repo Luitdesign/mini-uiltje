@@ -186,12 +186,47 @@ render_header('Saving details', 'savings');
               $range = 1.0;
           }
           $polylinePoints = [];
+          $trendlinePoints = [];
+          $sumX = 0.0;
+          $sumY = 0.0;
+          $sumXY = 0.0;
+          $sumXX = 0.0;
+          $trendlineStart = null;
+          $trendlineEnd = null;
           foreach ($chartPoints as $index => $point) {
+              $pointBalance = (float)$point['balance'];
               $x = $paddingLeft + ($pointCount === 1 ? 0 : ($index / ($pointCount - 1)) * $plotWidth);
-              $normalized = (((float)$point['balance'] - (float)$chartMin) / $range);
+              $normalized = (($pointBalance - (float)$chartMin) / $range);
               $y = $paddingTop + ($plotHeight - ($normalized * $plotHeight));
               $polylinePoints[] = sprintf('%.2f,%.2f', $x, $y);
+
+              $xVal = (float)$index;
+              $sumX += $xVal;
+              $sumY += $pointBalance;
+              $sumXY += ($xVal * $pointBalance);
+              $sumXX += ($xVal * $xVal);
           }
+
+          if ($pointCount >= 2) {
+              $denominator = ($pointCount * $sumXX) - ($sumX * $sumX);
+              if (abs($denominator) > 0.000001) {
+                  $slope = (($pointCount * $sumXY) - ($sumX * $sumY)) / $denominator;
+                  $intercept = ($sumY - ($slope * $sumX)) / $pointCount;
+
+                  $startTrendBalance = $intercept;
+                  $endTrendBalance = ($slope * ($pointCount - 1)) + $intercept;
+
+                  $startTrendNormalized = (($startTrendBalance - (float)$chartMin) / $range);
+                  $endTrendNormalized = (($endTrendBalance - (float)$chartMin) / $range);
+
+                  $trendlineStartY = $paddingTop + ($plotHeight - ($startTrendNormalized * $plotHeight));
+                  $trendlineEndY = $paddingTop + ($plotHeight - ($endTrendNormalized * $plotHeight));
+
+                  $trendlineStart = sprintf('%.2f,%.2f', (float)$paddingLeft, $trendlineStartY);
+                  $trendlineEnd = sprintf('%.2f,%.2f', (float)($paddingLeft + $plotWidth), $trendlineEndY);
+              }
+          }
+
           $polyline = implode(' ', $polylinePoints);
           $latestPoint = $chartPoints[$pointCount - 1];
           $zeroLineY = null;
@@ -207,6 +242,19 @@ render_header('Saving details', 'savings');
             <line x1="<?= $paddingLeft ?>" y1="<?= $zeroLineY ?>" x2="<?= $paddingLeft + $plotWidth ?>" y2="<?= $zeroLineY ?>" stroke="rgba(220,38,38,0.9)" stroke-width="2" stroke-dasharray="5 4" />
           <?php endif; ?>
           <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="<?= h($polyline) ?>" />
+          <?php if ($trendlineStart !== null && $trendlineEnd !== null): ?>
+            <?php [$trendlineStartX, $trendlineStartY] = array_map('trim', explode(',', $trendlineStart)); ?>
+            <?php [$trendlineEndX, $trendlineEndY] = array_map('trim', explode(',', $trendlineEnd)); ?>
+            <line
+              x1="<?= h($trendlineStartX) ?>"
+              y1="<?= h($trendlineStartY) ?>"
+              x2="<?= h($trendlineEndX) ?>"
+              y2="<?= h($trendlineEndY) ?>"
+              stroke="rgba(14,165,233,0.95)"
+              stroke-width="2"
+              stroke-dasharray="7 5"
+            />
+          <?php endif; ?>
           <text x="<?= $paddingLeft ?>" y="<?= $paddingTop - 2 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMax, 2, ',', '.')) ?></text>
           <text x="<?= $paddingLeft ?>" y="<?= $paddingTop + $plotHeight + 18 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMin, 2, ',', '.')) ?></text>
           
