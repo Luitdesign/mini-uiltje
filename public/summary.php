@@ -10,6 +10,8 @@ $startDate = trim((string)($_GET['start_date'] ?? ''));
 $endDate = trim((string)($_GET['end_date'] ?? ''));
 $categoryView = (string)($_GET['category_view'] ?? 'category');
 $groupByParentCategory = $categoryView === 'parent';
+$amountView = (string)($_GET['amount_view'] ?? 'default');
+$useLedgerAmountsWithoutTopups = $amountView === 'ledger_no_topups';
 $allTime = (string)($_GET['all_time'] ?? '') === '1';
 $hasDateRange = $startDate !== '' || $endDate !== '';
 if ($allTime) {
@@ -33,7 +35,7 @@ $periodValue = $allTime
 
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
-$sum = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd);
+$sum = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd, $useLedgerAmountsWithoutTopups);
 $breakdown = repo_period_breakdown_by_category(
     $db,
     $userId,
@@ -41,7 +43,8 @@ $breakdown = repo_period_breakdown_by_category(
     $month,
     $rangeStart,
     $rangeEnd,
-    $groupByParentCategory
+    $groupByParentCategory,
+    $useLedgerAmountsWithoutTopups
 );
 
 $chartCategory = trim((string)($_GET['chart_category'] ?? ''));
@@ -63,7 +66,8 @@ if ($showMonthlyCategoryBars) {
                 $userId,
                 $year,
                 $chartCategory,
-                $groupByParentCategory
+                $groupByParentCategory,
+                $useLedgerAmountsWithoutTopups
             );
         } else {
             $monthlyCategoryTotals = repo_period_monthly_totals_for_category(
@@ -74,7 +78,8 @@ if ($showMonthlyCategoryBars) {
                 $rangeStart,
                 $rangeEnd,
                 $chartCategory,
-                $groupByParentCategory
+                $groupByParentCategory,
+                $useLedgerAmountsWithoutTopups
             );
         }
     }
@@ -98,6 +103,7 @@ if ($endDate !== '') {
     $linkParams['end_date'] = $endDate;
 }
 $linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
+$linkParams['amount_view'] = $useLedgerAmountsWithoutTopups ? 'ledger_no_topups' : 'default';
 if ($chartCategory !== '') {
     $linkParams['chart_category'] = $chartCategory;
 }
@@ -107,6 +113,8 @@ if ($chartCategory !== '') {
   <h1>Summary</h1>
   <p class="small">
     <?= h($periodLabel) ?>: <strong><?= h($periodValue) ?></strong>
+    &nbsp;|&nbsp;
+    Amount mode: <strong><?= $useLedgerAmountsWithoutTopups ? 'Without top-ups, include ledgers' : 'Current' ?></strong>
     &nbsp;|&nbsp;
     <a href="/transactions.php?<?= h(http_build_query($linkParams)) ?>">View transactions</a>
   </p>
@@ -152,6 +160,7 @@ if ($chartCategory !== '') {
     <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
     <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
     <input type="hidden" name="chart_category" value="<?= h($chartCategory) ?>">
+    <input type="hidden" name="amount_view" value="<?= $useLedgerAmountsWithoutTopups ? 'ledger_no_topups' : 'default' ?>">
     <div style="display:flex; gap:12px; align-items:center;">
       <span class="small">Group by:</span>
       <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
@@ -161,6 +170,27 @@ if ($chartCategory !== '') {
       <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
         <input type="radio" name="category_view" value="parent" <?= $groupByParentCategory ? 'checked' : '' ?> onchange="this.form.submit()">
         Parent categories
+      </label>
+    </div>
+  </form>
+
+  <form method="get" action="/summary.php" class="row" style="margin-top:8px; align-items:center;">
+    <input type="hidden" name="year" value="<?= h((string)$year) ?>">
+    <input type="hidden" name="month" value="<?= h((string)$month) ?>">
+    <input type="hidden" name="start_date" value="<?= h($startDate) ?>">
+    <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
+    <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
+    <input type="hidden" name="chart_category" value="<?= h($chartCategory) ?>">
+    <input type="hidden" name="category_view" value="<?= $groupByParentCategory ? 'parent' : 'category' ?>">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <span class="small">Amounts:</span>
+      <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
+        <input type="radio" name="amount_view" value="default" <?= !$useLedgerAmountsWithoutTopups ? 'checked' : '' ?> onchange="this.form.submit()">
+        Current
+      </label>
+      <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
+        <input type="radio" name="amount_view" value="ledger_no_topups" <?= $useLedgerAmountsWithoutTopups ? 'checked' : '' ?> onchange="this.form.submit()">
+        Exclude top-ups + include ledgers
       </label>
     </div>
   </form>
@@ -177,6 +207,7 @@ if ($chartCategory !== '') {
       <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
       <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
       <input type="hidden" name="category_view" value="<?= $groupByParentCategory ? 'parent' : 'category' ?>">
+      <input type="hidden" name="amount_view" value="<?= $useLedgerAmountsWithoutTopups ? 'ledger_no_topups' : 'default' ?>">
       <div style="min-width:280px;">
         <label>Category for chart</label>
         <select class="input" name="chart_category" onchange="this.form.submit()">
