@@ -144,7 +144,7 @@ if ($chartCategory !== '') {
   <p class="small">
     <?= h($periodLabel) ?>: <strong><?= h($periodValue) ?></strong>
     &nbsp;|&nbsp;
-    Amount mode: <strong><?= $useLedgerAmountsWithoutTopups ? 'Without top-ups, include ledgers' : 'Current' ?></strong>
+    Amount mode: <strong><?= $useLedgerAmountsWithoutTopups ? 'Actuals*' : 'Current*' ?></strong>
     &nbsp;|&nbsp;
     <a href="/transactions.php?<?= h(http_build_query($linkParams)) ?>">View transactions</a>
   </p>
@@ -342,25 +342,25 @@ if ($chartCategory !== '') {
 <div class="card">
   <div class="grid-2">
     <div class="card">
-      <div class="small">Income (current)</div>
+      <div class="small">Income (current*)</div>
       <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
         <?= number_format((float)$sumDefault['income'], 2, ',', '.') ?>
       </div>
     </div>
     <div class="card">
-      <div class="small">Spending (current)</div>
+      <div class="small">Spending (current*)</div>
       <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
         <?= number_format((float)$sumDefault['spending'], 2, ',', '.') ?>
       </div>
     </div>
     <div class="card">
-      <div class="small">Income (exclude top-ups + include ledgers)</div>
+      <div class="small">Income (actuals*)</div>
       <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
         <?= number_format((float)$sumLedgerNoTopups['income'], 2, ',', '.') ?>
       </div>
     </div>
     <div class="card">
-      <div class="small">Spending (exclude top-ups + include ledgers)</div>
+      <div class="small">Spending (actuals*)</div>
       <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
         <?= number_format((float)$sumLedgerNoTopups['spending'], 2, ',', '.') ?>
       </div>
@@ -374,10 +374,10 @@ if ($chartCategory !== '') {
     <thead>
       <tr>
         <th>Category</th>
-        <th>Income (current)</th>
-        <th>Spending (current)</th>
-        <th>Income (exclude top-ups + include ledgers)</th>
-        <th>Spending (exclude top-ups + include ledgers)</th>
+        <th>Income (current*)</th>
+        <th>Spending (current*)</th>
+        <th>Income (actuals*)</th>
+        <th>Spending (actuals*)</th>
       </tr>
     </thead>
     <tbody>
@@ -400,6 +400,14 @@ if ($chartCategory !== '') {
       <?php endforeach; ?>
     </tbody>
   </table>
+</div>
+
+<div class="card">
+  <h2>Notes</h2>
+  <ul class="small" style="margin:0; padding-left:20px;">
+    <li><strong>Current*</strong>: uses the default transaction amounts as currently recorded.</li>
+    <li><strong>Actuals*</strong>: excludes top-ups and includes ledger adjustments.</li>
+  </ul>
 </div>
 
 <?php render_footer(); ?>
