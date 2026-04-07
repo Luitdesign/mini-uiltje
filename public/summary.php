@@ -204,26 +204,6 @@ if ($chartCategory !== '') {
     </div>
   </form>
 
-  <form method="get" action="/summary.php" class="row" style="margin-top:8px; align-items:center;">
-    <input type="hidden" name="year" value="<?= h((string)$year) ?>">
-    <input type="hidden" name="month" value="<?= h((string)$month) ?>">
-    <input type="hidden" name="start_date" value="<?= h($startDate) ?>">
-    <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
-    <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
-    <input type="hidden" name="chart_category" value="<?= h($chartCategory) ?>">
-    <input type="hidden" name="category_view" value="<?= $groupByParentCategory ? 'parent' : 'category' ?>">
-    <div style="display:flex; gap:12px; align-items:center;">
-      <span class="small">Amounts:</span>
-      <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
-        <input type="radio" name="amount_view" value="default" <?= !$useLedgerAmountsWithoutTopups ? 'checked' : '' ?> onchange="this.form.submit()">
-        Current
-      </label>
-      <label style="display:flex; gap:6px; align-items:center; color:var(--text); font-size:14px;">
-        <input type="radio" name="amount_view" value="ledger_no_topups" <?= $useLedgerAmountsWithoutTopups ? 'checked' : '' ?> onchange="this.form.submit()">
-        Exclude top-ups + include ledgers
-      </label>
-    </div>
-  </form>
 </div>
 
 <?php if ($showMonthlyCategoryBars): ?>
