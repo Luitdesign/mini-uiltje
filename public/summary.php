@@ -144,8 +144,6 @@ if ($chartCategory !== '') {
   <p class="small">
     <?= h($periodLabel) ?>: <strong><?= h($periodValue) ?></strong>
     &nbsp;|&nbsp;
-    Amount mode: <strong><?= $useLedgerAmountsWithoutTopups ? 'Actuals*' : 'Current*' ?></strong>
-    &nbsp;|&nbsp;
     <a href="/transactions.php?<?= h(http_build_query($linkParams)) ?>">View transactions</a>
   </p>
 
