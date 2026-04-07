@@ -713,8 +713,7 @@ function repo_period_summary(
     int $year,
     int $month,
     ?string $startDate = null,
-    ?string $endDate = null,
-    bool $applyLedgerRules = true
+    ?string $endDate = null
 ): array {
     $params = [':uid' => $userId];
     $whereDate = '';
@@ -735,10 +734,6 @@ function repo_period_summary(
         }
     }
 
-    $whereLedgerRules = $applyLedgerRules
-        ? ' AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)'
-        : '';
-
     $sql = "
         SELECT
             SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
@@ -749,7 +744,7 @@ function repo_period_summary(
           {$whereDate}
           AND is_split_active = 1
           AND is_internal_transfer = 0
-          {$whereLedgerRules}
+          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -768,8 +763,7 @@ function repo_period_breakdown_by_category(
     int $month,
     ?string $startDate = null,
     ?string $endDate = null,
-    bool $groupByParentCategory = false,
-    bool $applyLedgerRules = true
+    bool $groupByParentCategory = false
 ): array {
     $params = [':uid' => $userId];
     $whereDate = '';
@@ -793,9 +787,6 @@ function repo_period_breakdown_by_category(
     $categoryExpression = $groupByParentCategory
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
-    $whereLedgerRules = $applyLedgerRules
-        ? ' AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)'
-        : '';
 
     $sql = "
         SELECT
@@ -810,7 +801,7 @@ function repo_period_breakdown_by_category(
           {$whereDate}
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
-          {$whereLedgerRules}
+          AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
     ";
@@ -868,8 +859,7 @@ function repo_year_monthly_totals_for_category(
     int $userId,
     int $year,
     string $categoryName,
-    bool $groupByParentCategory = false,
-    bool $applyLedgerRules = true
+    bool $groupByParentCategory = false
 ): array {
     if ($year <= 0 || trim($categoryName) === '') {
         return [];
@@ -878,9 +868,6 @@ function repo_year_monthly_totals_for_category(
     $categoryExpression = $groupByParentCategory
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
-    $whereLedgerRules = $applyLedgerRules
-        ? ' AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)'
-        : '';
 
     $sql = "
         SELECT
@@ -895,7 +882,7 @@ function repo_year_monthly_totals_for_category(
           AND {$categoryExpression} = :category_name
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
-          {$whereLedgerRules}
+          AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)
         GROUP BY MONTH(t.txn_date)
         ORDER BY month_number ASC
     ";
@@ -927,8 +914,7 @@ function repo_period_monthly_totals_for_category(
     ?string $startDate,
     ?string $endDate,
     string $categoryName,
-    bool $groupByParentCategory = false,
-    bool $applyLedgerRules = true
+    bool $groupByParentCategory = false
 ): array {
     if (trim($categoryName) === '') {
         return [];
@@ -959,9 +945,6 @@ function repo_period_monthly_totals_for_category(
     $categoryExpression = $groupByParentCategory
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
-    $whereLedgerRules = $applyLedgerRules
-        ? ' AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)'
-        : '';
 
     $sql = "
         SELECT
@@ -977,7 +960,7 @@ function repo_period_monthly_totals_for_category(
           AND {$categoryExpression} = :category_name
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
-          {$whereLedgerRules}
+          AND (t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)
         GROUP BY YEAR(t.txn_date), MONTH(t.txn_date)
         ORDER BY year_number ASC, month_number ASC
     ";
