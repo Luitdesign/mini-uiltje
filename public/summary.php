@@ -150,7 +150,6 @@ if ($chartCategory !== '') {
     <div style="min-width:240px;">
       <label>&nbsp;</label>
       <label style="display:flex; gap:8px; align-items:center; color:var(--text); font-size:14px;">
-        <input type="hidden" name="include_ledger_rules" value="0">
         <input type="checkbox" name="include_ledger_rules" value="1" <?= $includeLedgerRules ? 'checked' : '' ?>>
         Apply ledger rules
       </label>
