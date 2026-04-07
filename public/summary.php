@@ -35,8 +35,11 @@ $periodValue = $allTime
 
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
-$sum = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd, $useLedgerAmountsWithoutTopups);
-$breakdown = repo_period_breakdown_by_category(
+$sumDefault = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd, false);
+$sumLedgerNoTopups = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd, true);
+$sum = $useLedgerAmountsWithoutTopups ? $sumLedgerNoTopups : $sumDefault;
+
+$breakdownDefault = repo_period_breakdown_by_category(
     $db,
     $userId,
     $year,
@@ -44,8 +47,35 @@ $breakdown = repo_period_breakdown_by_category(
     $rangeStart,
     $rangeEnd,
     $groupByParentCategory,
-    $useLedgerAmountsWithoutTopups
+    false
 );
+$breakdownLedgerNoTopups = repo_period_breakdown_by_category(
+    $db,
+    $userId,
+    $year,
+    $month,
+    $rangeStart,
+    $rangeEnd,
+    $groupByParentCategory,
+    true
+);
+$breakdown = $useLedgerAmountsWithoutTopups ? $breakdownLedgerNoTopups : $breakdownDefault;
+
+$breakdownDefaultByCategory = [];
+foreach ($breakdownDefault as $row) {
+    $breakdownDefaultByCategory[(string)$row['category']] = $row;
+}
+
+$breakdownLedgerNoTopupsByCategory = [];
+foreach ($breakdownLedgerNoTopups as $row) {
+    $breakdownLedgerNoTopupsByCategory[(string)$row['category']] = $row;
+}
+
+$allBreakdownCategories = array_values(array_unique(array_merge(
+    array_keys($breakdownDefaultByCategory),
+    array_keys($breakdownLedgerNoTopupsByCategory)
+)));
+sort($allBreakdownCategories, SORT_NATURAL | SORT_FLAG_CASE);
 
 $chartCategory = trim((string)($_GET['chart_category'] ?? ''));
 $monthlyCategoryTotals = [];
@@ -332,15 +362,27 @@ if ($chartCategory !== '') {
 <div class="card">
   <div class="grid-2">
     <div class="card">
-      <div class="small">Income</div>
+      <div class="small">Income (current)</div>
       <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
-        <?= number_format((float)$sum['income'], 2, ',', '.') ?>
+        <?= number_format((float)$sumDefault['income'], 2, ',', '.') ?>
       </div>
     </div>
     <div class="card">
-      <div class="small">Spending</div>
+      <div class="small">Spending (current)</div>
       <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
-        <?= number_format((float)$sum['spending'], 2, ',', '.') ?>
+        <?= number_format((float)$sumDefault['spending'], 2, ',', '.') ?>
+      </div>
+    </div>
+    <div class="card">
+      <div class="small">Income (exclude top-ups + include ledgers)</div>
+      <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
+        <?= number_format((float)$sumLedgerNoTopups['income'], 2, ',', '.') ?>
+      </div>
+    </div>
+    <div class="card">
+      <div class="small">Spending (exclude top-ups + include ledgers)</div>
+      <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
+        <?= number_format((float)$sumLedgerNoTopups['spending'], 2, ',', '.') ?>
       </div>
     </div>
   </div>
@@ -352,20 +394,28 @@ if ($chartCategory !== '') {
     <thead>
       <tr>
         <th>Category</th>
-        <th>Income</th>
-        <th>Spending</th>
+        <th>Income (current)</th>
+        <th>Spending (current)</th>
+        <th>Income (exclude top-ups + include ledgers)</th>
+        <th>Spending (exclude top-ups + include ledgers)</th>
       </tr>
     </thead>
     <tbody>
-      <?php if (empty($breakdown)): ?>
-        <tr><td colspan="3" class="small">No data.</td></tr>
+      <?php if (empty($allBreakdownCategories)): ?>
+        <tr><td colspan="5" class="small">No data.</td></tr>
       <?php endif; ?>
 
-      <?php foreach ($breakdown as $b): ?>
+      <?php foreach ($allBreakdownCategories as $category): ?>
+        <?php
+          $default = $breakdownDefaultByCategory[$category] ?? null;
+          $ledger = $breakdownLedgerNoTopupsByCategory[$category] ?? null;
+        ?>
         <tr>
-          <td><?= h((string)$b['category']) ?></td>
-          <td class="money money-pos"><?= number_format((float)$b['income'], 2, ',', '.') ?></td>
-          <td class="money money-neg"><?= number_format((float)$b['spending'], 2, ',', '.') ?></td>
+          <td><?= h($category) ?></td>
+          <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($ledger['spending'] ?? 0), 2, ',', '.') ?></td>
         </tr>
       <?php endforeach; ?>
     </tbody>
