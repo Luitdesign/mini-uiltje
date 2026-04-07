@@ -10,7 +10,6 @@ $startDate = trim((string)($_GET['start_date'] ?? ''));
 $endDate = trim((string)($_GET['end_date'] ?? ''));
 $categoryView = (string)($_GET['category_view'] ?? 'category');
 $groupByParentCategory = $categoryView === 'parent';
-$includeLedgerRules = (string)($_GET['include_ledger_rules'] ?? '1') !== '0';
 $allTime = (string)($_GET['all_time'] ?? '') === '1';
 $hasDateRange = $startDate !== '' || $endDate !== '';
 if ($allTime) {
@@ -34,7 +33,7 @@ $periodValue = $allTime
 
 $rangeStart = $startDate !== '' ? $startDate : null;
 $rangeEnd = $endDate !== '' ? $endDate : null;
-$sum = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd, $includeLedgerRules);
+$sum = repo_period_summary($db, $userId, $year, $month, $rangeStart, $rangeEnd);
 $breakdown = repo_period_breakdown_by_category(
     $db,
     $userId,
@@ -42,8 +41,7 @@ $breakdown = repo_period_breakdown_by_category(
     $month,
     $rangeStart,
     $rangeEnd,
-    $groupByParentCategory,
-    $includeLedgerRules
+    $groupByParentCategory
 );
 
 $chartCategory = trim((string)($_GET['chart_category'] ?? ''));
@@ -65,8 +63,7 @@ if ($showMonthlyCategoryBars) {
                 $userId,
                 $year,
                 $chartCategory,
-                $groupByParentCategory,
-                $includeLedgerRules
+                $groupByParentCategory
             );
         } else {
             $monthlyCategoryTotals = repo_period_monthly_totals_for_category(
@@ -77,8 +74,7 @@ if ($showMonthlyCategoryBars) {
                 $rangeStart,
                 $rangeEnd,
                 $chartCategory,
-                $groupByParentCategory,
-                $includeLedgerRules
+                $groupByParentCategory
             );
         }
     }
@@ -102,7 +98,6 @@ if ($endDate !== '') {
     $linkParams['end_date'] = $endDate;
 }
 $linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
-$linkParams['include_ledger_rules'] = $includeLedgerRules ? 1 : 0;
 if ($chartCategory !== '') {
     $linkParams['chart_category'] = $chartCategory;
 }
@@ -114,8 +109,6 @@ if ($chartCategory !== '') {
     <?= h($periodLabel) ?>: <strong><?= h($periodValue) ?></strong>
     &nbsp;|&nbsp;
     <a href="/transactions.php?<?= h(http_build_query($linkParams)) ?>">View transactions</a>
-    &nbsp;|&nbsp;
-    <?= $includeLedgerRules ? 'Including ledger rules (virtual expenses hidden)' : 'Without ledger rules (real expenses)' ?>
   </p>
 
   <form method="get" action="/summary.php" class="row" style="align-items:flex-end;">
@@ -147,13 +140,6 @@ if ($chartCategory !== '') {
         All time
       </label>
     </div>
-    <div style="min-width:240px;">
-      <label>&nbsp;</label>
-      <label style="display:flex; gap:8px; align-items:center; color:var(--text); font-size:14px;">
-        <input type="checkbox" name="include_ledger_rules" value="1" <?= $includeLedgerRules ? 'checked' : '' ?>>
-        Apply ledger rules
-      </label>
-    </div>
     <div>
       <button class="btn" type="submit">Apply</button>
     </div>
@@ -165,7 +151,6 @@ if ($chartCategory !== '') {
     <input type="hidden" name="start_date" value="<?= h($startDate) ?>">
     <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
     <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
-    <input type="hidden" name="include_ledger_rules" value="<?= $includeLedgerRules ? '1' : '0' ?>">
     <input type="hidden" name="chart_category" value="<?= h($chartCategory) ?>">
     <div style="display:flex; gap:12px; align-items:center;">
       <span class="small">Group by:</span>
@@ -191,7 +176,6 @@ if ($chartCategory !== '') {
       <input type="hidden" name="start_date" value="<?= h($startDate) ?>">
       <input type="hidden" name="end_date" value="<?= h($endDate) ?>">
       <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
-      <input type="hidden" name="include_ledger_rules" value="<?= $includeLedgerRules ? '1' : '0' ?>">
       <input type="hidden" name="category_view" value="<?= $groupByParentCategory ? 'parent' : 'category' ?>">
       <div style="min-width:280px;">
         <label>Category for chart</label>
