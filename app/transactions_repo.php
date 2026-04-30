@@ -884,7 +884,7 @@ function repo_period_breakdown_by_tag(
 
     $sql = "
         SELECT
-            COALESCE(NULLIF(TRIM(t.tag), ''), 'No tag') AS tag,
+            t.tag AS raw_tag,
             SUM(CASE WHEN {$incomeCondition} THEN t.amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
             SUM(t.amount_signed) AS net
@@ -894,12 +894,40 @@ function repo_period_breakdown_by_tag(
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
           AND {$rowFilter}
-        GROUP BY tag
-        ORDER BY spending DESC, income DESC, tag ASC
+        GROUP BY raw_tag
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    return $stmt->fetchAll();
+    $rows = $stmt->fetchAll();
+    $breakdown = [];
+    foreach ($rows as $row) {
+        $tags = array_values(array_filter(array_map(
+            static fn(string $tag): string => trim($tag),
+            explode(',', (string)($row['raw_tag'] ?? ''))
+        ), static fn(string $tag): bool => $tag !== ''));
+        if ($tags === []) {
+            $tags = ['No tag'];
+        }
+        foreach ($tags as $tag) {
+            if (!isset($breakdown[$tag])) {
+                $breakdown[$tag] = [
+                    'tag' => $tag,
+                    'income' => 0.0,
+                    'spending' => 0.0,
+                    'net' => 0.0,
+                ];
+            }
+            $breakdown[$tag]['income'] += (float)$row['income'];
+            $breakdown[$tag]['spending'] += (float)$row['spending'];
+            $breakdown[$tag]['net'] += (float)$row['net'];
+        }
+    }
+    usort($breakdown, static function (array $a, array $b): int {
+        return ($b['spending'] <=> $a['spending'])
+            ?: ($b['income'] <=> $a['income'])
+            ?: strcmp((string)$a['tag'], (string)$b['tag']);
+    });
+    return array_values($breakdown);
 }
 
 function repo_period_paid_from_savings_total(
