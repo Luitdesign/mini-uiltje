@@ -23,6 +23,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $txnId = (int)($_POST['transaction_id'] ?? 0);
         if ($txnId > 0) {
             $stmt = $db->prepare(
+                "SELECT COALESCE(category_id, category_auto_id) AS resolved_category_id
+                 FROM transactions
+                 WHERE id = :id AND user_id = :uid
+                 LIMIT 1"
+            );
+            $stmt->execute([
+                ':id' => $txnId,
+                ':uid' => $userId,
+            ]);
+            $resolvedCategoryId = (int)($stmt->fetchColumn() ?: 0);
+
+            $stmt = $db->prepare(
                 "UPDATE transactions
                  SET approved = 1,
                      category_id = COALESCE(category_id, category_auto_id)
@@ -32,6 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':id' => $txnId,
                 ':uid' => $userId,
             ]);
+
+            if ($resolvedCategoryId > 0) {
+                $category = repo_get_category($db, $resolvedCategoryId);
+                $ledgerSavingsId = $category ? (int)($category['savings_id'] ?? 0) : 0;
+                repo_set_transaction_ledger($db, $userId, $txnId, $ledgerSavingsId > 0 ? $ledgerSavingsId : null);
+            } else {
+                repo_set_transaction_ledger($db, $userId, $txnId, null);
+            }
         }
     }
 
@@ -50,6 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':id' => $txnId,
                 ':uid' => $userId,
             ]);
+
+            $category = repo_get_category($db, $categoryId);
+            $ledgerSavingsId = $category ? (int)($category['savings_id'] ?? 0) : 0;
+            repo_set_transaction_ledger($db, $userId, $txnId, $ledgerSavingsId > 0 ? $ledgerSavingsId : null);
         }
     }
 
