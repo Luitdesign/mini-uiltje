@@ -77,6 +77,22 @@ $allBreakdownCategories = array_values(array_unique(array_merge(
 )));
 sort($allBreakdownCategories, SORT_NATURAL | SORT_FLAG_CASE);
 
+$tagBreakdownDefault = repo_period_breakdown_by_tag($db, $userId, $year, $month, $rangeStart, $rangeEnd, false);
+$tagBreakdownLedgerNoTopups = repo_period_breakdown_by_tag($db, $userId, $year, $month, $rangeStart, $rangeEnd, true);
+$tagBreakdownDefaultByTag = [];
+foreach ($tagBreakdownDefault as $row) {
+    $tagBreakdownDefaultByTag[(string)$row['tag']] = $row;
+}
+$tagBreakdownLedgerNoTopupsByTag = [];
+foreach ($tagBreakdownLedgerNoTopups as $row) {
+    $tagBreakdownLedgerNoTopupsByTag[(string)$row['tag']] = $row;
+}
+$allBreakdownTags = array_values(array_unique(array_merge(
+    array_keys($tagBreakdownDefaultByTag),
+    array_keys($tagBreakdownLedgerNoTopupsByTag)
+)));
+sort($allBreakdownTags, SORT_NATURAL | SORT_FLAG_CASE);
+
 $chartCategory = trim((string)($_GET['chart_category'] ?? ''));
 $monthlyCategoryTotals = [];
 $chartCategoryOptions = [];
@@ -390,6 +406,41 @@ if ($chartCategory !== '') {
         ?>
         <tr>
           <td><?= h($category) ?></td>
+          <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($ledger['spending'] ?? 0), 2, ',', '.') ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>
+
+
+<div class="card">
+  <h2>By tag</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Tag</th>
+        <th>Income (current*)</th>
+        <th>Spending (current*)</th>
+        <th>Income (actuals*)</th>
+        <th>Spending (actuals*)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (empty($allBreakdownTags)): ?>
+        <tr><td colspan="5" class="small">No data.</td></tr>
+      <?php endif; ?>
+
+      <?php foreach ($allBreakdownTags as $tag): ?>
+        <?php
+          $default = $tagBreakdownDefaultByTag[$tag] ?? null;
+          $ledger = $tagBreakdownLedgerNoTopupsByTag[$tag] ?? null;
+        ?>
+        <tr>
+          <td><?= h($tag) ?></td>
           <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
           <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
           <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>

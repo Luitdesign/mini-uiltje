@@ -826,6 +826,62 @@ function repo_period_breakdown_by_category(
     return $stmt->fetchAll();
 }
 
+
+function repo_period_breakdown_by_tag(
+    PDO $db,
+    int $userId,
+    int $year,
+    int $month,
+    ?string $startDate = null,
+    ?string $endDate = null,
+    bool $excludeTopupsIncludeLedgers = false
+): array {
+    $params = [':uid' => $userId];
+    $whereDate = '';
+    if ($startDate !== null) {
+        $whereDate .= ' AND t.txn_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+    if ($endDate !== null) {
+        $whereDate .= ' AND t.txn_date <= :end_date';
+        $params[':end_date'] = $endDate;
+    }
+    if ($startDate === null && $endDate === null && $year > 0) {
+        $whereDate .= ' AND YEAR(t.txn_date) = :y';
+        $params[':y'] = $year;
+        if ($month > 0) {
+            $whereDate .= ' AND MONTH(t.txn_date) = :m';
+            $params[':m'] = $month;
+        }
+    }
+
+    $incomeCondition = $excludeTopupsIncludeLedgers
+        ? 't.amount_signed > 0'
+        : 't.amount_signed > 0 AND t.savings_id IS NULL';
+    $rowFilter = $excludeTopupsIncludeLedgers
+        ? 't.is_topup = 0'
+        : '(t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)';
+
+    $sql = "
+        SELECT
+            COALESCE(NULLIF(TRIM(t.tag), ''), 'No tag') AS tag,
+            SUM(CASE WHEN {$incomeCondition} THEN t.amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
+            SUM(t.amount_signed) AS net
+        FROM transactions t
+        WHERE t.user_id = :uid
+          {$whereDate}
+          AND t.is_split_active = 1
+          AND t.is_internal_transfer = 0
+          AND {$rowFilter}
+        GROUP BY tag
+        ORDER BY spending DESC, income DESC, tag ASC
+    ";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
 function repo_period_paid_from_savings_total(
     PDO $db,
     int $userId,
