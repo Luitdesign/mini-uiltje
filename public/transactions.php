@@ -80,6 +80,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             repo_update_transaction_friendly_name($db, $userId, $txnId, $friendlyName);
         }
     }
+    $saveTagsId = (int)($_POST['save_tags_id'] ?? 0);
+    if ($saveTagsId > 0) {
+        $savedFlag = true;
+        $tagsById = $_POST['tags'] ?? [];
+        if (is_array($tagsById)) {
+            $tagsRaw = (string)($tagsById[$saveTagsId] ?? '');
+            repo_update_transaction_tags($db, $userId, $saveTagsId, $tagsRaw);
+        }
+    }
     if ($action === 'rerun_auto') {
         if ($isYearView || $hasDateRange) {
             $error = 'Auto categorie opnieuw toepassen kan alleen voor een enkele maand.';
@@ -470,7 +479,7 @@ function render_transactions_table(
                         <div class="small"><?= h(safe_strimwidth((string)$t['notes'], 0, 140, '…')) ?></div>
                       <?php endif; ?>
                     </button>
-                    <div class="txn-friendly-actions">
+                  <div class="txn-friendly-actions">
                       <button type="button" class="txn-edit-link js-friendly-edit-toggle">Edit</button>
                       <?php if (!empty($t['parent_transaction_id'])): ?>
                         <?php $restoreFormId = 'restore-split-form-' . (int)$t['id']; ?>
@@ -483,6 +492,14 @@ function render_transactions_table(
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                       <?php endif; ?>
                     </div>
+                    <?php if (!empty($t['tag'])): ?>
+                      <div class="small" style="margin-top: 6px;">
+                        <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
+                          <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
+                          <span class="badge"><?= h($tagLabel) ?></span>
+                        <?php endforeach; ?>
+                      </div>
+                    <?php endif; ?>
                   <?php else: ?>
                     <div class="txn-flags">
                       <strong><?= h($t['description']) ?></strong>
@@ -518,13 +535,24 @@ function render_transactions_table(
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                       <?php endif; ?>
                     </div>
+                    <?php if (!empty($t['tag'])): ?>
+                      <div class="small" style="margin-top: 6px;">
+                        <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
+                          <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
+                          <span class="badge"><?= h($tagLabel) ?></span>
+                        <?php endforeach; ?>
+                      </div>
+                    <?php endif; ?>
                   <?php endif; ?>
                 </div>
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
                   <label class="small" style="margin-bottom: 6px;">Friendly name</label>
                   <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
+                  <label class="small" style="margin: 10px 0 6px;">Tags (comma separated)</label>
+                  <input class="input" name="tags[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['tag'] ?? '')) ?>" placeholder="groceries, recurring, tax">
                   <div class="row" style="margin-top: 8px; gap: 8px;">
                     <button class="btn js-friendly-save" type="submit" name="action" value="update_friendly_name" data-friendly-id="<?= (int)$t['id'] ?>">Save name</button>
+                    <button class="btn" type="submit" name="save_tags_id" value="<?= (int)$t['id'] ?>">Save tags</button>
                     <button class="btn js-friendly-cancel" type="button">Cancel</button>
                   </div>
                 </div>

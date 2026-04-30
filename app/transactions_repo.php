@@ -430,6 +430,26 @@ function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId,
     ]);
 }
 
+function repo_update_transaction_tags(PDO $db, int $userId, int $txnId, string $tagsRaw): void {
+    $tags = array_filter(array_map(
+        static fn(string $tag): string => trim($tag),
+        explode(',', $tagsRaw)
+    ), static fn(string $tag): bool => $tag !== '');
+    $tags = array_values(array_unique($tags));
+    $normalized = $tags === [] ? null : implode(', ', $tags);
+
+    $stmt = $db->prepare(
+        "UPDATE transactions
+         SET tag = :tag
+         WHERE id = :id AND user_id = :uid"
+    );
+    $stmt->execute([
+        ':tag' => $normalized,
+        ':id' => $txnId,
+        ':uid' => $userId,
+    ]);
+}
+
 function repo_get_transaction(PDO $db, int $userId, int $txnId): ?array {
     if ($txnId <= 0) {
         return null;
