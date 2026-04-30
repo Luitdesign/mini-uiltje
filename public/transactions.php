@@ -372,6 +372,7 @@ function render_transactions_table(
         <col style="width: 240px;">
         <col style="width: 130px;">
         <col style="width: 120px;">
+        <col style="width: 200px;">
       </colgroup>
       <thead>
         <tr>
@@ -383,11 +384,12 @@ function render_transactions_table(
           <th data-col="category">Category</th>
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
+          <th data-col="tags">Tags</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($txns)): ?>
-          <tr><td colspan="8" class="small"><?= h($emptyMessage) ?></td></tr>
+          <tr><td colspan="9" class="small"><?= h($emptyMessage) ?></td></tr>
         <?php endif; ?>
 
         <?php foreach ($txns as $t):
@@ -562,20 +564,24 @@ function render_transactions_table(
             </td>
             <td data-col="direction" class="small">
               <div><?= h((string)($t['direction'] ?? '')) ?></div>
+            </td>
+            <td data-col="tags" class="small">
               <?php if (!empty($t['tag'])): ?>
-                <div style="margin-top: 6px;">
+                <div>
                   <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
                     <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
                     <span class="badge"><?= h($tagLabel) ?></span>
                   <?php endforeach; ?>
                 </div>
+              <?php else: ?>
+                <span class="small muted">—</span>
               <?php endif; ?>
             </td>
           </tr>
           <?php if (empty($t['parent_transaction_id'])): ?>
             <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
             <tr class="txn-split-row" data-split-row="split-details-<?= (int)$t['id'] ?>" hidden>
-              <td colspan="8">
+              <td colspan="9">
                 <div
                   class="txn-split"
                   id="split-details-<?= (int)$t['id'] ?>"
@@ -869,6 +875,7 @@ render_header('Transactions', 'transactions');
       <label><input class="js-column-toggle" type="checkbox" data-column="category" checked> Category</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="type" checked> Type</label>
       <label><input class="js-column-toggle" type="checkbox" data-column="direction" checked> Direction</label>
+      <label><input class="js-column-toggle" type="checkbox" data-column="tags" checked> Tags</label>
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
     </div>
 
