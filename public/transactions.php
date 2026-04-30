@@ -492,14 +492,6 @@ function render_transactions_table(
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                       <?php endif; ?>
                     </div>
-                    <?php if (!empty($t['tag'])): ?>
-                      <div class="small" style="margin-top: 6px;">
-                        <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
-                          <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
-                          <span class="badge"><?= h($tagLabel) ?></span>
-                        <?php endforeach; ?>
-                      </div>
-                    <?php endif; ?>
                   <?php else: ?>
                     <div class="txn-flags">
                       <strong><?= h($t['description']) ?></strong>
@@ -535,14 +527,6 @@ function render_transactions_table(
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                       <?php endif; ?>
                     </div>
-                    <?php if (!empty($t['tag'])): ?>
-                      <div class="small" style="margin-top: 6px;">
-                        <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
-                          <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
-                          <span class="badge"><?= h($tagLabel) ?></span>
-                        <?php endforeach; ?>
-                      </div>
-                    <?php endif; ?>
                   <?php endif; ?>
                 </div>
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
@@ -577,7 +561,15 @@ function render_transactions_table(
               <span class="badge"><?= h((string)($t['mutation_type'] ?? '')) ?></span>
             </td>
             <td data-col="direction" class="small">
-              <?= h((string)($t['direction'] ?? '')) ?>
+              <div><?= h((string)($t['direction'] ?? '')) ?></div>
+              <?php if (!empty($t['tag'])): ?>
+                <div style="margin-top: 6px;">
+                  <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
+                    <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
+                    <span class="badge"><?= h($tagLabel) ?></span>
+                  <?php endforeach; ?>
+                </div>
+              <?php endif; ?>
             </td>
           </tr>
           <?php if (empty($t['parent_transaction_id'])): ?>
