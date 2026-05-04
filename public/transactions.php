@@ -377,7 +377,6 @@ function render_transactions_table(
     ?>
     <table class="table txn-table">
       <colgroup>
-        <col style="width: 48px;">
         <col style="width: 120px;">
         <col style="width: 70%;">
         <col style="width: 120px;">
@@ -390,7 +389,6 @@ function render_transactions_table(
       </colgroup>
       <thead>
         <tr>
-          <th data-col="select"><input type="checkbox" class="js-select-all-transactions" aria-label="Select all transactions"></th>
           <th data-col="date" style="min-width: 110px; white-space: nowrap;">Date</th>
           <th data-col="description">Description</th>
           <th data-col="amount">Amount</th>
@@ -404,7 +402,7 @@ function render_transactions_table(
       </thead>
       <tbody>
         <?php if (empty($txns)): ?>
-          <tr><td colspan="10" class="small"><?= h($emptyMessage) ?></td></tr>
+          <tr><td colspan="9" class="small"><?= h($emptyMessage) ?></td></tr>
         <?php endif; ?>
 
         <?php foreach ($txns as $t):
@@ -434,9 +432,6 @@ function render_transactions_table(
           $rowClass = $rowClasses ? ' class="' . implode(' ', $rowClasses) . '"' : '';
         ?>
           <tr<?= $rowClass ?><?= $rowStyle ?>>
-            <td data-col="select">
-              <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
-            </td>
             <td data-col="date" style="min-width: 110px; white-space: nowrap;"><?= h($t['txn_date']) ?></td>
             <td data-col="description">
               <?php $hasFriendly = !empty($t['friendly_name']); ?>
@@ -581,6 +576,12 @@ function render_transactions_table(
               <div><?= h((string)($t['direction'] ?? '')) ?></div>
             </td>
             <td data-col="tags" class="small">
+              <div style="margin-bottom: 8px;">
+                <label style="display: inline-flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
+                  <span class="small muted">Select</span>
+                </label>
+              </div>
               <div class="js-tag-display">
                 <?php if (!empty($t['tag'])): ?>
                   <div>
@@ -616,7 +617,7 @@ function render_transactions_table(
           <?php if (empty($t['parent_transaction_id'])): ?>
             <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
             <tr class="txn-split-row" data-split-row="split-details-<?= (int)$t['id'] ?>" hidden>
-              <td colspan="10">
+              <td colspan="9">
                 <div
                   class="txn-split"
                   id="split-details-<?= (int)$t['id'] ?>"
@@ -900,18 +901,19 @@ render_header('Transactions', 'transactions');
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="friendly_name_id" id="js-friendly-name-id" value="">
 
-    <div class="card" style="margin-bottom: 12px;">
-      <div class="row" style="align-items: flex-end; gap: 10px; flex-wrap: wrap;">
+    <details class="card" style="margin-bottom: 12px;" open>
+      <summary style="cursor: pointer;"><strong>Bulk tags for selected transactions</strong></summary>
+      <div class="row" style="align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
         <div style="min-width: 320px; flex: 1;">
-          <label>Bulk tags for selected transactions</label>
+          <label>Tags to apply</label>
           <input class="input" type="text" name="bulk_tags" placeholder="groceries, recurring, tax">
         </div>
         <div>
           <button class="btn" type="submit" name="action" value="bulk_update_tags">Apply tags to selected</button>
         </div>
       </div>
-      <div class="small muted" style="margin-top: 6px;">Select transactions via the checkbox column, then apply tags in one go.</div>
-    </div>
+      <div class="small muted" style="margin-top: 6px;">Select transactions in the Tags column, then apply tags in one go.</div>
+    </details>
 
     <div class="row small" style="align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
       <span><strong>Visible columns:</strong></span>
