@@ -534,18 +534,8 @@ function render_transactions_table(
                 <div class="txn-friendly-editor js-friendly-editor" hidden>
                   <label class="small" style="margin-bottom: 6px;">Friendly name</label>
                   <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
-                  <label class="small" style="margin: 10px 0 6px;">Tags (comma separated)</label>
-                  <div class="js-tag-input">
-                    <input type="hidden" class="js-tag-hidden" name="tags[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['tag'] ?? '')) ?>">
-                    <div class="tag-input">
-                      <div class="js-tag-chips"></div>
-                      <input class="js-tag-text" type="text" placeholder="groceries, recurring, tax">
-                    </div>
-                    <div class="js-tag-suggestions" hidden></div>
-                  </div>
                   <div class="row" style="margin-top: 8px; gap: 8px;">
                     <button class="btn js-friendly-save" type="submit" name="action" value="update_friendly_name" data-friendly-id="<?= (int)$t['id'] ?>">Save name</button>
-                    <button class="btn" type="submit" name="save_tags_id" value="<?= (int)$t['id'] ?>">Save tags</button>
                     <button class="btn js-friendly-cancel" type="button">Cancel</button>
                   </div>
                 </div>
@@ -573,16 +563,36 @@ function render_transactions_table(
               <div><?= h((string)($t['direction'] ?? '')) ?></div>
             </td>
             <td data-col="tags" class="small">
-              <?php if (!empty($t['tag'])): ?>
-                <div>
-                  <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
-                    <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
-                    <span class="badge"><?= h($tagLabel) ?></span>
-                  <?php endforeach; ?>
+              <div class="js-tag-display">
+                <?php if (!empty($t['tag'])): ?>
+                  <div>
+                    <?php foreach (explode(',', (string)$t['tag']) as $rawTag): ?>
+                      <?php $tagLabel = trim($rawTag); if ($tagLabel === '') { continue; } ?>
+                      <span class="badge"><?= h($tagLabel) ?></span>
+                    <?php endforeach; ?>
+                  </div>
+                <?php else: ?>
+                  <span class="small muted">—</span>
+                <?php endif; ?>
+                <div style="margin-top: 6px;">
+                  <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit</button>
                 </div>
-              <?php else: ?>
-                <span class="small muted">—</span>
-              <?php endif; ?>
+              </div>
+              <div class="js-tag-editor" hidden>
+                <label class="small" style="margin: 0 0 6px;">Tags (comma separated)</label>
+                <div class="js-tag-input">
+                  <input type="hidden" class="js-tag-hidden" name="tags[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['tag'] ?? '')) ?>">
+                  <div class="tag-input">
+                    <div class="js-tag-chips"></div>
+                    <input class="js-tag-text" type="text" placeholder="groceries, recurring, tax">
+                  </div>
+                  <div class="js-tag-suggestions" hidden></div>
+                </div>
+                <div class="row" style="margin-top: 8px; gap: 8px;">
+                  <button class="btn" type="submit" name="save_tags_id" value="<?= (int)$t['id'] ?>">Save tags</button>
+                  <button class="btn js-tag-cancel" type="button">Cancel</button>
+                </div>
+              </div>
             </td>
           </tr>
           <?php if (empty($t['parent_transaction_id'])): ?>
@@ -1117,6 +1127,39 @@ render_header('Transactions', 'transactions');
           if (txnId) {
             friendlyIdInput.value = txnId;
           }
+        });
+      }
+    });
+
+    const tagEditToggles = Array.from(document.querySelectorAll('.js-tag-edit-toggle'));
+    tagEditToggles.forEach((toggle) => {
+      const cell = toggle.closest('td');
+      if (!cell) {
+        return;
+      }
+      const display = cell.querySelector('.js-tag-display');
+      const editor = cell.querySelector('.js-tag-editor');
+      const cancel = cell.querySelector('.js-tag-cancel');
+      const input = cell.querySelector('.js-tag-text');
+
+      toggle.addEventListener('click', () => {
+        if (!display || !editor) {
+          return;
+        }
+        display.hidden = true;
+        editor.hidden = false;
+        if (input) {
+          input.focus();
+        }
+      });
+
+      if (cancel) {
+        cancel.addEventListener('click', () => {
+          if (!display || !editor) {
+            return;
+          }
+          editor.hidden = true;
+          display.hidden = false;
         });
       }
     });
