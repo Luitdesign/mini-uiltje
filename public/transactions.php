@@ -1008,7 +1008,31 @@ render_header('Transactions', 'transactions');
     };
 
     let rowColorMode = rowColorModes[0];
-    const savedRowColors = window.localStorage.getItem(rowColorStorageKey);
+    const storageRead = (key) => {
+      try {
+        return window.localStorage.getItem(key);
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const storageWrite = (key, value) => {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch (error) {
+        // Ignore storage errors (private mode / disabled storage).
+      }
+    };
+
+    const storageRemove = (key) => {
+      try {
+        window.localStorage.removeItem(key);
+      } catch (error) {
+        // Ignore storage errors (private mode / disabled storage).
+      }
+    };
+
+    const savedRowColors = storageRead(rowColorStorageKey);
     if (savedRowColors && rowColorModes.includes(savedRowColors)) {
       rowColorMode = savedRowColors;
     }
@@ -1022,7 +1046,7 @@ render_header('Transactions', 'transactions');
       });
     };
 
-    const saved = window.localStorage.getItem(storageKey);
+    const saved = storageRead(storageKey);
     if (saved) {
       try {
         const visibleColumns = JSON.parse(saved);
@@ -1033,7 +1057,7 @@ render_header('Transactions', 'transactions');
           }
         });
       } catch (error) {
-        window.localStorage.removeItem(storageKey);
+        storageRemove(storageKey);
       }
     }
 
@@ -1042,7 +1066,7 @@ render_header('Transactions', 'transactions');
       toggles.forEach((toggle) => {
         state[toggle.dataset.column] = toggle.checked;
       });
-      window.localStorage.setItem(storageKey, JSON.stringify(state));
+      storageWrite(storageKey, JSON.stringify(state));
     };
 
     if (rowColorToggle) {
@@ -1050,7 +1074,7 @@ render_header('Transactions', 'transactions');
         const currentIndex = rowColorModes.indexOf(rowColorMode);
         rowColorMode = rowColorModes[(currentIndex + 1) % rowColorModes.length];
         applyRowColorMode(rowColorMode);
-        window.localStorage.setItem(rowColorStorageKey, rowColorMode);
+        storageWrite(rowColorStorageKey, rowColorMode);
       });
     }
 
