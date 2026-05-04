@@ -1041,7 +1041,7 @@ render_header('Transactions', 'transactions');
     const applyVisibility = (column, isVisible) => {
       tables.forEach((table) => {
         table.querySelectorAll(`[data-col="${column}"]`).forEach((cell) => {
-          cell.style.display = isVisible ? '' : 'none';
+          cell.hidden = !isVisible;
         });
       });
     };
