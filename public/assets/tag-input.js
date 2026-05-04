@@ -13,6 +13,12 @@
     let suggestions = [];
     let activeIndex = -1;
 
+    function commitPendingInput() {
+      if (input.value.trim()) {
+        addTag(input.value);
+      }
+    }
+
     function syncHidden() { hidden.value = selected.join(', '); }
     function renderChips() {
       chips.innerHTML = '';
@@ -65,6 +71,13 @@
       }
     });
     let timer = null;
+
+    const form = root.closest('form');
+    if (form) {
+      form.addEventListener('submit', function () {
+        commitPendingInput();
+      });
+    }
     input.addEventListener('input', function () {
       clearTimeout(timer); const q=input.value.trim(); if (!q) { closeList(); return; }
       timer = setTimeout(function () {
