@@ -220,9 +220,114 @@ if ($chartCategory !== '') {
 
 </div>
 
+
+<div class="card">
+  <div class="grid-2">
+    <div class="card">
+      <div class="small">Income (current*)</div>
+      <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
+        <?= number_format((float)$sumDefault['income'], 2, ',', '.') ?>
+      </div>
+    </div>
+    <div class="card">
+      <div class="small">Spending (current*)</div>
+      <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
+        <?= number_format((float)$sumDefault['spending'], 2, ',', '.') ?>
+      </div>
+    </div>
+    <div class="card">
+      <div class="small">Income (actuals*)</div>
+      <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
+        <?= number_format((float)$sumLedgerNoTopups['income'], 2, ',', '.') ?>
+      </div>
+    </div>
+    <div class="card">
+      <div class="small">Spending (actuals*)</div>
+      <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
+        <?= number_format((float)$sumLedgerNoTopups['spending'], 2, ',', '.') ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<details class="card" open>
+  <summary><strong>By <?= $groupByParentCategory ? 'parent category' : 'category' ?></strong></summary>
+  <div style="margin-top:12px;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Income (current*)</th>
+        <th>Spending (current*)</th>
+        <th>Income (actuals*)</th>
+        <th>Spending (actuals*)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (empty($allBreakdownCategories)): ?>
+        <tr><td colspan="5" class="small">No data.</td></tr>
+      <?php endif; ?>
+
+      <?php foreach ($allBreakdownCategories as $category): ?>
+        <?php
+          $default = $breakdownDefaultByCategory[$category] ?? null;
+          $ledger = $breakdownLedgerNoTopupsByCategory[$category] ?? null;
+        ?>
+        <tr>
+          <td><?= h($category) ?></td>
+          <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($ledger['spending'] ?? 0), 2, ',', '.') ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+  </div>
+</details>
+
+
+<details class="card" open>
+  <summary><strong>By tag</strong></summary>
+  <div style="margin-top:12px;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Tag</th>
+        <th>Income (current*)</th>
+        <th>Spending (current*)</th>
+        <th>Income (actuals*)</th>
+        <th>Spending (actuals*)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (empty($allBreakdownTags)): ?>
+        <tr><td colspan="5" class="small">No data.</td></tr>
+      <?php endif; ?>
+
+      <?php foreach ($allBreakdownTags as $tag): ?>
+        <?php
+          $default = $tagBreakdownDefaultByTag[$tag] ?? null;
+          $ledger = $tagBreakdownLedgerNoTopupsByTag[$tag] ?? null;
+        ?>
+        <tr>
+          <td><?= h($tag) ?></td>
+          <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
+          <td class="money money-neg"><?= number_format((float)($ledger['spending'] ?? 0), 2, ',', '.') ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+  </div>
+</details>
+
+
 <?php if ($showMonthlyCategoryBars): ?>
-  <div class="card">
-    <h2>Monthly bars by <?= $groupByParentCategory ? 'parent category' : 'category' ?></h2>
+  <details class="card" open>
+    <summary><strong>Monthly bars by <?= $groupByParentCategory ? 'parent category' : 'category' ?></strong></summary>
+    <div style="margin-top:12px;">
 
     <form method="get" action="/summary.php" class="row" style="align-items:flex-end; margin-bottom:12px;">
       <input type="hidden" name="year" value="<?= h((string)$year) ?>">
@@ -328,7 +433,7 @@ if ($chartCategory !== '') {
       </svg>
       <p class="small" style="margin-top:8px;">Green bar = income above the baseline, red bar = spending below the baseline for the same month.</p>
 
-      <details style="margin-top:16px;">
+      <details open style="margin-top:16px;">
         <summary style="cursor:pointer; user-select:none;"><?= h($chartCategory) ?> by month</summary>
         <table class="table" style="margin-top:10px;">
           <thead>
@@ -350,110 +455,9 @@ if ($chartCategory !== '') {
         </table>
       </details>
     <?php endif; ?>
-  </div>
+    </div>
+  </details>
 <?php endif; ?>
-
-<div class="card">
-  <div class="grid-2">
-    <div class="card">
-      <div class="small">Income (current*)</div>
-      <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
-        <?= number_format((float)$sumDefault['income'], 2, ',', '.') ?>
-      </div>
-    </div>
-    <div class="card">
-      <div class="small">Spending (current*)</div>
-      <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
-        <?= number_format((float)$sumDefault['spending'], 2, ',', '.') ?>
-      </div>
-    </div>
-    <div class="card">
-      <div class="small">Income (actuals*)</div>
-      <div class="money money-pos" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
-        <?= number_format((float)$sumLedgerNoTopups['income'], 2, ',', '.') ?>
-      </div>
-    </div>
-    <div class="card">
-      <div class="small">Spending (actuals*)</div>
-      <div class="money money-neg" style="font-size: 26px; font-weight: 700; margin-top: 6px;">
-        <?= number_format((float)$sumLedgerNoTopups['spending'], 2, ',', '.') ?>
-      </div>
-    </div>
-  </div>
-</div>
-
-<details class="card">
-  <summary><strong>By <?= $groupByParentCategory ? 'parent category' : 'category' ?></strong></summary>
-  <div style="margin-top:12px;">
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Category</th>
-        <th>Income (current*)</th>
-        <th>Spending (current*)</th>
-        <th>Income (actuals*)</th>
-        <th>Spending (actuals*)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php if (empty($allBreakdownCategories)): ?>
-        <tr><td colspan="5" class="small">No data.</td></tr>
-      <?php endif; ?>
-
-      <?php foreach ($allBreakdownCategories as $category): ?>
-        <?php
-          $default = $breakdownDefaultByCategory[$category] ?? null;
-          $ledger = $breakdownLedgerNoTopupsByCategory[$category] ?? null;
-        ?>
-        <tr>
-          <td><?= h($category) ?></td>
-          <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
-          <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
-          <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
-          <td class="money money-neg"><?= number_format((float)($ledger['spending'] ?? 0), 2, ',', '.') ?></td>
-        </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
-  </div>
-</details>
-
-
-<details class="card">
-  <summary><strong>By tag</strong></summary>
-  <div style="margin-top:12px;">
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Tag</th>
-        <th>Income (current*)</th>
-        <th>Spending (current*)</th>
-        <th>Income (actuals*)</th>
-        <th>Spending (actuals*)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php if (empty($allBreakdownTags)): ?>
-        <tr><td colspan="5" class="small">No data.</td></tr>
-      <?php endif; ?>
-
-      <?php foreach ($allBreakdownTags as $tag): ?>
-        <?php
-          $default = $tagBreakdownDefaultByTag[$tag] ?? null;
-          $ledger = $tagBreakdownLedgerNoTopupsByTag[$tag] ?? null;
-        ?>
-        <tr>
-          <td><?= h($tag) ?></td>
-          <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
-          <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
-          <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
-          <td class="money money-neg"><?= number_format((float)($ledger['spending'] ?? 0), 2, ',', '.') ?></td>
-        </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
-  </div>
-</details>
 
 <div class="card">
   <h2>Notes</h2>
