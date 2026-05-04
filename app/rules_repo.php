@@ -162,6 +162,7 @@ function repo_export_rules_categories(PDO $db, int $userId): array {
     foreach ($categories as $category) {
         $categoryExport[] = [
             'name' => (string)$category['name'],
+            'explainer' => $category['explainer'] ?? null,
             'color' => $category['color'] ?? null,
         ];
     }
@@ -228,7 +229,8 @@ function repo_import_rules_categories(PDO $db, int $userId, array $payload): arr
             }
 
             $color = is_array($entry) ? ($entry['color'] ?? null) : null;
-            $categoryId = repo_create_category($db, $name, $color);
+            $explainer = is_array($entry) ? ($entry['explainer'] ?? null) : null;
+            $categoryId = repo_create_category($db, $name, $color, null, $explainer);
             if ($categoryId) {
                 $categoryLookup[$key] = $categoryId;
                 $createdCategories++;

@@ -190,6 +190,7 @@ $allCategories = array_map(
     static fn (array $category): array => [
         'id' => (int)$category['id'],
         'name' => (string)$category['name'],
+        'explainer' => trim((string)($category['explainer'] ?? '')),
     ],
     $assignableCategories
 );
@@ -206,8 +207,12 @@ $stmt = $db->prepare(
         t.friendly_name,
         t.amount_signed,
         t.notes,
+        c.id AS category_id,
         c.name AS category_name,
-        ca.name AS auto_category_name
+        c.explainer AS category_explainer,
+        ca.id AS auto_category_id,
+        ca.name AS auto_category_name,
+        ca.explainer AS auto_category_explainer
      FROM transactions t
      LEFT JOIN categories c ON c.id = t.category_id
      LEFT JOIN categories ca ON ca.id = t.category_auto_id
@@ -233,8 +238,12 @@ $transactions = array_map(static function (array $row): array {
         'description' => (string)$row['description'],
         'friendly_name' => $row['friendly_name'] !== null ? trim((string)$row['friendly_name']) : null,
         'amount' => (float)$row['amount_signed'],
+        'category_id' => (int)($row['category_id'] ?? 0),
         'category' => $row['category_name'] !== null ? (string)$row['category_name'] : null,
+        'category_explainer' => $row['category_explainer'] !== null ? trim((string)$row['category_explainer']) : null,
+        'auto_category_id' => (int)($row['auto_category_id'] ?? 0),
         'auto_category' => $row['auto_category_name'] !== null ? (string)$row['auto_category_name'] : null,
+        'auto_category_explainer' => $row['auto_category_explainer'] !== null ? trim((string)$row['auto_category_explainer']) : null,
         'status' => $status,
         'note' => $row['notes'] !== null ? trim((string)$row['notes']) : null,
     ];
@@ -298,6 +307,8 @@ render_header('Review · Mini-Uiltje', 'review');
             $status = $transaction['status'];
             $categoryText = $transaction['category'] ?? '';
             $autoCategory = $transaction['auto_category'] ?? '';
+            $categoryExplainer = $transaction['category_explainer'] ?? '';
+            $autoCategoryExplainer = $transaction['auto_category_explainer'] ?? '';
             ?>
             <article
                 class="card review-card"
@@ -308,6 +319,8 @@ render_header('Review · Mini-Uiltje', 'review');
                 data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
                 data-category="<?= htmlspecialchars($categoryText, ENT_QUOTES, 'UTF-8') ?>"
                 data-auto-category="<?= htmlspecialchars($autoCategory, ENT_QUOTES, 'UTF-8') ?>"
+                data-category-explainer="<?= htmlspecialchars((string)$categoryExplainer, ENT_QUOTES, 'UTF-8') ?>"
+                data-auto-category-explainer="<?= htmlspecialchars((string)$autoCategoryExplainer, ENT_QUOTES, 'UTF-8') ?>"
                 data-amount-abs="<?= number_format(abs((float)$transaction['amount']), 2, '.', '') ?>"
             >
                 <div class="row review-card-header">
@@ -461,6 +474,11 @@ render_header('Review · Mini-Uiltje', 'review');
     }
     let undoState = null;
     let toastTimer = null;
+    const escapeHtml = (value) => String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
 
     const statusNeedsReview = (status) => status === 'auto' || status === 'uncat' || status === 'category';
 
@@ -469,11 +487,13 @@ render_header('Review · Mini-Uiltje', 'review');
         const status = card.dataset.status;
         const category = card.dataset.category;
         const autoCategory = card.dataset.autoCategory;
+        const categoryExplainer = card.dataset.categoryExplainer || '';
+        const autoCategoryExplainer = card.dataset.autoCategoryExplainer || '';
         const editNameLabel = card.dataset.hasFriendly === '1' ? 'Edit name' : 'Add name';
 
         if (status === 'category') {
             area.innerHTML = `
-                <div class="badge badge-savings">Category: ${category || 'Selected'}</div>
+                <div class="badge badge-savings" title="${escapeHtml(categoryExplainer)}">Category: ${escapeHtml(category || 'Selected')}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
                     <button class="btn btn-danger" type="submit" form="clear-category-form-${card.dataset.id}">Decline</button>
@@ -483,7 +503,7 @@ render_header('Review · Mini-Uiltje', 'review');
             `;
         } else if (status === 'auto') {
             area.innerHTML = `
-                <div class="badge badge-savings">Auto: ${autoCategory || 'Suggested'}</div>
+                <div class="badge badge-savings" title="${escapeHtml(autoCategoryExplainer)}">Auto: ${escapeHtml(autoCategory || 'Suggested')}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
                     <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Decline</button>
@@ -496,11 +516,11 @@ render_header('Review · Mini-Uiltje', 'review');
             const visibleCategories = allCategories.slice(0, inlineCategoryLimit);
             const hiddenCategories = allCategories.slice(inlineCategoryLimit);
             const chipsMarkup = visibleCategories.map((category) =>
-                `<button type="button" class="btn" data-select-category-id="${category.id}">${category.name}</button>`
+                `<button type="button" class="btn" data-select-category-id="${category.id}" title="${escapeHtml(category.explainer || '')}">${escapeHtml(category.name)}</button>`
             ).join('');
             const extraMarkup = showAllCategories
                 ? hiddenCategories.map((category) =>
-                    `<button type="button" class="btn" data-select-category-id="${category.id}">${category.name}</button>`
+                    `<button type="button" class="btn" data-select-category-id="${category.id}" title="${escapeHtml(category.explainer || '')}">${escapeHtml(category.name)}</button>`
                 ).join('')
                 : '';
             const toggleMarkup = hiddenCategories.length === 0

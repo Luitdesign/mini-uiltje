@@ -105,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $useColor = isset($_POST['use_color']);
         $color = $useColor ? (string)($_POST['color'] ?? '') : null;
         $savingsIdRaw = trim((string)($_POST['savings_id'] ?? ''));
+        $explainer = trim((string)($_POST['explainer'] ?? ''));
         $savingsId = $savingsIdRaw !== '' ? (int)$savingsIdRaw : null;
         if ($savingsId !== null && $savingsId <= 0) {
             $savingsId = null;
@@ -139,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($error === '') {
             try {
-                repo_update_category($db, $categoryId, $name, $color, $savingsId, $parentId);
+                repo_update_category($db, $categoryId, $name, $color, $savingsId, $parentId, $explainer);
                 repo_apply_category_ledger($db, current_user_id(), $categoryId, $savingsId);
                 redirect('/categories.php?saved=updated');
             } catch (Throwable $e) {
@@ -184,6 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $useColor = isset($_POST['use_color']);
         $color = $useColor ? (string)($_POST['color'] ?? '') : null;
         $savingsIdRaw = trim((string)($_POST['savings_id'] ?? ''));
+        $explainer = trim((string)($_POST['explainer'] ?? ''));
         $savingsId = $savingsIdRaw !== '' ? (int)$savingsIdRaw : null;
         if ($savingsId !== null && $savingsId <= 0) {
             $savingsId = null;
@@ -193,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($savingsId !== null && !repo_find_saving($db, $savingsId)) {
             $error = 'Selected ledger not found.';
         } else {
-            $id = repo_create_category($db, $name, $color, $savingsId);
+            $id = repo_create_category($db, $name, $color, $savingsId, $explainer);
             if ($id) {
                 redirect('/categories.php?saved=added');
             } else {
@@ -336,6 +338,10 @@ render_header('Categories', 'categories');
       <label>New category</label>
       <input class="input" name="name" placeholder="e.g. Boodschappen" required>
     </div>
+    <div style="flex: 1; min-width: 260px;">
+      <label>Explainer</label>
+      <input class="input" name="explainer" maxlength="255" placeholder="Optional short explanation">
+    </div>
     <div style="min-width: 220px;">
       <label>Ledger</label>
       <select class="input" name="savings_id">
@@ -385,6 +391,7 @@ render_header('Categories', 'categories');
     <thead>
       <tr>
         <th>Name</th>
+        <th>Explainer</th>
         <th style="width: 110px;">Used</th>
         <th style="width: 140px;">Rules</th>
         <th style="width: 220px;">Ledger</th>
@@ -421,6 +428,15 @@ render_header('Categories', 'categories');
               <input class="input" name="name" value="<?= h((string)$cat['name']) ?>" form="<?= h((string)$formId) ?>" required>
             <?php else: ?>
               <a href="/transactions.php?category_id=<?= h((string)$cat['id']) ?>&all_time=1"><?= h($cat['name']) ?></a>
+            <?php endif; ?>
+          </td>
+          <td>
+            <?php if ($editId === $catId): ?>
+              <input class="input" name="explainer" value="<?= h((string)($cat['explainer'] ?? '')) ?>" form="<?= h((string)$formId) ?>" maxlength="255" placeholder="Optional short explanation">
+            <?php elseif (!empty($cat['explainer'])): ?>
+              <span class="small"><?= h((string)$cat['explainer']) ?></span>
+            <?php else: ?>
+              <span class="small muted">—</span>
             <?php endif; ?>
           </td>
           <td><?= h((string)((int)($cat['usage_count'] ?? 0))) ?></td>
