@@ -578,8 +578,7 @@ function render_transactions_table(
             <td data-col="tags" class="small">
               <div style="margin-bottom: 8px;">
                 <label style="display: inline-flex; align-items: center; gap: 6px;">
-                  <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
-                  <span class="small muted">Select</span>
+                  <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">                  
                 </label>
               </div>
               <div class="js-tag-display">
