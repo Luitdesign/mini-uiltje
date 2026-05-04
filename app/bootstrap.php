@@ -32,3 +32,4 @@ require_once __DIR__ . '/sync_repo.php';
 header('X-App-Version: ' . app_version());
 
 $db = db_connect($config['db']);
+db_ensure_runtime_extensions($db);
