@@ -901,12 +901,8 @@ render_header('Transactions', 'transactions');
     </div>
   </details>
 
-<div class="card">
-  <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>">
-    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
-    <input type="hidden" name="friendly_name_id" id="js-friendly-name-id" value="">
 
-    <details class="card" style="margin-bottom: 12px;" open>
+<details class="card" style="margin-bottom: 12px;" open>
       <summary style="cursor: pointer;"><strong>Bulk tags for selected transactions</strong></summary>
       <div class="row" style="align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
         <div style="min-width: 320px; flex: 1;">
@@ -926,6 +922,13 @@ render_header('Transactions', 'transactions');
       </div>
       <div class="small muted" style="margin-top: 6px;">Select transactions in the Tags column, then apply tags in one go.</div>
     </details>
+
+<div class="card">
+  <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>">
+    <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
+    <input type="hidden" name="friendly_name_id" id="js-friendly-name-id" value="">
+
+    
 
     <div class="row small" style="align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
       <span><strong>Visible columns:</strong></span>
