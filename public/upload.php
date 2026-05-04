@@ -34,12 +34,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $tmp = (string)$_FILES['csv']['tmp_name'];
         $name = (string)($_FILES['csv']['name'] ?? 'upload.csv');
+        $size = (int)($_FILES['csv']['size'] ?? 0);
 
-        try {
-            $result = ing_import_csv($db, $userId, $tmp, $name);
-            $okMsg = "Imported. Inserted {$result['inserted']}, skipped {$result['skipped']} (duplicates/invalid).";
-        } catch (Throwable $e) {
-            $errMsg = $e->getMessage();
+        if ($size > 5 * 1024 * 1024) {
+            $errMsg = 'Upload rejected: file size must not exceed 5MB.';
+        } elseif (!preg_match('/\.csv$/i', $name)) {
+            $errMsg = 'Upload rejected: filename must end with .csv.';
+        } else {
+            $mime = mime_content_type($tmp);
+            $allowedMimes = ['text/csv', 'text/plain', 'application/csv'];
+
+            if ($mime === false || !in_array($mime, $allowedMimes, true)) {
+                $errMsg = 'Upload rejected: file must be a CSV (valid MIME types: text/csv, text/plain, application/csv).';
+            } else {
+                try {
+                    $result = ing_import_csv($db, $userId, $tmp, $name);
+                    $okMsg = "Imported. Inserted {$result['inserted']}, skipped {$result['skipped']} (duplicates/invalid).";
+                } catch (Throwable $e) {
+                    $errMsg = $e->getMessage();
+                }
+            }
         }
     }
 }
