@@ -482,25 +482,6 @@ render_header('Review · Mini-Uiltje', 'review');
 
     const statusNeedsReview = (status) => status === 'auto' || status === 'uncat' || status === 'category';
 
-    let longPressTimer = null;
-    let longPressTriggered = false;
-
-    function startExplainerLongPress(target) {
-        const explainer = (target?.dataset.explainer || '').trim();
-        if (!explainer) return;
-
-        window.clearTimeout(longPressTimer);
-        longPressTriggered = false;
-        longPressTimer = window.setTimeout(() => {
-            longPressTriggered = true;
-            showToast(explainer, null);
-        }, 450);
-    }
-
-    function stopExplainerLongPress() {
-        window.clearTimeout(longPressTimer);
-    }
-
     function formatCategoryArea(card) {
         const area = card.querySelector('[data-category-area]');
         const status = card.dataset.status;
@@ -512,7 +493,7 @@ render_header('Review · Mini-Uiltje', 'review');
 
         if (status === 'category') {
             area.innerHTML = `
-                <div class="badge badge-savings" data-explainer="${escapeHtml(categoryExplainer)}">Category: ${escapeHtml(category || 'Selected')}</div>
+                <div class="badge badge-savings" title="${escapeHtml(categoryExplainer)}">Category: ${escapeHtml(category || 'Selected')}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
                     <button class="btn btn-danger" type="submit" form="clear-category-form-${card.dataset.id}">Decline</button>
@@ -522,7 +503,7 @@ render_header('Review · Mini-Uiltje', 'review');
             `;
         } else if (status === 'auto') {
             area.innerHTML = `
-                <div class="badge badge-savings" data-explainer="${escapeHtml(autoCategoryExplainer)}">Auto: ${escapeHtml(autoCategory || 'Suggested')}</div>
+                <div class="badge badge-savings" title="${escapeHtml(autoCategoryExplainer)}">Auto: ${escapeHtml(autoCategory || 'Suggested')}</div>
                 <div class="inline-actions">
                     <button class="btn" type="button" data-approve>Approve</button>
                     <button class="btn btn-danger" type="submit" form="disapprove-form-${card.dataset.id}">Decline</button>
@@ -535,11 +516,11 @@ render_header('Review · Mini-Uiltje', 'review');
             const visibleCategories = allCategories.slice(0, inlineCategoryLimit);
             const hiddenCategories = allCategories.slice(inlineCategoryLimit);
             const chipsMarkup = visibleCategories.map((category) =>
-                `<button type="button" class="btn" data-select-category-id="${category.id}" data-explainer="${escapeHtml(category.explainer || '')}">${escapeHtml(category.name)}</button>`
+                `<button type="button" class="btn" data-select-category-id="${category.id}" title="${escapeHtml(category.explainer || '')}">${escapeHtml(category.name)}</button>`
             ).join('');
             const extraMarkup = showAllCategories
                 ? hiddenCategories.map((category) =>
-                    `<button type="button" class="btn" data-select-category-id="${category.id}" data-explainer="${escapeHtml(category.explainer || '')}">${escapeHtml(category.name)}</button>`
+                    `<button type="button" class="btn" data-select-category-id="${category.id}" title="${escapeHtml(category.explainer || '')}">${escapeHtml(category.name)}</button>`
                 ).join('')
                 : '';
             const toggleMarkup = hiddenCategories.length === 0
@@ -654,21 +635,6 @@ render_header('Review · Mini-Uiltje', 'review');
         input.value = currentFilter;
     });
 
-
-    document.addEventListener('touchstart', (event) => {
-        const explainerTarget = event.target.closest('[data-explainer]');
-        if (!explainerTarget) return;
-        startExplainerLongPress(explainerTarget);
-    }, { passive: true });
-
-    document.addEventListener('touchend', () => {
-        stopExplainerLongPress();
-    }, { passive: true });
-
-    document.addEventListener('touchcancel', () => {
-        stopExplainerLongPress();
-    }, { passive: true });
-
     document.addEventListener('click', (event) => {
         const splitToggleBtn = event.target.closest('[data-split-toggle]');
         if (splitToggleBtn) {
@@ -737,11 +703,6 @@ render_header('Review · Mini-Uiltje', 'review');
         if (approveBtn) {
             const card = approveBtn.closest('[data-card]');
             if (card) approveCard(card);
-            return;
-        }
-
-        if (longPressTriggered) {
-            longPressTriggered = false;
             return;
         }
 
