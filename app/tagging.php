@@ -75,3 +75,99 @@ function repo_search_tags(PDO $db, int $userId, string $query, int $limit = 10):
 
     return array_slice(array_values($scores), 0, $limit);
 }
+
+function repo_list_tags_with_totals(PDO $db, int $userId): array {
+    $stmt = $db->prepare(
+        'SELECT tag, amount_signed
+         FROM transactions
+         WHERE user_id = :user_id
+           AND is_split_active = 1
+           AND is_internal_transfer = 0
+           AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
+           AND tag IS NOT NULL
+           AND tag <> ""'
+    );
+    $stmt->execute([':user_id' => $userId]);
+
+    $rows = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $amount = (float)($row['amount_signed'] ?? 0);
+        foreach (parse_tags_csv((string)($row['tag'] ?? '')) as $tag) {
+            $norm = normalize_tag_name($tag);
+            if ($norm === '') {
+                continue;
+            }
+            if (!isset($rows[$norm])) {
+                $rows[$norm] = [
+                    'tag' => $tag,
+                    'income' => 0.0,
+                    'spending' => 0.0,
+                    'net' => 0.0,
+                ];
+            }
+            if ($amount > 0) {
+                $rows[$norm]['income'] += $amount;
+            } elseif ($amount < 0) {
+                $rows[$norm]['spending'] += abs($amount);
+            }
+            $rows[$norm]['net'] += $amount;
+        }
+    }
+
+    $list = array_values($rows);
+    usort($list, static function (array $a, array $b): int {
+        return strcmp(normalize_tag_name((string)$a['tag']), normalize_tag_name((string)$b['tag']));
+    });
+    return $list;
+}
+
+function repo_rename_tag(PDO $db, int $userId, string $oldTag, string $newTag): int {
+    $oldTagNorm = normalize_tag_name($oldTag);
+    $newTagClean = clean_tag_name($newTag);
+    if ($oldTagNorm === '' || $newTagClean === '') {
+        return 0;
+    }
+
+    $stmt = $db->prepare(
+        'SELECT id, tag
+         FROM transactions
+         WHERE user_id = :user_id
+           AND is_split_active = 1
+           AND tag IS NOT NULL
+           AND tag <> ""'
+    );
+    $stmt->execute([':user_id' => $userId]);
+
+    $update = $db->prepare('UPDATE transactions SET tag = :tag WHERE id = :id AND user_id = :user_id');
+    $updated = 0;
+    foreach ($stmt->fetchAll() as $row) {
+        $rawTags = parse_tags_csv((string)($row['tag'] ?? ''));
+        if ($rawTags === []) {
+            continue;
+        }
+
+        $changed = false;
+        $mapped = [];
+        foreach ($rawTags as $rawTag) {
+            if (normalize_tag_name($rawTag) === $oldTagNorm) {
+                $mapped[] = $newTagClean;
+                $changed = true;
+            } else {
+                $mapped[] = $rawTag;
+            }
+        }
+        if (!$changed) {
+            continue;
+        }
+
+        $normalized = format_tags_csv(parse_tags_csv(implode(', ', $mapped)));
+        $update->execute([
+            ':tag' => $normalized,
+            ':id' => (int)$row['id'],
+            ':user_id' => $userId,
+        ]);
+        $updated++;
+    }
+
+    return $updated;
+}

@@ -326,7 +326,8 @@ function repo_list_transactions(
     string $autoCategoryFilter = '',
     bool $showInternalTransfers = false,
     ?string $startDate = null,
-    ?string $endDate = null
+    ?string $endDate = null,
+    string $tagFilter = ''
 ): array {
     $params = [':uid' => $userId];
     $whereQ = '';
@@ -353,6 +354,14 @@ function repo_list_transactions(
         }
     }
     $whereInternalTransfer = $showInternalTransfers ? '' : ' AND t.is_internal_transfer = 0';
+    $whereTag = '';
+    if ($tagFilter !== '') {
+        $tagNorm = normalize_tag_name($tagFilter);
+        if ($tagNorm !== '') {
+            $whereTag = ' AND LOWER(t.tag) REGEXP :tag_regex';
+            $params[':tag_regex'] = '(^|,)[[:space:]]*' . preg_quote($tagNorm, '/') . '[[:space:]]*(,|$)';
+        }
+    }
     $whereDate = '';
     if ($startDate !== null) {
         $whereDate .= ' AND t.txn_date >= :start_date';
@@ -388,6 +397,7 @@ function repo_list_transactions(
           {$whereQ}
           {$whereCategory}
           {$whereAutoCategory}
+          {$whereTag}
           {$whereInternalTransfer}
         ORDER BY t.txn_date DESC, t.id DESC
     ";

@@ -8,6 +8,7 @@ $latest = repo_get_latest_month($db, $userId);
 $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
 $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
+$tagFilter = trim((string)($_GET['tag'] ?? ''));
 $categoryFilter = (string)($_GET['category_id'] ?? '');
 $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
 $startDate = trim((string)($_GET['start_date'] ?? ''));
@@ -300,6 +301,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($savedFlag) {
             $qsParams['saved'] = 1;
         }
+        if ($tagFilter !== '') {
+            $qsParams['tag'] = $tagFilter;
+        }
         if ($autoUpdated > 0) {
             $qsParams['auto_updated'] = $autoUpdated;
         }
@@ -329,7 +333,8 @@ $txns = repo_list_transactions(
     $autoCategoryFilter,
     false,
     $rangeStart,
-    $rangeEnd
+    $rangeEnd,
+    $tagFilter
 );
 $internalTxns = repo_list_transactions(
     $db,
@@ -341,7 +346,8 @@ $internalTxns = repo_list_transactions(
     $autoCategoryFilter,
     true,
     $rangeStart,
-    $rangeEnd
+    $rangeEnd,
+    $tagFilter
 );
 $internalTxns = array_values(array_filter(
     $internalTxns,
