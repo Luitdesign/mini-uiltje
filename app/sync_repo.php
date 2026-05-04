@@ -46,7 +46,7 @@ function sync_push_configuration_to_target(PDO $sourceDb, PDO $targetDb, array $
     }
 
     if (in_array('categories', $selectedParts, true)) {
-        $stmt = $sourceDb->query('SELECT id, name, color, parent_id, is_parent, savings_id, created_at FROM categories ORDER BY id ASC');
+        $stmt = $sourceDb->query('SELECT id, name, explainer, color, parent_id, is_parent, savings_id, created_at FROM categories ORDER BY id ASC');
         $categories = $stmt->fetchAll();
     }
 
@@ -108,14 +108,15 @@ function sync_push_configuration_to_target(PDO $sourceDb, PDO $targetDb, array $
 
         if (in_array('categories', $selectedParts, true)) {
             $insertCategories = $targetDb->prepare(
-                'INSERT INTO categories (id, name, color, parent_id, is_parent, savings_id, created_at)
-                 VALUES (:id, :name, :color, :parent_id, :is_parent, :savings_id, :created_at)'
+                'INSERT INTO categories (id, name, explainer, color, parent_id, is_parent, savings_id, created_at)
+                 VALUES (:id, :name, :explainer, :color, :parent_id, :is_parent, :savings_id, :created_at)'
             );
 
             foreach ($categories as $categoryRow) {
                 $insertCategories->execute([
                     ':id' => (int)$categoryRow['id'],
                     ':name' => (string)$categoryRow['name'],
+                    ':explainer' => $categoryRow['explainer'] !== null ? (string)$categoryRow['explainer'] : null,
                     ':color' => $categoryRow['color'] !== null ? (string)$categoryRow['color'] : null,
                     ':parent_id' => $categoryRow['parent_id'] !== null ? (int)$categoryRow['parent_id'] : null,
                     ':is_parent' => (int)$categoryRow['is_parent'],

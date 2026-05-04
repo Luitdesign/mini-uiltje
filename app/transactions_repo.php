@@ -66,6 +66,7 @@ function repo_list_categories(PDO $db): array {
     $stmt = $db->query("
         SELECT c.id,
                c.name,
+               c.explainer,
                c.color,
                c.is_parent,
                c.parent_id,
@@ -78,7 +79,7 @@ function repo_list_categories(PDO $db): array {
         LEFT JOIN savings s ON s.id = c.savings_id
         LEFT JOIN transactions t ON t.category_id = c.id AND t.is_split_active = 1
         WHERE c.is_parent = 0
-        GROUP BY c.id, c.name, c.color, c.is_parent, c.parent_id, p.name, c.savings_id, s.name
+        GROUP BY c.id, c.name, c.explainer, c.color, c.is_parent, c.parent_id, p.name, c.savings_id, s.name
         ORDER BY usage_count DESC, c.name ASC
     ");
     $rows = $stmt->fetchAll();
@@ -97,7 +98,7 @@ function repo_get_category(PDO $db, int $categoryId): ?array {
     if ($categoryId <= 0) {
         return null;
     }
-    $stmt = $db->prepare("SELECT id, name, color, savings_id, parent_id FROM categories WHERE id = :id LIMIT 1");
+    $stmt = $db->prepare("SELECT id, name, explainer, color, savings_id, parent_id FROM categories WHERE id = :id LIMIT 1");
     $stmt->execute([':id' => $categoryId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
@@ -151,17 +152,21 @@ function repo_find_category_id(PDO $db, string $name): ?int {
     return $row ? (int)$row['id'] : null;
 }
 
-function repo_create_category(PDO $db, string $name, ?string $color, ?int $savingsId = null): ?int {
+function repo_create_category(PDO $db, string $name, ?string $color, ?int $savingsId = null, ?string $explainer = null): ?int {
     $name = trim($name);
     if ($name === '') return null;
     $color = normalize_hex_color($color);
+    $explainer = $explainer !== null ? trim($explainer) : null;
+    if ($explainer === '') {
+        $explainer = null;
+    }
     $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
     $existing = repo_find_category_by_name($db, $name);
     if ($existing) {
         return ((int)$existing['is_parent'] === 0) ? (int)$existing['id'] : null;
     }
-    $stmt = $db->prepare("INSERT INTO categories(name, color, savings_id) VALUES(:n, :color, :savings_id)");
-    $stmt->execute([':n' => $name, ':color' => $color, ':savings_id' => $savingsId]);
+    $stmt = $db->prepare("INSERT INTO categories(name, explainer, color, savings_id) VALUES(:n, :explainer, :color, :savings_id)");
+    $stmt->execute([':n' => $name, ':explainer' => $explainer, ':color' => $color, ':savings_id' => $savingsId]);
     return (int)$db->lastInsertId();
 }
 
@@ -226,7 +231,7 @@ function repo_bulk_create_categories(PDO $db, array $names): array {
     return ['created_ids' => $createdIds, 'skipped' => $skipped];
 }
 
-function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color, ?int $savingsId = null, ?int $parentId = null): void {
+function repo_update_category(PDO $db, int $categoryId, string $name, ?string $color, ?int $savingsId = null, ?int $parentId = null, ?string $explainer = null): void {
     $name = trim($name);
     if ($categoryId <= 0) {
         throw new RuntimeException('Invalid category.');
@@ -235,6 +240,10 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?string $c
         throw new RuntimeException('Category name cannot be empty.');
     }
     $color = normalize_hex_color($color);
+    $explainer = $explainer !== null ? trim($explainer) : null;
+    if ($explainer === '') {
+        $explainer = null;
+    }
     $savingsId = $savingsId !== null && $savingsId > 0 ? $savingsId : null;
     $parentId = $parentId !== null && $parentId > 0 ? $parentId : null;
     if ($parentId !== null && $parentId === $categoryId) {
@@ -244,7 +253,8 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?string $c
     try {
         $stmt = $db->prepare(
             "UPDATE categories
-             SET name = :name,
+                 SET name = :name,
+                 explainer = :explainer,
                  color = :color,
                  savings_id = :savings_id,
                  parent_id = :parent_id
@@ -252,6 +262,7 @@ function repo_update_category(PDO $db, int $categoryId, string $name, ?string $c
         );
         $stmt->execute([
             ':name' => $name,
+            ':explainer' => $explainer,
             ':color' => $color,
             ':savings_id' => $savingsId,
             ':parent_id' => $parentId,
