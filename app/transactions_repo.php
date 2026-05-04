@@ -431,12 +431,8 @@ function repo_update_transaction_friendly_name(PDO $db, int $userId, int $txnId,
 }
 
 function repo_update_transaction_tags(PDO $db, int $userId, int $txnId, string $tagsRaw): void {
-    $tags = array_filter(array_map(
-        static fn(string $tag): string => trim($tag),
-        explode(',', $tagsRaw)
-    ), static fn(string $tag): bool => $tag !== '');
-    $tags = array_values(array_unique($tags));
-    $normalized = $tags === [] ? null : implode(', ', $tags);
+    $tags = parse_tags_csv($tagsRaw, 50);
+    $normalized = format_tags_csv($tags);
 
     $stmt = $db->prepare(
         "UPDATE transactions
