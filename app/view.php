@@ -14,6 +14,7 @@ function render_header(string $title, ?string $active = null): void {
         ['Months', '/overview.php', 'months'],
         ['Upload', '/upload.php', 'upload'],
         ['Transactions', '/transactions.php', 'transactions'],
+        ['Tags', '/tag.php', 'tags'],
         ['Review', '/review.php', 'review'],
         ['Summary', '/summary.php', 'summary'],
         ['Savings', '/savings.php', 'savings'],
