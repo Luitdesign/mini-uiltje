@@ -320,7 +320,7 @@ function repo_list_transactions(
     $params = [':uid' => $userId];
     $whereQ = '';
     if ($q !== '') {
-        $whereQ = " AND (description LIKE :q OR notes LIKE :q)";
+        $whereQ = " AND (description LIKE :q OR notes LIKE :q OR friendly_name LIKE :q)";
         $params[':q'] = '%' . $q . '%';
     }
     $whereCategory = '';

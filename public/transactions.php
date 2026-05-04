@@ -762,7 +762,7 @@ render_header('Transactions', 'transactions');
       </label>
     </div>
     <div style="flex: 1; min-width: 220px;">
-      <label>Search (description/notes)</label>
+      <label>Search (description/notes/friendly name)</label>
       <input class="input" name="q" value="<?= h($q) ?>" placeholder="e.g. Albert Heijn">
     </div>
     <div style="min-width: 220px;">
