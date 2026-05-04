@@ -78,7 +78,5 @@ function current_data_user_id(PDO $db): int {
         return 0;
     }
 
-    $stmt = $db->query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
-    $sharedId = (int)($stmt->fetchColumn() ?: 0);
-    return $sharedId > 0 ? $sharedId : current_user_id();
+    return current_user_id();
 }
