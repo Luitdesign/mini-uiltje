@@ -365,7 +365,7 @@ function render_transactions_table(
     <table class="table txn-table">
       <colgroup>
         <col style="width: 120px;">
-        <col style="width: 34%;">
+        <col style="width: 70%;">
         <col style="width: 120px;">
         <col style="width: 14%;">
         <col style="width: 14%;">
