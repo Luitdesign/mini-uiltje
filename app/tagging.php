@@ -81,9 +81,6 @@ function repo_list_tags_with_totals(PDO $db, int $userId): array {
         'SELECT tag, amount_signed
          FROM transactions
          WHERE user_id = :user_id
-           AND is_split_active = 1
-           AND is_internal_transfer = 0
-           AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
            AND tag IS NOT NULL
            AND tag <> ""'
     );
