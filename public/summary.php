@@ -382,8 +382,9 @@ if ($chartCategory !== '') {
   </div>
 </div>
 
-<div class="card">
-  <h2>By <?= $groupByParentCategory ? 'parent category' : 'category' ?></h2>
+<details class="card">
+  <summary><strong>By <?= $groupByParentCategory ? 'parent category' : 'category' ?></strong></summary>
+  <div style="margin-top:12px;">
   <table class="table">
     <thead>
       <tr>
@@ -414,11 +415,13 @@ if ($chartCategory !== '') {
       <?php endforeach; ?>
     </tbody>
   </table>
-</div>
+  </div>
+</details>
 
 
-<div class="card">
-  <h2>By tag</h2>
+<details class="card">
+  <summary><strong>By tag</strong></summary>
+  <div style="margin-top:12px;">
   <table class="table">
     <thead>
       <tr>
@@ -449,7 +452,8 @@ if ($chartCategory !== '') {
       <?php endforeach; ?>
     </tbody>
   </table>
-</div>
+  </div>
+</details>
 
 <div class="card">
   <h2>Notes</h2>
