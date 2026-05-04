@@ -535,7 +535,14 @@ function render_transactions_table(
                   <label class="small" style="margin-bottom: 6px;">Friendly name</label>
                   <input class="input js-friendly-input" name="friendly_names[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['friendly_name'] ?? '')) ?>" placeholder="Friendly name">
                   <label class="small" style="margin: 10px 0 6px;">Tags (comma separated)</label>
-                  <input class="input" name="tags[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['tag'] ?? '')) ?>" placeholder="groceries, recurring, tax">
+                  <div class="js-tag-input">
+                    <input type="hidden" class="js-tag-hidden" name="tags[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['tag'] ?? '')) ?>">
+                    <div class="tag-input">
+                      <div class="js-tag-chips"></div>
+                      <input class="js-tag-text" type="text" placeholder="groceries, recurring, tax">
+                    </div>
+                    <div class="js-tag-suggestions" hidden></div>
+                  </div>
                   <div class="row" style="margin-top: 8px; gap: 8px;">
                     <button class="btn js-friendly-save" type="submit" name="action" value="update_friendly_name" data-friendly-id="<?= (int)$t['id'] ?>">Save name</button>
                     <button class="btn" type="submit" name="save_tags_id" value="<?= (int)$t['id'] ?>">Save tags</button>
@@ -1215,5 +1222,6 @@ render_header('Transactions', 'transactions');
     });
   })();
 </script>
+<script src="/assets/tag-input.js"></script>
 
 <?php render_footer(); ?>
