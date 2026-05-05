@@ -378,7 +378,8 @@ function render_transactions_table(
     array $txns,
     array $categories,
     ?string $uncategorizedColor,
-    string $emptyMessage
+    string $emptyMessage,
+    bool $showTopoffDelete = false
 ): void {
     ?>
     <table class="table txn-table">
@@ -392,6 +393,9 @@ function render_transactions_table(
         <col style="width: 130px;">
         <col style="width: 120px;">
         <col style="width: 200px;">
+        <?php if ($showTopoffDelete): ?>
+          <col style="width: 120px;">
+        <?php endif; ?>
       </colgroup>
       <thead>
         <tr>
@@ -404,11 +408,14 @@ function render_transactions_table(
           <th data-col="type">Type</th>
           <th data-col="direction">Direction</th>
           <th data-col="tags">Tags</th>
+          <?php if ($showTopoffDelete): ?>
+            <th data-col="actions">Actions</th>
+          <?php endif; ?>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($txns)): ?>
-          <tr><td colspan="9" class="small"><?= h($emptyMessage) ?></td></tr>
+          <tr><td colspan="<?= $showTopoffDelete ? '10' : '9' ?>" class="small"><?= h($emptyMessage) ?></td></tr>
         <?php endif; ?>
 
         <?php foreach ($txns as $t):
@@ -618,11 +625,21 @@ function render_transactions_table(
                 </div>
               </div>
             </td>
+            <?php if ($showTopoffDelete): ?>
+              <td data-col="actions">
+                <?php if ($isTopoff): ?>
+                  <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
+                  <button class="btn btn-danger" type="submit" form="<?= h($removeTopoffFormId) ?>">Delete</button>
+                <?php else: ?>
+                  <span class="small muted">—</span>
+                <?php endif; ?>
+              </td>
+            <?php endif; ?>
           </tr>
           <?php if (empty($t['parent_transaction_id'])): ?>
             <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
             <tr class="txn-split-row" data-split-row="split-details-<?= (int)$t['id'] ?>" hidden>
-              <td colspan="9">
+              <td colspan="<?= $showTopoffDelete ? '10' : '9' ?>">
                 <div
                   class="txn-split"
                   id="split-details-<?= (int)$t['id'] ?>"
@@ -965,7 +982,8 @@ render_header('Transactions', 'transactions');
         $topoffTxns,
         $categories,
         $uncategorizedColor,
-        'No top off transactions found for this period.'
+        'No top off transactions found for this period.',
+        true
     ); ?>
 
     <?php if ($showInternalSection): ?>
