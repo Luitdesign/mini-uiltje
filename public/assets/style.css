@@ -556,3 +556,43 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   font-style: italic;
   color: var(--muted);
 }
+
+.tag-table th,
+.tag-table td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.tag-table tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.05);
+}
+
+.tag-rename-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tag-edit-btn {
+  background: rgba(96, 165, 250, 0.14);
+}
+
+.tag-edit-btn:hover {
+  background: rgba(96, 165, 250, 0.22);
+}
+
+.tag-rename-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag-rename-editor .input {
+  min-width: 180px;
+}
+
+.tag-rename-actions {
+  display: flex;
+  gap: 8px;
+}
