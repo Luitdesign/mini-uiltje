@@ -78,7 +78,7 @@ function repo_search_tags(PDO $db, int $userId, string $query, int $limit = 10):
 
 function repo_list_tags_with_totals(PDO $db, int $userId): array {
     $stmt = $db->prepare(
-        'SELECT tag, amount_signed
+        'SELECT id, txn_date, tag, amount_signed
          FROM transactions
          WHERE user_id = :user_id
            AND tag IS NOT NULL
@@ -89,6 +89,8 @@ function repo_list_tags_with_totals(PDO $db, int $userId): array {
     $rows = [];
     foreach ($stmt->fetchAll() as $row) {
         $amount = (float)($row['amount_signed'] ?? 0);
+        $txnDate = (string)($row['txn_date'] ?? '');
+        $txnId = (int)($row['id'] ?? 0);
         foreach (parse_tags_csv((string)($row['tag'] ?? '')) as $tag) {
             $norm = normalize_tag_name($tag);
             if ($norm === '') {
@@ -100,6 +102,8 @@ function repo_list_tags_with_totals(PDO $db, int $userId): array {
                     'income' => 0.0,
                     'spending' => 0.0,
                     'net' => 0.0,
+                    'last_txn_date' => '',
+                    'last_txn_id' => 0,
                 ];
             }
             if ($amount > 0) {
@@ -108,12 +112,22 @@ function repo_list_tags_with_totals(PDO $db, int $userId): array {
                 $rows[$norm]['spending'] += abs($amount);
             }
             $rows[$norm]['net'] += $amount;
+
+            if (
+                $txnDate > (string)$rows[$norm]['last_txn_date']
+                || ($txnDate === (string)$rows[$norm]['last_txn_date'] && $txnId > (int)$rows[$norm]['last_txn_id'])
+            ) {
+                $rows[$norm]['last_txn_date'] = $txnDate;
+                $rows[$norm]['last_txn_id'] = $txnId;
+            }
         }
     }
 
     $list = array_values($rows);
     usort($list, static function (array $a, array $b): int {
-        return strcmp(normalize_tag_name((string)$a['tag']), normalize_tag_name((string)$b['tag']));
+        return ((string)$b['last_txn_date'] <=> (string)$a['last_txn_date'])
+            ?: ((int)$b['last_txn_id'] <=> (int)$a['last_txn_id'])
+            ?: strcmp(normalize_tag_name((string)$a['tag']), normalize_tag_name((string)$b['tag']));
     });
     return $list;
 }
