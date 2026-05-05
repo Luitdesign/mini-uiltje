@@ -36,7 +36,7 @@ render_header('Tags', 'tags');
   <?php if ($tags === []): ?>
     <p>No tags yet.</p>
   <?php else: ?>
-    <table>
+    <table class="table tag-table">
       <thead>
         <tr>
           <th>Tag</th>
@@ -55,12 +55,18 @@ render_header('Tags', 'tags');
           <td class="money" style="color:#f87171;"><?= number_format((float)$row['spending'], 2, ',', '.') ?></td>
           <td class="money <?= ((float)$row['net'] >= 0 ? 'pos' : 'neg') ?>"><?= number_format((float)$row['net'], 2, ',', '.') ?></td>
           <td>
-            <form method="post" action="/tag.php" class="row" style="gap:8px; align-items:center;">
+            <form method="post" action="/tag.php" class="tag-rename-form" data-tag-rename-form>
               <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
               <input type="hidden" name="action" value="rename_tag">
               <input type="hidden" name="old_tag" value="<?= h($tag) ?>">
-              <input class="input" type="text" name="new_tag" value="<?= h($tag) ?>" style="min-width:180px;">
-              <button class="btn" type="submit">Save</button>
+              <button class="btn tag-edit-btn" type="button" data-tag-edit-toggle>Edit name</button>
+              <div class="tag-rename-editor" data-tag-rename-editor hidden>
+                <input class="input" type="text" name="new_tag" value="<?= h($tag) ?>" aria-label="New name for <?= h($tag) ?>">
+                <div class="tag-rename-actions">
+                  <button class="btn" type="submit">Save</button>
+                  <button class="btn btn-danger" type="button" data-tag-edit-cancel>Cancel</button>
+                </div>
+              </div>
             </form>
           </td>
         </tr>
@@ -69,4 +75,29 @@ render_header('Tags', 'tags');
     </table>
   <?php endif; ?>
 </div>
+<script>
+  document.querySelectorAll('[data-tag-rename-form]').forEach(function(form) {
+    var toggle = form.querySelector('[data-tag-edit-toggle]');
+    var editor = form.querySelector('[data-tag-rename-editor]');
+    var cancel = form.querySelector('[data-tag-edit-cancel]');
+    var input = editor ? editor.querySelector('input[name="new_tag"]') : null;
+    if (!toggle || !editor) return;
+
+    toggle.addEventListener('click', function() {
+      editor.hidden = false;
+      toggle.hidden = true;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    });
+
+    if (cancel) {
+      cancel.addEventListener('click', function() {
+        editor.hidden = true;
+        toggle.hidden = false;
+      });
+    }
+  });
+</script>
 <?php render_footer();
