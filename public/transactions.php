@@ -476,6 +476,7 @@ function render_transactions_table(
                     <?php else: ?>
                       <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                     <?php endif; ?>
+                    <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
                     <?php if ($isTopoff): ?>
                       <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
                       <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
@@ -515,7 +516,8 @@ function render_transactions_table(
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
-                      <?php if ($isTopoff): ?>
+                      <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                    <?php if ($isTopoff): ?>
                         <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                       <?php endif; ?>
@@ -550,7 +552,8 @@ function render_transactions_table(
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
-                      <?php if ($isTopoff): ?>
+                      <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                    <?php if ($isTopoff): ?>
                         <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
                       <?php endif; ?>
@@ -605,9 +608,6 @@ function render_transactions_table(
                 <?php else: ?>
                   <span class="small muted">—</span>
                 <?php endif; ?>
-                <div style="margin-top: 6px;">
-                  <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit</button>
-                </div>
               </div>
               <div class="js-tag-editor" hidden>
                 <label class="small" style="margin: 0 0 6px;">Tags (comma separated)</label>
