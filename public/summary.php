@@ -150,6 +150,20 @@ if ($endDate !== '') {
 }
 $linkParams['category_view'] = $groupByParentCategory ? 'parent' : 'category';
 $linkParams['amount_view'] = $useLedgerAmountsWithoutTopups ? 'ledger_no_topups' : 'default';
+
+$transactionsBaseParams = [
+    'year' => $year,
+    'month' => $month,
+];
+if ($allTime) {
+    $transactionsBaseParams['all_time'] = 1;
+}
+if ($startDate !== '') {
+    $transactionsBaseParams['start_date'] = $startDate;
+}
+if ($endDate !== '') {
+    $transactionsBaseParams['end_date'] = $endDate;
+}
 if ($chartCategory !== '') {
     $linkParams['chart_category'] = $chartCategory;
 }
@@ -274,7 +288,10 @@ if ($chartCategory !== '') {
           $ledger = $breakdownLedgerNoTopupsByCategory[$category] ?? null;
         ?>
         <tr>
-          <td><?= h($category) ?></td>
+          <td>
+            <?php $categoryTransactionsUrl = '/transactions.php?' . http_build_query(array_merge($transactionsBaseParams, ['category' => $category])); ?>
+            <a href="<?= h($categoryTransactionsUrl) ?>"><?= h($category) ?></a>
+          </td>
           <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
           <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
           <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
@@ -311,7 +328,10 @@ if ($chartCategory !== '') {
           $ledger = $tagBreakdownLedgerNoTopupsByTag[$tag] ?? null;
         ?>
         <tr>
-          <td><?= h($tag) ?></td>
+          <td>
+            <?php $tagTransactionsUrl = '/transactions.php?' . http_build_query(array_merge($transactionsBaseParams, ['tag' => $tag])); ?>
+            <a href="<?= h($tagTransactionsUrl) ?>"><?= h($tag) ?></a>
+          </td>
           <td class="money money-pos"><?= number_format((float)($default['income'] ?? 0), 2, ',', '.') ?></td>
           <td class="money money-neg"><?= number_format((float)($default['spending'] ?? 0), 2, ',', '.') ?></td>
           <td class="money money-pos"><?= number_format((float)($ledger['income'] ?? 0), 2, ',', '.') ?></td>
