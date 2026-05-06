@@ -483,7 +483,7 @@ function render_transactions_table(
                       <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                     <?php endif; ?>
                     <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
-                    <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
+                    <label class="txn-edit-link txn-select-link">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
                       <span>Select</span>
                     </label>
@@ -527,7 +527,7 @@ function render_transactions_table(
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
                       <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
-                    <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
+                    <label class="txn-edit-link txn-select-link">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
                       <span>Select</span>
                     </label>
@@ -567,7 +567,7 @@ function render_transactions_table(
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
                       <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
-                    <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
+                    <label class="txn-edit-link txn-select-link">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
                       <span>Select</span>
                     </label>
