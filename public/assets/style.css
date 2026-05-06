@@ -365,7 +365,7 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   padding: 0;
   border: none;
   background: none;
-  color: var(--accent);
+  color: var(--link);
   font-size: 12px;
   cursor: pointer;
   align-self: flex-start;
@@ -600,4 +600,13 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
 .tag-rename-actions {
   display: flex;
   gap: 8px;
+}
+
+
+/* Keep action links in the right-most column readable on dark cards. */
+.tag-table td:last-child a,
+.tag-table td:last-child button,
+.category-table td:last-child a,
+.category-table td:last-child button {
+  color: var(--text);
 }
