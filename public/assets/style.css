@@ -588,6 +588,10 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   flex-wrap: wrap;
 }
 
+.tag-rename-editor[hidden] {
+  display: none;
+}
+
 .tag-rename-editor .input {
   min-width: 180px;
 }
