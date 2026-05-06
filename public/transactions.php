@@ -1197,7 +1197,11 @@ render_header('Transactions', 'transactions');
 
     const tagEditToggles = Array.from(document.querySelectorAll('.js-tag-edit-toggle'));
     tagEditToggles.forEach((toggle) => {
-      const cell = toggle.closest('td');
+      const row = toggle.closest('tr');
+      if (!row) {
+        return;
+      }
+      const cell = row.querySelector('td[data-col="tags"]');
       if (!cell) {
         return;
       }
