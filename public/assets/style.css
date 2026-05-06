@@ -4,6 +4,7 @@
   --muted: #9aa4af;
   --text: #e6edf3;
   --accent: #6ee7b7;
+  --link: #a78bfa;
   --danger: #fb7185;
   --border: #243040;
 }
@@ -17,7 +18,7 @@ body {
   color: var(--text);
 }
 
-a { color: var(--accent); text-decoration: none; }
+a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .topbar {
