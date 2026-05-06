@@ -34,12 +34,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $tmp = (string)$_FILES['csv']['tmp_name'];
         $name = (string)($_FILES['csv']['name'] ?? 'upload.csv');
+        $size = (int)($_FILES['csv']['size'] ?? 0);
+        $maxUploadBytes = 2 * 1024 * 1024;
 
-        try {
-            $result = ing_import_csv($db, $userId, $tmp, $name);
-            $okMsg = "Imported. Inserted {$result['inserted']}, skipped {$result['skipped']} (duplicates/invalid).";
-        } catch (Throwable $e) {
-            $errMsg = $e->getMessage();
+        if (!is_uploaded_file($tmp)) {
+            $errMsg = 'Invalid upload source.';
+        } elseif ($size <= 0) {
+            $errMsg = 'Uploaded file is empty.';
+        } elseif ($size > $maxUploadBytes) {
+            $errMsg = 'CSV file is too large (max 2 MB).';
+        } else {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = $finfo !== false ? (string)finfo_file($finfo, $tmp) : '';
+            if ($finfo !== false) {
+                finfo_close($finfo);
+            }
+
+            $allowedMimeTypes = [
+                'text/plain',
+                'text/csv',
+                'application/csv',
+                'application/vnd.ms-excel',
+            ];
+
+            $firstChunk = (string)file_get_contents($tmp, false, null, 0, 2048);
+            $looksLikeText = $firstChunk !== '' && preg_match('/^[\P{C}\t\r\n]+$/u', $firstChunk) === 1;
+            $looksLikeCsv = $looksLikeText && str_contains($firstChunk, "\n") && (str_contains($firstChunk, ';') || str_contains($firstChunk, ','));
+
+            if (!in_array($mime, $allowedMimeTypes, true)) {
+                $errMsg = 'Unsupported file type. Please upload a CSV file.';
+            } elseif (!$looksLikeCsv) {
+                $errMsg = 'Invalid CSV content.';
+            } else {
+                try {
+                    $result = ing_import_csv($db, $userId, $tmp, $name);
+                    $okMsg = "Imported. Inserted {$result['inserted']}, skipped {$result['skipped']} (duplicates/invalid).";
+                } catch (Throwable $e) {
+                    $errMsg = $e->getMessage();
+                }
+            }
         }
     }
 }

@@ -29,7 +29,9 @@ require_once __DIR__ . '/csv_ing_import.php';
 require_once __DIR__ . '/users_repo.php';
 require_once __DIR__ . '/sync_repo.php';
 
-header('X-App-Version: ' . app_version());
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header("Content-Security-Policy: default-src 'self'");
 
 $db = db_connect($config['db']);
 db_ensure_runtime_extensions($db);
