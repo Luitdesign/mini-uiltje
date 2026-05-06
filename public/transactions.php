@@ -960,6 +960,9 @@ render_header('Transactions', 'transactions');
           </div>
         </div>
         <div>
+          <button class="btn btn-muted" type="button" id="js-select-all-visible-transactions">Select all on page</button>
+        </div>
+        <div>
           <button class="btn" type="submit" name="action" value="bulk_update_tags">Apply tags to selected</button>
         </div>
       </div>
@@ -1223,6 +1226,7 @@ render_header('Transactions', 'transactions');
 
     const selectAllToggles = Array.from(document.querySelectorAll('.js-select-all-transactions'));
     const selectionBoxes = Array.from(document.querySelectorAll('.js-transaction-select'));
+    const selectAllOnPageButton = document.getElementById('js-select-all-visible-transactions');
     const updateSelectAllState = () => {
       if (!selectionBoxes.length) {
         return;
@@ -1245,6 +1249,14 @@ render_header('Transactions', 'transactions');
     selectionBoxes.forEach((input) => {
       input.addEventListener('change', updateSelectAllState);
     });
+    if (selectAllOnPageButton) {
+      selectAllOnPageButton.addEventListener('click', () => {
+        selectionBoxes.forEach((input) => {
+          input.checked = true;
+        });
+        updateSelectAllState();
+      });
+    }
     updateSelectAllState();
 
     const splitToggles = Array.from(document.querySelectorAll('.js-split-toggle'));
