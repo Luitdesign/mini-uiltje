@@ -368,9 +368,18 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   color: var(--link);
   font-size: 12px;
   cursor: pointer;
-  align-self: flex-start;
 }
 
+
+.txn-select-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.txn-select-link input[type="checkbox"] {
+  margin: 0;
+}
 .txn-friendly-actions {
   display: inline-flex;
   gap: 8px;
