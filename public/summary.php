@@ -345,7 +345,7 @@ if ($chartCategory !== '') {
 
 
 <?php if ($showMonthlyCategoryBars): ?>
-  <details class="card" open>
+  <details class="card" open id="monthly-category-bars">
     <summary><strong>Monthly bars by <?= $groupByParentCategory ? 'parent category' : 'category' ?></strong></summary>
     <div style="margin-top:12px;">
 
@@ -357,9 +357,10 @@ if ($chartCategory !== '') {
       <input type="hidden" name="all_time" value="<?= $allTime ? '1' : '0' ?>">
       <input type="hidden" name="category_view" value="<?= $groupByParentCategory ? 'parent' : 'category' ?>">
       <input type="hidden" name="amount_view" value="<?= $useLedgerAmountsWithoutTopups ? 'ledger_no_topups' : 'default' ?>">
+      <input type="hidden" name="scroll_to" value="monthly-category-bars">
       <div style="min-width:280px;">
         <label>Category for chart</label>
-        <select class="input" name="chart_category" onchange="this.form.submit()">
+        <select class="input" name="chart_category" onchange="submitMonthlyCategoryChartForm(this.form)">
           <?php foreach (($chartCategoryOptions ?? []) as $option): ?>
             <option value="<?= h($option) ?>" <?= $chartCategory === $option ? 'selected' : '' ?>><?= h($option) ?></option>
           <?php endforeach; ?>
@@ -478,6 +479,27 @@ if ($chartCategory !== '') {
     </div>
   </details>
 <?php endif; ?>
+
+<script>
+function submitMonthlyCategoryChartForm(form) {
+  if (!form) {
+    return;
+  }
+  form.submit();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('scroll_to') !== 'monthly-category-bars') {
+    return;
+  }
+  var monthlyBarsSection = document.getElementById('monthly-category-bars');
+  if (!monthlyBarsSection) {
+    return;
+  }
+  monthlyBarsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+</script>
 
 <div class="card">
   <h2>Notes</h2>
