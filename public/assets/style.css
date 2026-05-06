@@ -567,6 +567,16 @@ label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px
   color: var(--muted);
 }
 
+
+.tag-table td:first-child a,
+.tag-table td:first-child a:visited,
+.category-table td:first-child a,
+.category-table td:first-child a:visited,
+.summary-breakdown-table td:first-child a,
+.summary-breakdown-table td:first-child a:visited {
+  color: var(--text);
+}
+
 .tag-table th,
 .tag-table td {
   padding-top: 10px;
