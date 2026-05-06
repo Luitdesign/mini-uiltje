@@ -482,7 +482,7 @@ function render_transactions_table(
                     <?php else: ?>
                       <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                     <?php endif; ?>
-                    <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                    <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
                     <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
                       <span>Select</span>
@@ -526,7 +526,7 @@ function render_transactions_table(
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
-                      <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                      <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
                     <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
                       <span>Select</span>
@@ -566,7 +566,7 @@ function render_transactions_table(
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
-                      <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                      <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
                     <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
                       <span>Select</span>
@@ -622,21 +622,6 @@ function render_transactions_table(
                   <span class="small muted">—</span>
                 <?php endif; ?>
               </div>
-              <div class="js-tag-editor" hidden>
-                <label class="small" style="margin: 0 0 6px;">Tags (comma separated)</label>
-                <div class="js-tag-input">
-                  <input type="hidden" class="js-tag-hidden" name="tags[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['tag'] ?? '')) ?>">
-                  <div class="tag-input">
-                    <div class="js-tag-chips"></div>
-                    <input class="js-tag-text" type="text" placeholder="groceries, recurring, tax">
-                  </div>
-                  <div class="js-tag-suggestions" hidden></div>
-                </div>
-                <div class="row" style="margin-top: 8px; gap: 8px;">
-                  <button class="btn" type="submit" name="save_tags_id" value="<?= (int)$t['id'] ?>">Save tags</button>
-                  <button class="btn js-tag-cancel" type="button">Cancel</button>
-                </div>
-              </div>
             </td>
             <?php if ($showTopoffDelete): ?>
               <td data-col="actions">
@@ -650,6 +635,31 @@ function render_transactions_table(
             <?php endif; ?>
           </tr>
           <?php if (empty($t['parent_transaction_id'])): ?>
+            <tr class="txn-split-row" data-tag-row="tag-details-<?= (int)$t['id'] ?>" hidden>
+              <td colspan="<?= $showTopoffDelete ? '10' : '9' ?>">
+                <div class="txn-split" id="tag-details-<?= (int)$t['id'] ?>">
+                  <div class="txn-split-header">
+                    <span class="small muted">Edit tags</span>
+                    <button type="button" class="txn-edit-link js-tag-close" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Close</button>
+                  </div>
+                  <div style="margin-top: 8px;">
+                    <label class="small" style="margin: 0 0 6px;">Tags (comma separated)</label>
+                    <div class="js-tag-input">
+                      <input type="hidden" class="js-tag-hidden" name="tags[<?= (int)$t['id'] ?>]" value="<?= h((string)($t['tag'] ?? '')) ?>">
+                      <div class="tag-input">
+                        <div class="js-tag-chips"></div>
+                        <input class="js-tag-text" type="text" placeholder="groceries, recurring, tax">
+                      </div>
+                      <div class="js-tag-suggestions" hidden></div>
+                    </div>
+                    <div class="row" style="margin-top: 8px; gap: 8px;">
+                      <button class="btn" type="submit" name="save_tags_id" value="<?= (int)$t['id'] ?>">Save tags</button>
+                      <button class="btn js-tag-close" type="button" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
             <?php $splitFormId = 'split-form-' . (int)$t['id']; ?>
             <tr class="txn-split-row" data-split-row="split-details-<?= (int)$t['id'] ?>" hidden>
               <td colspan="<?= $showTopoffDelete ? '10' : '9' ?>">
@@ -1209,41 +1219,7 @@ render_header('Transactions', 'transactions');
     });
 
     const tagEditToggles = Array.from(document.querySelectorAll('.js-tag-edit-toggle'));
-    tagEditToggles.forEach((toggle) => {
-      const row = toggle.closest('tr');
-      if (!row) {
-        return;
-      }
-      const cell = row.querySelector('td[data-col="tags"]');
-      if (!cell) {
-        return;
-      }
-      const display = cell.querySelector('.js-tag-display');
-      const editor = cell.querySelector('.js-tag-editor');
-      const cancel = cell.querySelector('.js-tag-cancel');
-      const input = cell.querySelector('.js-tag-text');
-
-      toggle.addEventListener('click', () => {
-        if (!display || !editor) {
-          return;
-        }
-        display.hidden = true;
-        editor.hidden = false;
-        if (input) {
-          input.focus();
-        }
-      });
-
-      if (cancel) {
-        cancel.addEventListener('click', () => {
-          if (!display || !editor) {
-            return;
-          }
-          editor.hidden = true;
-          display.hidden = false;
-        });
-      }
-    });
+    const tagClosers = Array.from(document.querySelectorAll('.js-tag-close'));
 
     const selectAllToggles = Array.from(document.querySelectorAll('.js-select-all-transactions'));
     const selectionBoxes = Array.from(document.querySelectorAll('.js-transaction-select'));
@@ -1273,7 +1249,7 @@ render_header('Transactions', 'transactions');
 
     const splitToggles = Array.from(document.querySelectorAll('.js-split-toggle'));
     const splitClosers = Array.from(document.querySelectorAll('.js-split-close'));
-    const toggleSplitRow = (targetId, shouldOpen) => {
+    const toggleDetailRow = (targetId, shouldOpen, rowAttribute) => {
       if (!targetId) {
         return;
       }
@@ -1285,11 +1261,16 @@ render_header('Transactions', 'transactions');
       if (!row) {
         return;
       }
+      if (rowAttribute && !row.hasAttribute(rowAttribute)) {
+        return;
+      }
       row.hidden = !shouldOpen;
       if (!row.hidden) {
         details.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
     };
+    const toggleSplitRow = (targetId, shouldOpen) => toggleDetailRow(targetId, shouldOpen, 'data-split-row');
+    const toggleTagRow = (targetId, shouldOpen) => toggleDetailRow(targetId, shouldOpen, 'data-tag-row');
     splitToggles.forEach((toggle) => {
       toggle.addEventListener('click', () => {
         toggleSplitRow(toggle.dataset.splitTarget, true);
@@ -1298,6 +1279,24 @@ render_header('Transactions', 'transactions');
     splitClosers.forEach((close) => {
       close.addEventListener('click', () => {
         toggleSplitRow(close.dataset.splitTarget, false);
+      });
+    });
+    tagEditToggles.forEach((toggle) => {
+      toggle.addEventListener('click', () => {
+        toggleTagRow(toggle.dataset.tagTarget, true);
+        const targetId = toggle.dataset.tagTarget;
+        if (!targetId) {
+          return;
+        }
+        const input = document.querySelector(`#${targetId} .js-tag-text`);
+        if (input) {
+          input.focus();
+        }
+      });
+    });
+    tagClosers.forEach((close) => {
+      close.addEventListener('click', () => {
+        toggleTagRow(close.dataset.tagTarget, false);
       });
     });
 
