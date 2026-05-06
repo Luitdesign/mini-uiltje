@@ -64,6 +64,15 @@
         Array.from(list.children).forEach((el, i)=>el.classList.toggle('is-active', i===activeIndex));
       }
     });
+
+    const form = root.closest('form');
+    if (form) {
+      form.addEventListener('submit', function () {
+        if (document.activeElement === input && input.value.trim()) {
+          addTag(input.value);
+        }
+      });
+    }
     let timer = null;
     input.addEventListener('input', function () {
       clearTimeout(timer); const q=input.value.trim(); if (!q) { closeList(); return; }

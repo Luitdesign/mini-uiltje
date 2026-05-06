@@ -927,14 +927,7 @@ render_header('Transactions', 'transactions');
       <div class="row" style="align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
         <div style="min-width: 320px; flex: 1;">
           <label>Tags (comma separated)</label>
-          <div class="js-tag-input">
-            <input type="hidden" class="js-tag-hidden" name="bulk_tags" value="">
-            <div class="tag-input">
-              <div class="js-tag-chips"></div>
-              <input class="js-tag-text" type="text" placeholder="groceries, recurring, tax">
-            </div>
-            <div class="js-tag-suggestions" hidden></div>
-          </div>
+          <input class="input" type="text" name="bulk_tags" placeholder="groceries, recurring, tax">
         </div>
         <div>
           <button class="btn" type="submit" name="action" value="bulk_update_tags">Apply tags to selected</button>
