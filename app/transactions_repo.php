@@ -327,7 +327,8 @@ function repo_list_transactions(
     bool $showInternalTransfers = false,
     ?string $startDate = null,
     ?string $endDate = null,
-    string $tagFilter = ''
+    string $tagFilter = '',
+    string $categoryNameFilter = ''
 ): array {
     $params = [':uid' => $userId];
     $whereQ = '';
@@ -362,6 +363,11 @@ function repo_list_transactions(
             $params[':tag_regex'] = '(^|,)[[:space:]]*' . preg_quote($tagNorm, '/') . '[[:space:]]*(,|$)';
         }
     }
+    $whereCategoryName = '';
+    if ($categoryNameFilter !== '') {
+        $whereCategoryName = ' AND (COALESCE(c.name, \'Niet ingedeeld\') = :category_name OR COALESCE(p.name, c.name, \'Niet ingedeeld\') = :category_name)';
+        $params[':category_name'] = $categoryNameFilter;
+    }
     $whereDate = '';
     if ($startDate !== null) {
         $whereDate .= ' AND t.txn_date >= :start_date';
@@ -388,6 +394,7 @@ function repo_list_transactions(
                s.name AS savings_paid_name
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
+        LEFT JOIN categories p ON p.id = c.parent_id
         LEFT JOIN categories ac ON ac.id = t.category_auto_id
         LEFT JOIN rules r ON r.id = t.rule_auto_id AND r.user_id = t.user_id
         LEFT JOIN savings s ON s.id = t.savings_id
@@ -396,6 +403,7 @@ function repo_list_transactions(
           {$whereDate}
           {$whereQ}
           {$whereCategory}
+          {$whereCategoryName}
           {$whereAutoCategory}
           {$whereTag}
           {$whereInternalTransfer}

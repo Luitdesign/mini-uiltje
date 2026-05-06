@@ -9,6 +9,7 @@ $year = (int)($_GET['year'] ?? ($latest['y'] ?? (int)date('Y')));
 $month = (int)($_GET['month'] ?? ($latest['m'] ?? (int)date('n')));
 $q = trim((string)($_GET['q'] ?? ''));
 $tagFilter = trim((string)($_GET['tag'] ?? ''));
+$categoryNameFilter = trim((string)($_GET['category'] ?? ''));
 $categoryFilter = (string)($_GET['category_id'] ?? '');
 $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
 $startDate = trim((string)($_GET['start_date'] ?? ''));
@@ -304,6 +305,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($tagFilter !== '') {
             $qsParams['tag'] = $tagFilter;
         }
+        if ($categoryNameFilter !== '') {
+            $qsParams['category'] = $categoryNameFilter;
+        }
         if ($autoUpdated > 0) {
             $qsParams['auto_updated'] = $autoUpdated;
         }
@@ -334,7 +338,8 @@ $txns = repo_list_transactions(
     false,
     $rangeStart,
     $rangeEnd,
-    $tagFilter
+    $tagFilter,
+    $categoryNameFilter
 );
 $internalTxns = repo_list_transactions(
     $db,
@@ -347,7 +352,8 @@ $internalTxns = repo_list_transactions(
     true,
     $rangeStart,
     $rangeEnd,
-    $tagFilter
+    $tagFilter,
+    $categoryNameFilter
 );
 $internalTxns = array_values(array_filter(
     $internalTxns,
