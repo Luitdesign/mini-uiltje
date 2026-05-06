@@ -483,6 +483,10 @@ function render_transactions_table(
                       <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                     <?php endif; ?>
                     <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                    <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
+                      <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
+                      <span>Select</span>
+                    </label>
                     <?php if ($isTopoff): ?>
                       <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
                       <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
@@ -523,6 +527,10 @@ function render_transactions_table(
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
                       <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                    <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
+                      <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
+                      <span>Select</span>
+                    </label>
                     <?php if ($isTopoff): ?>
                         <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
@@ -559,6 +567,10 @@ function render_transactions_table(
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
                       <button type="button" class="txn-edit-link js-tag-edit-toggle">Edit tags</button>
+                    <label class="txn-edit-link" style="display: inline-flex; align-items: center; gap: 4px;">
+                      <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
+                      <span>Select</span>
+                    </label>
                     <?php if ($isTopoff): ?>
                         <?php $removeTopoffFormId = 'remove-topoff-form-' . (int)$t['id']; ?>
                         <button class="txn-edit-link" type="submit" form="<?= h($removeTopoffFormId) ?>">Remove</button>
@@ -598,11 +610,6 @@ function render_transactions_table(
               <div><?= h((string)($t['direction'] ?? '')) ?></div>
             </td>
             <td data-col="tags" class="small">
-              <div style="margin-bottom: 8px;">
-                <label style="display: inline-flex; align-items: center; gap: 6px;">
-                  <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">                  
-                </label>
-              </div>
               <div class="js-tag-display">
                 <?php if (!empty($t['tag'])): ?>
                   <div>
