@@ -267,7 +267,7 @@ if ($chartCategory !== '') {
 <details class="card" open>
   <summary><strong>By <?= $groupByParentCategory ? 'parent category' : 'category' ?></strong></summary>
   <div style="margin-top:12px;">
-  <table class="table">
+  <table class="table summary-breakdown-table">
     <thead>
       <tr>
         <th>Category</th>
@@ -307,7 +307,7 @@ if ($chartCategory !== '') {
 <details class="card" open>
   <summary><strong>By tag</strong></summary>
   <div style="margin-top:12px;">
-  <table class="table">
+  <table class="table summary-breakdown-table">
     <thead>
       <tr>
         <th>Tag</th>
