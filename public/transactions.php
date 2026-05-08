@@ -44,13 +44,6 @@ $canExportMonth = !$allTime && !$hasDateRange && !$isYearView;
 $error = '';
 $savingsFormAmounts = [];
 $savingsTopupDate = date('Y-m-d');
-if (!$allTime && !$hasDateRange && !$isYearView && $year > 0 && $month >= 1 && $month <= 12) {
-    $periodEnd = DateTime::createFromFormat('Y-n-j', sprintf('%d-%d-1', $year, $month));
-    if ($periodEnd instanceof DateTime) {
-        $periodEnd->modify('last day of this month');
-        $savingsTopupDate = $periodEnd->format('Y-m-d');
-    }
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate($config);
