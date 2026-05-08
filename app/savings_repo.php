@@ -192,9 +192,16 @@ function repo_add_savings_topup(
         throw new RuntimeException('Saving not found.');
     }
 
+    $dateValue = DateTime::createFromFormat('Y-m-d', $date);
+    if (!$dateValue || $dateValue->format('Y-m-d') !== $date) {
+        throw new RuntimeException('Top-up date must be valid (YYYY-MM-DD).');
+    }
+    $dateValue->modify('last day of this month');
+    $normalizedDate = $dateValue->format('Y-m-d');
+
     $absAmount = abs($amount);
     $description = 'Top-up: ' . (string)$saving['name'];
-    $hashSeed = sprintf('internal-topup|%d|%s|%0.2f|%s', $savingsId, $date, $absAmount, uniqid('', true));
+    $hashSeed = sprintf('internal-topup|%d|%s|%0.2f|%s', $savingsId, $normalizedDate, $absAmount, uniqid('', true));
     $txnHash = sha1($hashSeed);
     $topupCategoryId = isset($saving['topup_category_id']) ? (int)$saving['topup_category_id'] : null;
     if ($topupCategoryId !== null && $topupCategoryId <= 0) {
@@ -203,6 +210,53 @@ function repo_add_savings_topup(
 
     $db->beginTransaction();
     try {
+        $stmtExisting = $db->prepare(
+            'SELECT id, amount_signed
+             FROM transactions
+             WHERE user_id = :uid
+               AND savings_id = :savings_id
+               AND is_topup = 1
+               AND txn_date = :txn_date
+               AND is_split_active = 1
+             ORDER BY id ASC
+             LIMIT 1'
+        );
+        $stmtExisting->execute([
+            ':uid' => $userId,
+            ':savings_id' => $savingsId,
+            ':txn_date' => $normalizedDate,
+        ]);
+        $existingTopup = $stmtExisting->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingTopup) {
+            $updatedAmount = (float)$existingTopup['amount_signed'] - $absAmount;
+            $stmtUpdate = $db->prepare(
+                'UPDATE transactions
+                 SET amount_signed = :amount_signed,
+                     description = :description,
+                     direction = :direction,
+                     category_id = :category_id,
+                     created_source = :created_source,
+                     savings_id = :savings_id,
+                     is_topup = :is_topup
+                 WHERE id = :id
+                   AND user_id = :uid'
+            );
+            $stmtUpdate->execute([
+                ':amount_signed' => $updatedAmount,
+                ':description' => $description,
+                ':direction' => 'Af',
+                ':category_id' => $topupCategoryId,
+                ':created_source' => 'internal',
+                ':savings_id' => $savingsId,
+                ':is_topup' => 1,
+                ':id' => (int)$existingTopup['id'],
+                ':uid' => $userId,
+            ]);
+            $db->commit();
+            return;
+        }
+
         $stmtTxn = $db->prepare(
             'INSERT INTO transactions(
                 user_id, import_id, import_batch_id, txn_hash,
@@ -227,7 +281,7 @@ function repo_add_savings_topup(
         $stmtTxn->execute([
             ':uid' => $userId,
             ':txn_hash' => $txnHash,
-            ':txn_date' => $date,
+            ':txn_date' => $normalizedDate,
             ':description' => $description,
             ':direction' => 'Af',
             ':amount_signed' => -$absAmount,
