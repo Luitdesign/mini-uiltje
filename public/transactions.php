@@ -15,6 +15,7 @@ $autoCategoryFilter = (string)($_GET['auto_category_id'] ?? '');
 $startDate = trim((string)($_GET['start_date'] ?? ''));
 $endDate = trim((string)($_GET['end_date'] ?? ''));
 $allTime = (string)($_GET['all_time'] ?? '') === '1';
+$onlyTopoffs = (string)($_GET['only_topoffs'] ?? '') === '1';
 $saved = isset($_GET['saved']);
 $autoUpdated = (int)($_GET['auto_updated'] ?? 0);
 $savingsAppliedCount = (int)($_GET['savings_applied'] ?? 0);
@@ -768,6 +769,9 @@ $actionQueryParams = [
 if ($allTime) {
     $actionQueryParams['all_time'] = 1;
 }
+if ($onlyTopoffs) {
+    $actionQueryParams['only_topoffs'] = 1;
+}
 if ($startDate !== '') {
     $actionQueryParams['start_date'] = $startDate;
 }
@@ -795,6 +799,9 @@ render_header('Transactions', 'transactions');
       <a href="/month.php?year=<?= $year ?>&month=<?= $month ?>&export=csv">Export CSV</a>
     <?php endif; ?>
   </p>
+  <?php if ($onlyTopoffs): ?>
+    <p class="small" style="margin-top: 6px;">Showing only savings top offs for this period.</p>
+  <?php endif; ?>
 
   <form method="get" action="/transactions.php" class="row" style="align-items: flex-end;">
     <div style="min-width: 160px;">
@@ -985,21 +992,23 @@ render_header('Transactions', 'transactions');
       <button class="btn" type="button" id="js-row-color-toggle">Row colours: On</button>
     </div>
 
-    <h2>Income</h2>
-    <?php render_transactions_table(
-        $incomeTxns,
-        $categories,
-        $uncategorizedColor,
-        'No income transactions found for this period.'
-    ); ?>
+    <?php if (!$onlyTopoffs): ?>
+      <h2>Income</h2>
+      <?php render_transactions_table(
+          $incomeTxns,
+          $categories,
+          $uncategorizedColor,
+          'No income transactions found for this period.'
+      ); ?>
 
-    <h2>Expenses</h2>
-    <?php render_transactions_table(
-        $expenseTxns,
-        $categories,
-        $uncategorizedColor,
-        'No expense transactions found for this period.'
-    ); ?>
+      <h2>Expenses</h2>
+      <?php render_transactions_table(
+          $expenseTxns,
+          $categories,
+          $uncategorizedColor,
+          'No expense transactions found for this period.'
+      ); ?>
+    <?php endif; ?>
 
     <h2>Top offs</h2>
     <?php render_transactions_table(
@@ -1010,7 +1019,7 @@ render_header('Transactions', 'transactions');
         true
     ); ?>
 
-    <?php if ($showInternalSection): ?>
+    <?php if (!$onlyTopoffs && $showInternalSection): ?>
       <h2>Internal transfers</h2>
       <?php render_transactions_table(
           $internalTxns,

@@ -71,6 +71,8 @@ render_header('Overview', 'overview');
               &nbsp;|&nbsp;
               <a href="/summary.php?year=<?= $y ?>&month=<?= $mo ?>">Summary</a>
               &nbsp;|&nbsp;
+              <a href="/transactions.php?year=<?= $y ?>&month=<?= $mo ?>&only_topoffs=1">Savings</a>
+              &nbsp;|&nbsp;
               <form method="post" action="/overview.php?view=months" style="display:inline">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
                 <input type="hidden" name="action" value="rerun_auto">
@@ -115,6 +117,8 @@ render_header('Overview', 'overview');
               <a href="/transactions.php?year=<?= $year ?>&month=0">Transactions</a>
               &nbsp;|&nbsp;
               <a href="/summary.php?year=<?= $year ?>&month=0">Summary</a>
+              &nbsp;|&nbsp;
+              <a href="/transactions.php?year=<?= $year ?>&month=0&only_topoffs=1">Savings</a>
             </td>
           </tr>
         <?php endforeach; ?>
