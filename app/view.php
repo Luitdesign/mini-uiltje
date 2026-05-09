@@ -17,6 +17,7 @@ function render_header(string $title, ?string $active = null): void {
         ['Tags', '/tag.php', 'tags'],
         ['Review', '/review.php', 'review'],
         ['Summary', '/summary.php', 'summary'],
+        ['Graphs', '/graphs.php', 'graphs'],
         ['Savings', '/savings.php', 'savings'],
         ['Categories', '/categories.php', 'categories'],
         ['Settings', '/settings.php', 'settings'],
