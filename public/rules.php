@@ -230,13 +230,37 @@ render_header('Rules', 'rules');
       return;
     }
 
+    const storageRead = (key) => {
+      try {
+        return window.localStorage.getItem(key);
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const storageWrite = (key, value) => {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch (error) {
+        // Ignore storage errors (private mode / disabled storage).
+      }
+    };
+
+    const storageRemove = (key) => {
+      try {
+        window.localStorage.removeItem(key);
+      } catch (error) {
+        // Ignore storage errors (private mode / disabled storage).
+      }
+    };
+
     const applyVisibility = (column, isVisible) => {
       table.querySelectorAll(`[data-col="${column}"]`).forEach((cell) => {
-        cell.style.display = isVisible ? '' : 'none';
+        cell.hidden = !isVisible;
       });
     };
 
-    const saved = window.localStorage.getItem(storageKey);
+    const saved = storageRead(storageKey);
     if (saved) {
       try {
         const visibleColumns = JSON.parse(saved);
@@ -247,7 +271,7 @@ render_header('Rules', 'rules');
           }
         });
       } catch (error) {
-        window.localStorage.removeItem(storageKey);
+        storageRemove(storageKey);
       }
     }
 
@@ -256,7 +280,7 @@ render_header('Rules', 'rules');
       toggles.forEach((toggle) => {
         state[toggle.dataset.column] = toggle.checked;
       });
-      window.localStorage.setItem(storageKey, JSON.stringify(state));
+      storageWrite(storageKey, JSON.stringify(state));
     };
 
     toggles.forEach((toggle) => {
