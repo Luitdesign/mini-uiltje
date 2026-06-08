@@ -136,12 +136,8 @@ function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null):
                    END AS entry_type,
                    t.notes AS note,
                    t.friendly_name,
-                   t.description AS transaction_description,
-                   t.currency,
-                   t.tag,
-                   c.name AS category_name
+                   t.description AS transaction_description
             FROM transactions t
-            LEFT JOIN categories c ON c.id = t.category_id
             WHERE t.savings_id = :sid
               AND t.is_split_active = 1
             ORDER BY t.txn_date DESC, t.id DESC';
