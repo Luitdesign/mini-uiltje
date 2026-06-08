@@ -48,9 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($resolvedCategoryId > 0) {
                 $category = repo_get_category($db, $resolvedCategoryId);
                 $ledgerSavingsId = $category ? (int)($category['savings_id'] ?? 0) : 0;
-                repo_set_transaction_ledger($db, $userId, $txnId, $ledgerSavingsId > 0 ? $ledgerSavingsId : null);
+                repo_set_transaction_category_ledger($db, $userId, $txnId, $ledgerSavingsId > 0 ? $ledgerSavingsId : null);
             } else {
-                repo_set_transaction_ledger($db, $userId, $txnId, null);
+                repo_set_transaction_category_ledger($db, $userId, $txnId, null);
             }
         }
     }
@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $category = repo_get_category($db, $categoryId);
             $ledgerSavingsId = $category ? (int)($category['savings_id'] ?? 0) : 0;
-            repo_set_transaction_ledger($db, $userId, $txnId, $ledgerSavingsId > 0 ? $ledgerSavingsId : null);
+            repo_set_transaction_category_ledger($db, $userId, $txnId, $ledgerSavingsId > 0 ? $ledgerSavingsId : null);
         }
     }
 
