@@ -204,7 +204,7 @@ render_header('Savings', 'savings');
       </tbody>
     </table>
     <p class="small muted" style="margin-top: 8px;">
-      * Average uses all ledger months, including the latest month that has transactions.
+      * Average counts only months containing at least one transaction for that saving; months without transactions are ignored.
     </p>
   <?php endif; ?>
 </div>
