@@ -128,10 +128,7 @@ render_header('Saving details', 'savings');
           Status: <?= !empty($saving['active']) ? 'Active' : 'Inactive' ?> · Sort order: <?= h((string)$saving['sort_order']) ?>
         </div>
       </div>
-      <div class="row">
-        <a class="btn" href="/savings_transactions.php?id=<?= h((string)$saving['id']) ?>">View transactions &amp; top-ups</a>
-        <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
-      </div>
+      <a class="btn" href="/savings_edit.php?id=<?= h((string)$saving['id']) ?>">Edit</a>
     </div>
 
     <div class="grid-2" style="margin-top: 12px;">
