@@ -66,9 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $ledgerSavingsId = $category ? (int)($category['savings_id'] ?? 0) : null;
                     }
                     if ($ledgerSavingsId !== null && $ledgerSavingsId > 0) {
-                        repo_set_transaction_ledger($db, $userId, $txnId, $ledgerSavingsId);
+                        repo_set_transaction_category_ledger($db, $userId, $txnId, $ledgerSavingsId);
                     } else {
-                        repo_set_transaction_ledger($db, $userId, $txnId, null);
+                        repo_set_transaction_category_ledger($db, $userId, $txnId, null);
                     }
                 }
             }

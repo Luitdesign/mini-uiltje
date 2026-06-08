@@ -316,7 +316,8 @@ function repo_set_transaction_ledger(
     PDO $db,
     int $userId,
     int $transactionId,
-    ?int $savingsId
+    ?int $savingsId,
+    bool $preserveTopupLedger = false
 ): bool {
     $stmt = $db->prepare(
         'SELECT id, amount_signed, txn_date, is_topup
@@ -335,6 +336,11 @@ function repo_set_transaction_ledger(
     }
 
     if ($savingsId === null || $savingsId <= 0) {
+        // An unmapped category must not detach a top-off from the savings ledger it funds.
+        if ($preserveTopupLedger && (int)($txn['is_topup'] ?? 0) === 1) {
+            return true;
+        }
+
         $db->beginTransaction();
         try {
             $stmtUpdate = $db->prepare(
@@ -386,6 +392,15 @@ function repo_set_transaction_ledger(
     return true;
 }
 
+function repo_set_transaction_category_ledger(
+    PDO $db,
+    int $userId,
+    int $transactionId,
+    ?int $savingsId
+): bool {
+    return repo_set_transaction_ledger($db, $userId, $transactionId, $savingsId, true);
+}
+
 function repo_apply_category_ledger(
     PDO $db,
     int $userId,
@@ -409,7 +424,7 @@ function repo_apply_category_ledger(
     $txnIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
     $updated = 0;
     foreach ($txnIds as $txnId) {
-        if (repo_set_transaction_ledger($db, $userId, (int)$txnId, $savingsId)) {
+        if (repo_set_transaction_category_ledger($db, $userId, (int)$txnId, $savingsId)) {
             $updated++;
         }
     }
