@@ -115,7 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_paid_from_savings') {
         $savedFlag = true;
         $txnId = (int)($_POST['transaction_id'] ?? 0);
-        $savingsIdRaw = (string)($_POST['savings_id'] ?? '');
+        $savingsIds = $_POST['savings_ids'] ?? [];
+        $savingsIdRaw = is_array($savingsIds) && array_key_exists($txnId, $savingsIds)
+            ? (string)$savingsIds[$txnId]
+            : (string)($_POST['savings_id'] ?? '');
         if ($txnId > 0) {
             if ($savingsIdRaw === '' || $savingsIdRaw === '0') {
                 repo_set_transaction_ledger($db, $userId, $txnId, null);
@@ -384,6 +387,7 @@ foreach ($txns as $txn) {
 function render_transactions_table(
     array $txns,
     array $categories,
+    array $savings,
     ?string $uncategorizedColor,
     string $emptyMessage,
     bool $showTopoffDelete = false
@@ -483,6 +487,7 @@ function render_transactions_table(
                     <?php else: ?>
                       <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                     <?php endif; ?>
+                    <button type="button" class="txn-edit-link js-ledger-edit-toggle" data-ledger-target="ledger-details-<?= (int)$t['id'] ?>">Add to ledger</button>
                     <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
                     <label class="txn-edit-link txn-select-link">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
@@ -527,6 +532,7 @@ function render_transactions_table(
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
+                      <button type="button" class="txn-edit-link js-ledger-edit-toggle" data-ledger-target="ledger-details-<?= (int)$t['id'] ?>">Add to ledger</button>
                       <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
                     <label class="txn-edit-link txn-select-link">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
@@ -567,6 +573,7 @@ function render_transactions_table(
                       <?php else: ?>
                         <button type="button" class="txn-edit-link js-split-toggle" data-split-target="split-details-<?= (int)$t['id'] ?>">Split</button>
                       <?php endif; ?>
+                      <button type="button" class="txn-edit-link js-ledger-edit-toggle" data-ledger-target="ledger-details-<?= (int)$t['id'] ?>">Add to ledger</button>
                       <button type="button" class="txn-edit-link js-tag-edit-toggle" data-tag-target="tag-details-<?= (int)$t['id'] ?>">Edit tags</button>
                     <label class="txn-edit-link txn-select-link">
                       <input type="checkbox" class="js-transaction-select" name="selected_transaction_ids[]" value="<?= (int)$t['id'] ?>" aria-label="Select transaction">
@@ -634,6 +641,29 @@ function render_transactions_table(
                 <?php endif; ?>
               </td>
             <?php endif; ?>
+          </tr>
+          <tr class="txn-split-row" data-ledger-row="ledger-details-<?= (int)$t['id'] ?>" hidden>
+            <td colspan="<?= $showTopoffDelete ? '10' : '9' ?>">
+              <div class="txn-split" id="ledger-details-<?= (int)$t['id'] ?>">
+                <div class="txn-split-header">
+                  <span class="small muted">Add transaction to ledger</span>
+                  <button type="button" class="txn-edit-link js-ledger-close" data-ledger-target="ledger-details-<?= (int)$t['id'] ?>">Close</button>
+                </div>
+                <div style="margin-top: 8px;">
+                  <label class="small" for="transaction-ledger-<?= (int)$t['id'] ?>" style="margin: 0 0 6px;">Ledger</label>
+                  <select class="input js-ledger-select" id="transaction-ledger-<?= (int)$t['id'] ?>" name="savings_ids[<?= (int)$t['id'] ?>]">
+                    <option value="">No ledger</option>
+                    <?php foreach ($savings as $saving): ?>
+                      <option value="<?= (int)$saving['id'] ?>" <?= ((int)($t['savings_paid_id'] ?? 0) === (int)$saving['id']) ? 'selected' : '' ?>><?= h((string)$saving['name']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                  <div class="row" style="margin-top: 8px; gap: 8px;">
+                    <button class="btn js-ledger-save" type="submit" name="action" value="update_paid_from_savings" data-transaction-id="<?= (int)$t['id'] ?>">Save ledger</button>
+                    <button class="btn js-ledger-close" type="button" data-ledger-target="ledger-details-<?= (int)$t['id'] ?>">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </td>
           </tr>
           <?php if (empty($t['parent_transaction_id'])): ?>
             <tr class="txn-split-row" data-tag-row="tag-details-<?= (int)$t['id'] ?>" hidden>
@@ -952,6 +982,7 @@ render_header('Transactions', 'transactions');
   <form method="post" action="/transactions.php?<?= h(http_build_query($actionQueryParams)) ?>">
     <input type="hidden" name="csrf_token" value="<?= h(csrf_token($config)) ?>">
     <input type="hidden" name="friendly_name_id" id="js-friendly-name-id" value="">
+    <input type="hidden" name="transaction_id" id="js-ledger-transaction-id" value="">
     <details class="card" style="margin-bottom: 12px;" open>
       <summary style="cursor: pointer;"><strong>Bulk tags for selected transactions</strong></summary>
       <div class="row" style="align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
@@ -997,6 +1028,7 @@ render_header('Transactions', 'transactions');
       <?php render_transactions_table(
           $incomeTxns,
           $categories,
+          $savings,
           $uncategorizedColor,
           'No income transactions found for this period.'
       ); ?>
@@ -1005,6 +1037,7 @@ render_header('Transactions', 'transactions');
       <?php render_transactions_table(
           $expenseTxns,
           $categories,
+          $savings,
           $uncategorizedColor,
           'No expense transactions found for this period.'
       ); ?>
@@ -1014,6 +1047,7 @@ render_header('Transactions', 'transactions');
     <?php render_transactions_table(
         $topoffTxns,
         $categories,
+        $savings,
         $uncategorizedColor,
         'No top off transactions found for this period.',
         true
@@ -1024,6 +1058,7 @@ render_header('Transactions', 'transactions');
       <?php render_transactions_table(
           $internalTxns,
           $categories,
+          $savings,
           $uncategorizedColor,
           'No internal transfers found for this period.'
       ); ?>
@@ -1270,6 +1305,10 @@ render_header('Transactions', 'transactions');
 
     const splitToggles = Array.from(document.querySelectorAll('.js-split-toggle'));
     const splitClosers = Array.from(document.querySelectorAll('.js-split-close'));
+    const ledgerEditToggles = Array.from(document.querySelectorAll('.js-ledger-edit-toggle'));
+    const ledgerClosers = Array.from(document.querySelectorAll('.js-ledger-close'));
+    const ledgerSaveButtons = Array.from(document.querySelectorAll('.js-ledger-save'));
+    const ledgerTransactionId = document.getElementById('js-ledger-transaction-id');
     const toggleDetailRow = (targetId, shouldOpen, rowAttribute) => {
       if (!targetId) {
         return;
@@ -1291,6 +1330,7 @@ render_header('Transactions', 'transactions');
       }
     };
     const toggleSplitRow = (targetId, shouldOpen) => toggleDetailRow(targetId, shouldOpen, 'data-split-row');
+    const toggleLedgerRow = (targetId, shouldOpen) => toggleDetailRow(targetId, shouldOpen, 'data-ledger-row');
     const toggleTagRow = (targetId, shouldOpen) => toggleDetailRow(targetId, shouldOpen, 'data-tag-row');
     splitToggles.forEach((toggle) => {
       toggle.addEventListener('click', () => {
@@ -1300,6 +1340,31 @@ render_header('Transactions', 'transactions');
     splitClosers.forEach((close) => {
       close.addEventListener('click', () => {
         toggleSplitRow(close.dataset.splitTarget, false);
+      });
+    });
+    ledgerEditToggles.forEach((toggle) => {
+      toggle.addEventListener('click', () => {
+        toggleLedgerRow(toggle.dataset.ledgerTarget, true);
+        const targetId = toggle.dataset.ledgerTarget;
+        if (!targetId) {
+          return;
+        }
+        const select = document.querySelector(`#${targetId} .js-ledger-select`);
+        if (select) {
+          select.focus();
+        }
+      });
+    });
+    ledgerClosers.forEach((close) => {
+      close.addEventListener('click', () => {
+        toggleLedgerRow(close.dataset.ledgerTarget, false);
+      });
+    });
+    ledgerSaveButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        if (ledgerTransactionId) {
+          ledgerTransactionId.value = button.dataset.transactionId || '';
+        }
       });
     });
     tagEditToggles.forEach((toggle) => {
