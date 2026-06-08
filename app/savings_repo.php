@@ -319,7 +319,7 @@ function repo_set_transaction_ledger(
     int $userId,
     int $transactionId,
     ?int $savingsId,
-    bool $preserveTopup = false
+    bool $preserveTopupLedger = false
 ): bool {
     $stmt = $db->prepare(
         'SELECT id, amount_signed, txn_date, is_topup
@@ -338,6 +338,11 @@ function repo_set_transaction_ledger(
     }
 
     if ($savingsId === null || $savingsId <= 0) {
+        // An unmapped category must not detach a top-off from the savings ledger it funds.
+        if ($preserveTopupLedger && (int)($txn['is_topup'] ?? 0) === 1) {
+            return true;
+        }
+
         $db->beginTransaction();
         try {
             $stmtUpdate = $db->prepare(
