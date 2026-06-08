@@ -316,7 +316,8 @@ function repo_set_transaction_ledger(
     PDO $db,
     int $userId,
     int $transactionId,
-    ?int $savingsId
+    ?int $savingsId,
+    bool $preserveTopup = false
 ): bool {
     $stmt = $db->prepare(
         'SELECT id, amount_signed, txn_date, is_topup
@@ -338,10 +339,14 @@ function repo_set_transaction_ledger(
         $db->beginTransaction();
         try {
             $stmtUpdate = $db->prepare(
-                'UPDATE transactions
-                 SET savings_id = NULL,
-                     is_topup = 0
-                 WHERE id = :id AND user_id = :uid'
+                $preserveTopup
+                    ? 'UPDATE transactions
+                       SET savings_id = NULL
+                       WHERE id = :id AND user_id = :uid'
+                    : 'UPDATE transactions
+                       SET savings_id = NULL,
+                           is_topup = 0
+                       WHERE id = :id AND user_id = :uid'
             );
             $stmtUpdate->execute([
                 ':id' => $transactionId,
@@ -386,6 +391,15 @@ function repo_set_transaction_ledger(
     return true;
 }
 
+function repo_set_transaction_category_ledger(
+    PDO $db,
+    int $userId,
+    int $transactionId,
+    ?int $savingsId
+): bool {
+    return repo_set_transaction_ledger($db, $userId, $transactionId, $savingsId, true);
+}
+
 function repo_apply_category_ledger(
     PDO $db,
     int $userId,
@@ -409,7 +423,7 @@ function repo_apply_category_ledger(
     $txnIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
     $updated = 0;
     foreach ($txnIds as $txnId) {
-        if (repo_set_transaction_ledger($db, $userId, (int)$txnId, $savingsId)) {
+        if (repo_set_transaction_category_ledger($db, $userId, (int)$txnId, $savingsId)) {
             $updated++;
         }
     }
