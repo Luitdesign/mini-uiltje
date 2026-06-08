@@ -34,9 +34,11 @@ function repo_list_savings_with_balance(PDO $db): array {
             GROUP BY savings_id
         ) st ON st.savings_id = s.id
         LEFT JOIN (
+            -- The inner query has one row per month containing a transaction,
+            -- so COUNT(*) excludes calendar months with no savings activity.
             SELECT monthly.savings_id,
-                   AVG(monthly.income_total) AS avg_monthly_income,
-                   AVG(monthly.spending_total) AS avg_monthly_spending
+                   SUM(monthly.income_total) / COUNT(*) AS avg_monthly_income,
+                   SUM(monthly.spending_total) / COUNT(*) AS avg_monthly_spending
             FROM (
                 SELECT t.savings_id,
                        DATE_FORMAT(t.txn_date, '%Y-%m') AS ledger_month,
