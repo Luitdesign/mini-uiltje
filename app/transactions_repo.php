@@ -9,12 +9,12 @@ function repo_list_months(PDO $db, int $userId): array {
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
             SUM(CASE
-                WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed
+                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN 0
+                WHEN amount_signed > 0 THEN amount_signed
                 WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
-                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN -amount_signed
                 ELSE 0
             END) AS net,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE
                 WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
                 WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN -amount_signed
@@ -40,12 +40,12 @@ function repo_list_years(PDO $db, int $userId): array {
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
             SUM(CASE
-                WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed
+                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN 0
+                WHEN amount_signed > 0 THEN amount_signed
                 WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
-                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN -amount_signed
                 ELSE 0
             END) AS net,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
             ABS(SUM(CASE
                 WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
                 WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN -amount_signed
@@ -798,7 +798,7 @@ function repo_period_summary(
         }
     }
 
-    $incomeCondition = 'amount_signed > 0 AND savings_id IS NULL';
+    $incomeCondition = 'amount_signed > 0';
     $topoffCondition = 'is_topup = 1 AND amount_signed < 0';
 
     $sql = "
@@ -811,9 +811,9 @@ function repo_period_summary(
             END) AS spending,
             ABS(SUM(CASE WHEN {$topoffCondition} THEN amount_signed ELSE 0 END)) AS topoffs,
             SUM(CASE
-                WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed
+                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN 0
+                WHEN amount_signed > 0 THEN amount_signed
                 WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
-                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN -amount_signed
                 ELSE 0
             END) AS net
         FROM transactions
@@ -866,7 +866,7 @@ function repo_period_breakdown_by_category(
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
 
-    $incomeCondition = 't.amount_signed > 0 AND t.savings_id IS NULL';
+    $incomeCondition = 't.amount_signed > 0';
     $topoffCondition = 't.is_topup = 1 AND t.amount_signed < 0';
 
     $sql = "
@@ -880,9 +880,9 @@ function repo_period_breakdown_by_category(
             END) AS spending,
             ABS(SUM(CASE WHEN {$topoffCondition} THEN t.amount_signed ELSE 0 END)) AS topoffs,
             SUM(CASE
-                WHEN t.amount_signed > 0 AND t.savings_id IS NULL THEN t.amount_signed
+                WHEN t.amount_signed > 0 AND t.savings_id IS NOT NULL THEN 0
+                WHEN t.amount_signed > 0 THEN t.amount_signed
                 WHEN t.amount_signed < 0 AND (t.savings_id IS NULL OR t.is_topup = 1) THEN t.amount_signed
-                WHEN t.amount_signed > 0 AND t.savings_id IS NOT NULL THEN -t.amount_signed
                 ELSE 0
             END) AS net
         FROM transactions t
@@ -929,7 +929,7 @@ function repo_period_breakdown_by_tag(
         }
     }
 
-    $incomeCondition = 't.amount_signed > 0 AND t.savings_id IS NULL';
+    $incomeCondition = 't.amount_signed > 0';
     $topoffCondition = 't.is_topup = 1 AND t.amount_signed < 0';
 
     $sql = "
@@ -943,9 +943,9 @@ function repo_period_breakdown_by_tag(
             END) AS spending,
             ABS(SUM(CASE WHEN {$topoffCondition} THEN t.amount_signed ELSE 0 END)) AS topoffs,
             SUM(CASE
-                WHEN t.amount_signed > 0 AND t.savings_id IS NULL THEN t.amount_signed
+                WHEN t.amount_signed > 0 AND t.savings_id IS NOT NULL THEN 0
+                WHEN t.amount_signed > 0 THEN t.amount_signed
                 WHEN t.amount_signed < 0 AND (t.savings_id IS NULL OR t.is_topup = 1) THEN t.amount_signed
-                WHEN t.amount_signed > 0 AND t.savings_id IS NOT NULL THEN -t.amount_signed
                 ELSE 0
             END) AS net
         FROM transactions t
@@ -1051,7 +1051,7 @@ function repo_year_monthly_totals_for_category(
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
 
-    $incomeCondition = 't.amount_signed > 0 AND t.savings_id IS NULL';
+    $incomeCondition = 't.amount_signed > 0';
 
     $sql = "
         SELECT
@@ -1134,7 +1134,7 @@ function repo_period_monthly_totals_for_category(
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
 
-    $incomeCondition = 't.amount_signed > 0 AND t.savings_id IS NULL';
+    $incomeCondition = 't.amount_signed > 0';
 
     $sql = "
         SELECT
