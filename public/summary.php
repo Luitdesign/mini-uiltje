@@ -480,8 +480,8 @@ document.addEventListener('DOMContentLoaded', function () {
 <div class="card">
   <h2>Notes</h2>
   <ul class="small" style="margin:0; padding-left:20px;">
-    <li><strong>Income</strong>: counts every positive transaction, including income connected to a ledger.</li>
-    <li><strong>Expenses</strong>: counts negative transactions, excludes expenses paid from a ledger, includes top-offs, and also treats positive ledger-connected transactions as expenses.</li>
+    <li><strong>Income</strong>: counts positive transactions that are not connected to a ledger.</li>
+    <li><strong>Expenses</strong>: counts negative transactions, excludes expenses paid from a ledger, includes top-offs, and treats positive ledger-connected transactions as expenses.</li>
     <li><strong>Top-offs</strong>: shows the portion of expenses that topped up a ledger.</li>
   </ul>
 </div>
