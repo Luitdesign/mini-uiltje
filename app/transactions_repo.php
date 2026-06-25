@@ -8,14 +8,18 @@ function repo_list_months(PDO $db, int $userId): array {
             MONTH(txn_date) AS m,
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN 0 ELSE amount_signed END) AS net,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
+            SUM(CASE
+                WHEN amount_signed > 0 THEN amount_signed
+                WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
+                ELSE 0
+            END) AS net,
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed ELSE 0 END)) AS spending,
+            ABS(SUM(CASE WHEN is_topup = 1 AND amount_signed < 0 THEN amount_signed ELSE 0 END)) AS topoffs
         FROM transactions
         WHERE user_id = :uid
           AND is_split_active = 1
           AND is_internal_transfer = 0
-          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
     ";
@@ -30,14 +34,18 @@ function repo_list_years(PDO $db, int $userId): array {
             YEAR(txn_date) AS y,
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN 0 ELSE amount_signed END) AS net,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
+            SUM(CASE
+                WHEN amount_signed > 0 THEN amount_signed
+                WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
+                ELSE 0
+            END) AS net,
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed ELSE 0 END)) AS spending,
+            ABS(SUM(CASE WHEN is_topup = 1 AND amount_signed < 0 THEN amount_signed ELSE 0 END)) AS topoffs
         FROM transactions
         WHERE user_id = :uid
           AND is_split_active = 1
           AND is_internal_transfer = 0
-          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
         GROUP BY YEAR(txn_date)
         ORDER BY y DESC
     ";
@@ -780,24 +788,25 @@ function repo_period_summary(
         }
     }
 
-    $incomeCondition = $excludeTopupsIncludeLedgers
-        ? 'amount_signed > 0'
-        : 'amount_signed > 0 AND savings_id IS NULL';
-    $rowFilter = $excludeTopupsIncludeLedgers
-        ? 'is_topup = 0'
-        : '(savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)';
+    $incomeCondition = 'amount_signed > 0';
+    $spendingCondition = 'amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1)';
+    $topoffCondition = 'is_topup = 1 AND amount_signed < 0';
 
     $sql = "
         SELECT
             SUM(CASE WHEN {$incomeCondition} THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending,
-            SUM(amount_signed) AS net
+            ABS(SUM(CASE WHEN {$spendingCondition} THEN amount_signed ELSE 0 END)) AS spending,
+            ABS(SUM(CASE WHEN {$topoffCondition} THEN amount_signed ELSE 0 END)) AS topoffs,
+            SUM(CASE
+                WHEN amount_signed > 0 THEN amount_signed
+                WHEN {$spendingCondition} THEN amount_signed
+                ELSE 0
+            END) AS net
         FROM transactions
         WHERE user_id = :uid
           {$whereDate}
           AND is_split_active = 1
           AND is_internal_transfer = 0
-          AND {$rowFilter}
     ";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -805,6 +814,7 @@ function repo_period_summary(
     return [
         'income' => (float)($row['income'] ?? 0),
         'spending' => (float)($row['spending'] ?? 0),
+        'topoffs' => (float)($row['topoffs'] ?? 0),
         'net' => (float)($row['net'] ?? 0),
     ];
 }
@@ -842,19 +852,21 @@ function repo_period_breakdown_by_category(
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
 
-    $incomeCondition = $excludeTopupsIncludeLedgers
-        ? 't.amount_signed > 0'
-        : 't.amount_signed > 0 AND t.savings_id IS NULL';
-    $rowFilter = $excludeTopupsIncludeLedgers
-        ? 't.is_topup = 0'
-        : '(t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)';
+    $incomeCondition = 't.amount_signed > 0';
+    $spendingCondition = 't.amount_signed < 0 AND (t.savings_id IS NULL OR t.is_topup = 1)';
+    $topoffCondition = 't.is_topup = 1 AND t.amount_signed < 0';
 
     $sql = "
         SELECT
             {$categoryExpression} AS category,
             SUM(CASE WHEN {$incomeCondition} THEN t.amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
-            SUM(t.amount_signed) AS net
+            ABS(SUM(CASE WHEN {$spendingCondition} THEN t.amount_signed ELSE 0 END)) AS spending,
+            ABS(SUM(CASE WHEN {$topoffCondition} THEN t.amount_signed ELSE 0 END)) AS topoffs,
+            SUM(CASE
+                WHEN t.amount_signed > 0 THEN t.amount_signed
+                WHEN {$spendingCondition} THEN t.amount_signed
+                ELSE 0
+            END) AS net
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories p ON p.id = c.parent_id
@@ -862,7 +874,6 @@ function repo_period_breakdown_by_category(
           {$whereDate}
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
-          AND {$rowFilter}
         GROUP BY category
         ORDER BY spending DESC, income DESC, category ASC
     ";
@@ -900,25 +911,26 @@ function repo_period_breakdown_by_tag(
         }
     }
 
-    $incomeCondition = $excludeTopupsIncludeLedgers
-        ? 't.amount_signed > 0'
-        : 't.amount_signed > 0 AND t.savings_id IS NULL';
-    $rowFilter = $excludeTopupsIncludeLedgers
-        ? 't.is_topup = 0'
-        : '(t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)';
+    $incomeCondition = 't.amount_signed > 0';
+    $spendingCondition = 't.amount_signed < 0 AND (t.savings_id IS NULL OR t.is_topup = 1)';
+    $topoffCondition = 't.is_topup = 1 AND t.amount_signed < 0';
 
     $sql = "
         SELECT
             t.tag AS raw_tag,
             SUM(CASE WHEN {$incomeCondition} THEN t.amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending,
-            SUM(t.amount_signed) AS net
+            ABS(SUM(CASE WHEN {$spendingCondition} THEN t.amount_signed ELSE 0 END)) AS spending,
+            ABS(SUM(CASE WHEN {$topoffCondition} THEN t.amount_signed ELSE 0 END)) AS topoffs,
+            SUM(CASE
+                WHEN t.amount_signed > 0 THEN t.amount_signed
+                WHEN {$spendingCondition} THEN t.amount_signed
+                ELSE 0
+            END) AS net
         FROM transactions t
         WHERE t.user_id = :uid
           {$whereDate}
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
-          AND {$rowFilter}
         GROUP BY raw_tag
     ";
     $stmt = $db->prepare($sql);
@@ -939,11 +951,13 @@ function repo_period_breakdown_by_tag(
                     'tag' => $tag,
                     'income' => 0.0,
                     'spending' => 0.0,
+                    'topoffs' => 0.0,
                     'net' => 0.0,
                 ];
             }
             $breakdown[$tag]['income'] += (float)$row['income'];
             $breakdown[$tag]['spending'] += (float)$row['spending'];
+            $breakdown[$tag]['topoffs'] += (float)($row['topoffs'] ?? 0);
             $breakdown[$tag]['net'] += (float)$row['net'];
         }
     }
@@ -1015,18 +1029,14 @@ function repo_year_monthly_totals_for_category(
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
 
-    $incomeCondition = $excludeTopupsIncludeLedgers
-        ? 't.amount_signed > 0'
-        : 't.amount_signed > 0 AND t.savings_id IS NULL';
-    $rowFilter = $excludeTopupsIncludeLedgers
-        ? 't.is_topup = 0'
-        : '(t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)';
+    $incomeCondition = 't.amount_signed > 0';
+    $spendingCondition = 't.amount_signed < 0 AND (t.savings_id IS NULL OR t.is_topup = 1)';
 
     $sql = "
         SELECT
             MONTH(t.txn_date) AS month_number,
             SUM(CASE WHEN {$incomeCondition} THEN t.amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending
+            ABS(SUM(CASE WHEN {$spendingCondition} THEN t.amount_signed ELSE 0 END)) AS spending
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories p ON p.id = c.parent_id
@@ -1035,7 +1045,6 @@ function repo_year_monthly_totals_for_category(
           AND {$categoryExpression} = :category_name
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
-          AND {$rowFilter}
         GROUP BY MONTH(t.txn_date)
         ORDER BY month_number ASC
     ";
@@ -1100,19 +1109,15 @@ function repo_period_monthly_totals_for_category(
         ? "COALESCE(p.name, c.name, 'Niet ingedeeld')"
         : "COALESCE(c.name, 'Niet ingedeeld')";
 
-    $incomeCondition = $excludeTopupsIncludeLedgers
-        ? 't.amount_signed > 0'
-        : 't.amount_signed > 0 AND t.savings_id IS NULL';
-    $rowFilter = $excludeTopupsIncludeLedgers
-        ? 't.is_topup = 0'
-        : '(t.savings_id IS NULL OR t.amount_signed >= 0 OR t.is_topup = 1)';
+    $incomeCondition = 't.amount_signed > 0';
+    $spendingCondition = 't.amount_signed < 0 AND (t.savings_id IS NULL OR t.is_topup = 1)';
 
     $sql = "
         SELECT
             YEAR(t.txn_date) AS year_number,
             MONTH(t.txn_date) AS month_number,
             SUM(CASE WHEN {$incomeCondition} THEN t.amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN t.amount_signed < 0 THEN t.amount_signed ELSE 0 END)) AS spending
+            ABS(SUM(CASE WHEN {$spendingCondition} THEN t.amount_signed ELSE 0 END)) AS spending
         FROM transactions t
         LEFT JOIN categories c ON c.id = t.category_id
         LEFT JOIN categories p ON p.id = c.parent_id
@@ -1121,7 +1126,6 @@ function repo_period_monthly_totals_for_category(
           AND {$categoryExpression} = :category_name
           AND t.is_split_active = 1
           AND t.is_internal_transfer = 0
-          AND {$rowFilter}
         GROUP BY YEAR(t.txn_date), MONTH(t.txn_date)
         ORDER BY year_number ASC, month_number ASC
     ";

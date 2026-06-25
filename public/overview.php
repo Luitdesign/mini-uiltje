@@ -45,7 +45,8 @@ render_header('Overview', 'overview');
           <th>Month</th>
           <th>Transactions</th>
           <th>Income</th>
-          <th>Spending</th>
+          <th>Expenses</th>
+          <th>Top-offs</th>
           <th>Net</th>
           <th>Links</th>
         </tr>
@@ -65,6 +66,7 @@ render_header('Overview', 'overview');
             <td><?= (int)$m['cnt'] ?>&nbsp;/<a style="color:var(--danger);" href="/transactions.php?year=<?= $y ?>&month=<?= $mo ?>&category_id=0"><?= (int)$m['uncategorized'] ?></a></td>
             <td class="money money-pos"><?= number_format((float)$m['income'], 2, ',', '.') ?></td>
             <td class="money money-neg"><?= number_format((float)$m['spending'], 2, ',', '.') ?></td>
+            <td class="money money-neg"><?= number_format((float)($m['topoffs'] ?? 0), 2, ',', '.') ?></td>
             <td class="money"><?= number_format((float)$m['net'], 2, ',', '.') ?></td>
             <td>
               <a href="/transactions.php?year=<?= $y ?>&month=<?= $mo ?>">Transactions</a>
@@ -94,14 +96,15 @@ render_header('Overview', 'overview');
           <th>Year</th>
           <th>Transactions</th>
           <th>Income</th>
-          <th>Spending</th>
+          <th>Expenses</th>
+          <th>Top-offs</th>
           <th>Net</th>
           <th>Links</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($years)): ?>
-          <tr><td colspan="6" class="small">No transactions yet. Go to <a href="/upload.php">Upload</a>.</td></tr>
+          <tr><td colspan="7" class="small">No transactions yet. Go to <a href="/upload.php">Upload</a>.</td></tr>
         <?php endif; ?>
 
         <?php foreach ($years as $y):
@@ -112,6 +115,7 @@ render_header('Overview', 'overview');
             <td><?= (int)$y['cnt'] ?>&nbsp;/<a style="color:var(--danger);" href="/transactions.php?year=<?= $year ?>&month=0&category_id=0"><?= (int)$y['uncategorized'] ?></a></td>
             <td class="money money-pos"><?= number_format((float)$y['income'], 2, ',', '.') ?></td>
             <td class="money money-neg"><?= number_format((float)$y['spending'], 2, ',', '.') ?></td>
+            <td class="money money-neg"><?= number_format((float)($y['topoffs'] ?? 0), 2, ',', '.') ?></td>
             <td class="money"><?= number_format((float)$y['net'], 2, ',', '.') ?></td>
             <td>
               <a href="/transactions.php?year=<?= $year ?>&month=0">Transactions</a>
