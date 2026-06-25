@@ -8,14 +8,18 @@ function repo_list_months(PDO $db, int $userId): array {
             MONTH(txn_date) AS m,
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN 0 ELSE amount_signed END) AS net,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
+            SUM(CASE
+                WHEN amount_signed > 0 THEN amount_signed
+                WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
+                ELSE 0
+            END) AS net,
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed ELSE 0 END)) AS spending,
+            ABS(SUM(CASE WHEN is_topup = 1 AND amount_signed < 0 THEN amount_signed ELSE 0 END)) AS topoffs
         FROM transactions
         WHERE user_id = :uid
           AND is_split_active = 1
           AND is_internal_transfer = 0
-          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
         GROUP BY YEAR(txn_date), MONTH(txn_date)
         ORDER BY y DESC, m DESC
     ";
@@ -30,14 +34,18 @@ function repo_list_years(PDO $db, int $userId): array {
             YEAR(txn_date) AS y,
             COUNT(*) AS cnt,
             SUM(CASE WHEN category_id IS NULL THEN 1 ELSE 0 END) AS uncategorized,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN 0 ELSE amount_signed END) AS net,
-            SUM(CASE WHEN amount_signed > 0 AND savings_id IS NULL THEN amount_signed ELSE 0 END) AS income,
-            ABS(SUM(CASE WHEN amount_signed < 0 THEN amount_signed ELSE 0 END)) AS spending
+            SUM(CASE
+                WHEN amount_signed > 0 THEN amount_signed
+                WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed
+                ELSE 0
+            END) AS net,
+            SUM(CASE WHEN amount_signed > 0 THEN amount_signed ELSE 0 END) AS income,
+            ABS(SUM(CASE WHEN amount_signed < 0 AND (savings_id IS NULL OR is_topup = 1) THEN amount_signed ELSE 0 END)) AS spending,
+            ABS(SUM(CASE WHEN is_topup = 1 AND amount_signed < 0 THEN amount_signed ELSE 0 END)) AS topoffs
         FROM transactions
         WHERE user_id = :uid
           AND is_split_active = 1
           AND is_internal_transfer = 0
-          AND (savings_id IS NULL OR amount_signed >= 0 OR is_topup = 1)
         GROUP BY YEAR(txn_date)
         ORDER BY y DESC
     ";
