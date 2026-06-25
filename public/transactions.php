@@ -60,6 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $categoryId = ($categoryIdRaw === '' ? null : (int)$categoryIdRaw);
                 if ($txnId > 0) {
                     repo_update_transaction_category($db, $userId, $txnId, $categoryId);
+                    $transaction = repo_get_transaction($db, $userId, $txnId);
+                    if ($transaction && !empty($transaction['is_topup'])) {
+                        continue;
+                    }
                     $ledgerSavingsId = null;
                     if ($categoryId !== null) {
                         $category = repo_get_category($db, $categoryId);
