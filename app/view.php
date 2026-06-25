@@ -11,8 +11,7 @@ function render_header(string $title, ?string $active = null): void {
 
     $username = $_SESSION['username'] ?? '';
     $nav = is_logged_in() ? [
-        ['Months', '/overview.php', 'months'],
-        ['Upload', '/upload.php', 'upload'],
+        ['Overview', '/overview.php', 'overview'],
         ['Transactions', '/transactions.php', 'transactions'],
         ['Tags', '/tag.php', 'tags'],
         ['Review', '/review.php', 'review'],

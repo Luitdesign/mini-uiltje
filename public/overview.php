@@ -34,6 +34,7 @@ render_header('Overview', 'overview');
   <div style="margin-top:8px; display:flex; gap:8px;">
     <a class="btn" href="/overview.php?view=months" <?= $viewMode === 'months' ? '' : 'style="background:transparent;color:var(--text);border:1px solid var(--line);"' ?>>Months</a>
     <a class="btn" href="/overview.php?view=years" <?= $viewMode === 'years' ? '' : 'style="background:transparent;color:var(--text);border:1px solid var(--line);"' ?>>Years</a>
+    <a class="btn" href="/upload.php" style="background:transparent;color:var(--text);border:1px solid var(--line);">Upload</a>
   </div>
 </div>
 
