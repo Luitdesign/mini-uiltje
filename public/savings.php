@@ -155,6 +155,7 @@ render_header('Savings', 'savings');
           <th>Default monthly amount</th>
           <th>Avg monthly income*</th>
           <th>Avg monthly spending*</th>
+          <th>Net avg income-spending*</th>
           <th>Top-up category</th>
           <th style="width:280px">Actions</th>
         </tr>
@@ -164,6 +165,8 @@ render_header('Savings', 'savings');
           <?php foreach ($savings as $index => $saving): ?>
           <?php
             $position = $index + 1;
+            $netAverage = (float)($saving['avg_monthly_income'] ?? 0) - (float)($saving['avg_monthly_spending'] ?? 0);
+            $netAverageClass = $netAverage < 0 ? 'money-neg' : 'money-pos';
           ?>
           <tr>
             <td>
@@ -176,6 +179,7 @@ render_header('Savings', 'savings');
             <td class="money"><?= number_format((float)$saving['monthly_amount'], 2, ',', '.') ?></td>
             <td class="money money-pos"><?= number_format((float)($saving['avg_monthly_income'] ?? 0), 2, ',', '.') ?></td>
             <td class="money money-neg"><?= number_format((float)($saving['avg_monthly_spending'] ?? 0), 2, ',', '.') ?></td>
+            <td class="money <?= h($netAverageClass) ?>"><?= number_format($netAverage, 2, ',', '.') ?></td>
             <td><?= !empty($saving['topup_category_name']) ? h((string)$saving['topup_category_name']) : '—' ?></td>
             <td>
               <div class="row" style="gap: 6px; flex-wrap: wrap;">
