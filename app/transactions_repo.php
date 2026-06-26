@@ -20,7 +20,11 @@ function repo_list_months(PDO $db, int $userId): array {
                 WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN -amount_signed
                 ELSE 0
             END)) AS spending,
-            ABS(SUM(CASE WHEN is_topup = 1 AND amount_signed < 0 THEN amount_signed ELSE 0 END)) AS topoffs
+            SUM(CASE
+                WHEN is_topup = 1 AND amount_signed < 0 THEN ABS(amount_signed)
+                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN amount_signed
+                ELSE 0
+            END) AS topoffs
         FROM transactions
         WHERE user_id = :uid
           AND is_split_active = 1
@@ -51,7 +55,11 @@ function repo_list_years(PDO $db, int $userId): array {
                 WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN -amount_signed
                 ELSE 0
             END)) AS spending,
-            ABS(SUM(CASE WHEN is_topup = 1 AND amount_signed < 0 THEN amount_signed ELSE 0 END)) AS topoffs
+            SUM(CASE
+                WHEN is_topup = 1 AND amount_signed < 0 THEN ABS(amount_signed)
+                WHEN amount_signed > 0 AND savings_id IS NOT NULL THEN amount_signed
+                ELSE 0
+            END) AS topoffs
         FROM transactions
         WHERE user_id = :uid
           AND is_split_active = 1
