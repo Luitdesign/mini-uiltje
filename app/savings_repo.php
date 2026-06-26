@@ -153,6 +153,52 @@ function repo_list_savings_entries(PDO $db, int $savingsId, ?int $limit = null):
     return $stmt->fetchAll();
 }
 
+
+function repo_savings_transaction_date_range(PDO $db, ?int $savingsId = null): array {
+    $where = 'WHERE savings_id IS NOT NULL AND is_split_active = 1';
+    $params = [];
+    if ($savingsId !== null) {
+        $where .= ' AND savings_id = :sid';
+        $params['sid'] = $savingsId;
+    }
+    $stmt = $db->prepare("SELECT MIN(txn_date) AS first_date, MAX(txn_date) AS latest_date FROM transactions {$where}");
+    $stmt->execute($params);
+    $range = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $range === false ? ['first_date' => null, 'latest_date' => null] : $range;
+}
+
+function repo_list_savings_entries_until(PDO $db, ?int $savingsId, ?string $endDate = null): array {
+    $where = 'WHERE t.savings_id IS NOT NULL AND t.is_split_active = 1';
+    $params = [];
+    if ($savingsId !== null) {
+        $where .= ' AND t.savings_id = :sid';
+        $params['sid'] = $savingsId;
+    }
+    if ($endDate !== null && $endDate !== '') {
+        $where .= ' AND t.txn_date <= :end_date';
+        $params['end_date'] = $endDate;
+    }
+    $sql = "SELECT t.id,
+                   t.savings_id,
+                   t.txn_date AS `date`,
+                   CASE
+                       WHEN t.is_topup = 1 THEN ABS(t.amount_signed)
+                       ELSE t.amount_signed
+                   END AS amount
+            FROM transactions t
+            {$where}
+            ORDER BY t.txn_date ASC, t.id ASC";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function repo_total_savings_start_amount(PDO $db): float {
+    $stmt = $db->query('SELECT COALESCE(SUM(start_amount), 0) FROM savings');
+    $value = $stmt->fetchColumn();
+    return $value === false ? 0.0 : (float)$value;
+}
+
 function repo_create_saving(
     PDO $db,
     string $name,

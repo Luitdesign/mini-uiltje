@@ -86,6 +86,45 @@ foreach ($savings as $saving) {
     $totalBalance += (float)$saving['balance'];
 }
 $defaultSortOrder = repo_next_savings_sort_order($db);
+$dateRange = repo_savings_transaction_date_range($db);
+$defaultStartDate = (string)($dateRange['first_date'] ?? '');
+$defaultEndDate = (string)($dateRange['latest_date'] ?? '');
+$chartStartDate = trim((string)($_GET['start_date'] ?? $defaultStartDate));
+$chartEndDate = trim((string)($_GET['end_date'] ?? $defaultEndDate));
+if ($chartStartDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $chartStartDate)) {
+    $chartStartDate = $defaultStartDate;
+}
+if ($chartEndDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $chartEndDate)) {
+    $chartEndDate = $defaultEndDate;
+}
+if ($chartStartDate !== '' && $chartEndDate !== '' && $chartStartDate > $chartEndDate) {
+    [$chartStartDate, $chartEndDate] = [$chartEndDate, $chartStartDate];
+}
+$timelineEntries = repo_list_savings_entries_until($db, null, $chartEndDate !== '' ? $chartEndDate : null);
+$chartPoints = [];
+$runningBalance = repo_total_savings_start_amount($db);
+$chartPoints[] = ['label' => $chartStartDate !== '' ? $chartStartDate : 'Start', 'balance' => $runningBalance];
+foreach ($timelineEntries as $timelineEntry) {
+    $entryDate = (string)($timelineEntry['date'] ?? '');
+    $runningBalance += (float)($timelineEntry['amount'] ?? 0);
+    if ($chartStartDate !== '' && $entryDate < $chartStartDate) {
+        $chartPoints[0]['balance'] = $runningBalance;
+        continue;
+    }
+    $chartPoints[] = ['label' => $entryDate, 'balance' => $runningBalance];
+}
+$chartMin = null;
+$chartMax = null;
+$showZeroLine = false;
+$balances = array_column($chartPoints, 'balance');
+if (!empty($balances)) {
+    $chartMin = (float)min($balances);
+    $chartMax = (float)max($balances);
+    $showZeroLine = $chartMin < 0.0;
+    if ($showZeroLine && $chartMax < 0.0) {
+        $chartMax = 0.0;
+    }
+}
 
 render_header('Savings', 'savings');
 ?>
@@ -141,6 +180,65 @@ render_header('Savings', 'savings');
   <?php if (empty($savings)): ?>
     <div class="small muted">No savings goals yet.</div>
   <?php else: ?>
+    <div class="card" style="margin-top: 12px;">
+      <div class="small" style="margin-bottom: 8px;">Savings development over time</div>
+      <form method="get" action="/savings.php" class="row" style="align-items: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+        <div style="min-width: 160px;">
+          <label>Start date</label>
+          <input class="input" name="start_date" type="date" value="<?= h($chartStartDate) ?>">
+        </div>
+        <div style="min-width: 160px;">
+          <label>End date</label>
+          <input class="input" name="end_date" type="date" value="<?= h($chartEndDate) ?>">
+        </div>
+        <button class="btn" type="submit">Update graph</button>
+        <?php if ($defaultStartDate !== '' && $defaultEndDate !== ''): ?>
+          <a class="small" href="/savings.php">Reset to full range</a>
+        <?php endif; ?>
+      </form>
+      <?php if (count($chartPoints) <= 1): ?>
+        <div class="small">No ledger activity yet. Add a top-up or link transactions to see a graph.</div>
+      <?php else: ?>
+        <?php
+          $chartWidth = 720;
+          $chartHeight = 220;
+          $paddingLeft = 52;
+          $paddingRight = 16;
+          $paddingTop = 16;
+          $paddingBottom = 34;
+          $plotWidth = $chartWidth - $paddingLeft - $paddingRight;
+          $plotHeight = $chartHeight - $paddingTop - $paddingBottom;
+          $pointCount = count($chartPoints);
+          $range = (float)(($chartMax ?? 0) - ($chartMin ?? 0));
+          if ($range <= 0.0) { $range = 1.0; }
+          $polylinePoints = [];
+          foreach ($chartPoints as $index => $point) {
+              $x = $paddingLeft + ($pointCount === 1 ? 0 : ($index / ($pointCount - 1)) * $plotWidth);
+              $normalized = (((float)$point['balance'] - (float)$chartMin) / $range);
+              $y = $paddingTop + ($plotHeight - ($normalized * $plotHeight));
+              $polylinePoints[] = sprintf('%.2f,%.2f', $x, $y);
+          }
+          $polyline = implode(' ', $polylinePoints);
+          $latestPoint = $chartPoints[$pointCount - 1];
+          $zeroLineY = null;
+          if ($showZeroLine) {
+              $zeroNormalized = (0.0 - (float)$chartMin) / $range;
+              $zeroLineY = $paddingTop + ($plotHeight - ($zeroNormalized * $plotHeight));
+          }
+        ?>
+        <svg viewBox="0 0 <?= $chartWidth ?> <?= $chartHeight ?>" width="100%" aria-label="Total savings balance development" role="img" style="display: block; width: 100%; height: auto; background: rgba(148,163,184,0.08); border-radius: 10px;">
+          <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop ?>" x2="<?= $paddingLeft ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
+          <line x1="<?= $paddingLeft ?>" y1="<?= $paddingTop + $plotHeight ?>" x2="<?= $paddingLeft + $plotWidth ?>" y2="<?= $paddingTop + $plotHeight ?>" stroke="rgba(148,163,184,0.4)" stroke-width="1" />
+          <?php if ($showZeroLine && $zeroLineY !== null): ?>
+            <line x1="<?= $paddingLeft ?>" y1="<?= $zeroLineY ?>" x2="<?= $paddingLeft + $plotWidth ?>" y2="<?= $zeroLineY ?>" stroke="rgba(220,38,38,0.9)" stroke-width="2" stroke-dasharray="5 4" />
+          <?php endif; ?>
+          <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="<?= h($polyline) ?>" />
+          <text x="<?= $paddingLeft ?>" y="<?= $paddingTop - 2 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMax, 2, ',', '.')) ?></text>
+          <text x="<?= $paddingLeft ?>" y="<?= $paddingTop + $plotHeight + 18 ?>" class="small" fill="currentColor">€ <?= h(number_format((float)$chartMin, 2, ',', '.')) ?></text>
+          <text x="<?= $paddingLeft + $plotWidth ?>" y="<?= $chartHeight - 8 ?>" text-anchor="end" class="small" fill="currentColor"><?= h((string)$latestPoint['label']) ?></text>
+        </svg>
+      <?php endif; ?>
+    </div>
     <div class="row" style="justify-content: flex-end; margin-top: 12px;">
       <div class="card" style="padding: 8px 12px;">
         <div class="small muted">Total balance</div>

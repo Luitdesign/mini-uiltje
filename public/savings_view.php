@@ -51,7 +51,21 @@ $ledgerToggleParams['ledger_view'] = $ledgerView === 'latest' ? 'all' : 'latest'
 $ledgerToggleUrl = '/savings_view.php' . ($ledgerToggleParams ? '?' . http_build_query($ledgerToggleParams) : '');
 $ledgerToggleLabel = $ledgerView === 'latest' ? 'Show all ledger entries' : 'Show latest 5 entries';
 $entries = $saving ? repo_list_savings_entries($db, (int)$saving['id'], $ledgerLimit) : [];
-$timelineEntries = $saving ? repo_list_savings_entries($db, (int)$saving['id']) : [];
+$dateRange = $saving ? repo_savings_transaction_date_range($db, (int)$saving['id']) : ['first_date' => null, 'latest_date' => null];
+$defaultStartDate = (string)($dateRange['first_date'] ?? '');
+$defaultEndDate = (string)($dateRange['latest_date'] ?? '');
+$chartStartDate = trim((string)($_GET['start_date'] ?? $defaultStartDate));
+$chartEndDate = trim((string)($_GET['end_date'] ?? $defaultEndDate));
+if ($chartStartDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $chartStartDate)) {
+    $chartStartDate = $defaultStartDate;
+}
+if ($chartEndDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $chartEndDate)) {
+    $chartEndDate = $defaultEndDate;
+}
+if ($chartStartDate !== '' && $chartEndDate !== '' && $chartStartDate > $chartEndDate) {
+    [$chartStartDate, $chartEndDate] = [$chartEndDate, $chartStartDate];
+}
+$timelineEntries = $saving ? repo_list_savings_entries_until($db, (int)$saving['id'], $chartEndDate !== '' ? $chartEndDate : null) : [];
 
 $chartPoints = [];
 $chartMin = null;
@@ -59,29 +73,23 @@ $chartMax = null;
 $showZeroLine = false;
 if ($saving) {
     $runningBalance = (float)$saving['start_amount'];
-    $orderedTimelineEntries = $timelineEntries;
-    usort(
-        $orderedTimelineEntries,
-        static function (array $left, array $right): int {
-            $leftDate = (string)($left['date'] ?? '');
-            $rightDate = (string)($right['date'] ?? '');
-            if ($leftDate === $rightDate) {
-                return ((int)($left['id'] ?? 0)) <=> ((int)($right['id'] ?? 0));
-            }
-            return $leftDate <=> $rightDate;
-        }
-    );
-
+    $chartStartLabel = $chartStartDate !== '' ? $chartStartDate : 'Start';
     $chartPoints[] = [
-        'label' => 'Start',
-        'date' => '',
+        'label' => $chartStartLabel,
+        'date' => $chartStartDate,
         'balance' => $runningBalance,
     ];
-    foreach ($orderedTimelineEntries as $timelineEntry) {
+
+    foreach ($timelineEntries as $timelineEntry) {
+        $entryDate = (string)($timelineEntry['date'] ?? '');
         $runningBalance += (float)($timelineEntry['amount'] ?? 0);
+        if ($chartStartDate !== '' && $entryDate < $chartStartDate) {
+            $chartPoints[0]['balance'] = $runningBalance;
+            continue;
+        }
         $chartPoints[] = [
-            'label' => (string)($timelineEntry['date'] ?? ''),
-            'date' => (string)($timelineEntry['date'] ?? ''),
+            'label' => $entryDate,
+            'date' => $entryDate,
             'balance' => $runningBalance,
         ];
     }
@@ -168,6 +176,21 @@ render_header('Saving details', 'savings');
 
     <div class="card" style="margin-top: 12px;">
       <div class="small" style="margin-bottom: 8px;">Savings development over time</div>
+      <form method="get" action="/savings_view.php" class="row" style="align-items: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+        <input type="hidden" name="id" value="<?= h((string)$saving['id']) ?>">
+        <div style="min-width: 160px;">
+          <label>Start date</label>
+          <input class="input" name="start_date" type="date" value="<?= h($chartStartDate) ?>">
+        </div>
+        <div style="min-width: 160px;">
+          <label>End date</label>
+          <input class="input" name="end_date" type="date" value="<?= h($chartEndDate) ?>">
+        </div>
+        <button class="btn" type="submit">Update graph</button>
+        <?php if ($defaultStartDate !== '' && $defaultEndDate !== ''): ?>
+          <a class="small" href="/savings_view.php?id=<?= h((string)$saving['id']) ?>">Reset to full range</a>
+        <?php endif; ?>
+      </form>
       <?php if (count($chartPoints) <= 1): ?>
         <div class="small">No ledger activity yet. Add a top-up or link transactions to see a graph.</div>
       <?php else: ?>
